@@ -1,0 +1,10 @@
+module main;
+
+fn add(a: Int, b: Int) [] -> Int {
+    a + b
+}
+
+fn main() [IO] -> Unit {
+    let x: Int = add(10, 20);
+    do exit(x);
+}

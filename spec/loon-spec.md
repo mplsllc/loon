@@ -205,6 +205,8 @@ Every Loon source file is a module. The module declaration must be first.
 module_decl = "module" IDENT ";"
 ```
 
+A module declaration with no `imports` or `exports` following it declares a self-contained module. This is the only form used in single-file programs.
+
 ### 4.4 Imports and Exports
 
 ```

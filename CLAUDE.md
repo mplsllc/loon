@@ -8,8 +8,9 @@ Every design decision optimizes for machine-verifiable intent.
 
 ## Current stage
 
-Stage 0 — writing the assembly seed.
-The spec is in spec/loon-spec.md.
+Stage 1 — writing the parser + codegen in assembly.
+Stage 0 (lexer) is complete and tested.
+The spec is in spec/loon-spec.md. The bootstrap subset is in spec/loon-0-spec.md.
 No Rust. No C. No existing language toolchain.
 
 ## What is absolutely banned
@@ -89,7 +90,16 @@ nasm -f elf64 -o out.o stage0/FILE.asm && ld -o out out.o
 
 # Test lexer against expected output
 ./lexer examples/hello.loon | diff - expected/hello.tokens
+
+# Stage 1: compile a Loon-0 program
+./stage0/lexer input.loon | ./stage1/compiler > output.asm
+nasm -f elf64 -o output.o output.asm && ld -o output output.o
+
+# Stage 1: dump AST (diagnostic mode — no stdout output)
+./stage0/lexer input.loon | ./stage1/compiler --dump-ast
 ```
+
+`--dump-ast` produces no stdout output and no output.asm — diagnostic mode only.
 
 ## Project structure
 
@@ -97,14 +107,60 @@ nasm -f elf64 -o out.o stage0/FILE.asm && ld -o out out.o
 loon/
 ├── CLAUDE.md              # This file
 ├── spec/
-│   └── loon-spec.md       # Complete language specification
+│   ├── loon-spec.md       # Complete language specification
+│   └── loon-0-spec.md     # Bootstrap subset specification
 ├── stage0/
 │   ├── Makefile
 │   ├── echo.asm           # M0.0: file echo
-│   ├── classify.asm       # M0.1: character classifier
-│   ├── keywords.asm       # M0.2: keyword recognizer
 │   ├── lexer.asm          # M0.3: full token emitter
 │   └── tests/
+├── stage1/
+│   ├── Makefile
+│   ├── ast-format.md      # Token/node enum contract (locked)
+│   ├── compiler.asm       # %include all below, _start entry point
+│   ├── token_reader.asm   # tok_*: stdin → token array
+│   ├── parser.asm         # par_*: tokens → AST nodes
+│   ├── expr_parser.asm    # expr_*: expression precedence climbing
+│   ├── match_parser.asm   # mpar_*: match arms
+│   ├── codegen.asm        # cg_*: AST → NASM output
+│   ├── codegen_expr.asm   # cgx_*: expression codegen
+│   ├── codegen_match.asm  # cgm_*: match codegen
+│   ├── codegen_io.asm     # cgio_*: string/print codegen
+│   ├── strings.asm        # str_*: string runtime
+│   ├── tests/
+│   └── expected/
 ├── examples/              # .loon source files
 ├── expected/              # Expected token output (ground truth)
+```
+
+## Stage 1 label prefix table
+
+Every internal label is prefixed by file abbreviation. No exceptions.
+
+| File | Prefix |
+|------|--------|
+| compiler.asm | `main_` |
+| token_reader.asm | `tok_` |
+| parser.asm | `par_` |
+| expr_parser.asm | `expr_` |
+| match_parser.asm | `mpar_` |
+| codegen.asm | `cg_` |
+| codegen_expr.asm | `cgx_` |
+| codegen_match.asm | `cgm_` |
+| codegen_io.asm | `cgio_` |
+| strings.asm | `str_` |
+
+## Stage 1 compiler.asm argv handling
+
+```
+; At _start, the stack contains:
+;   [rsp]     = argc (8 bytes, load with mov rax, [rsp])
+;   [rsp+8]   = argv[0] (program name pointer)
+;   [rsp+16]  = argv[1] (first argument pointer, if argc >= 2)
+;
+; To check --dump-ast:
+;   1. Load argc with: mov rax, [rsp]  (NOT mov eax, [rsp])
+;   2. If argc >= 2, load argv[1] pointer from [rsp+16]
+;   3. Inline byte-by-byte comparison against "--dump-ast" (10 bytes + null)
+;   4. Self-contained — does NOT call str_equals
 ```

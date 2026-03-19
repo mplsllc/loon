@@ -1,0 +1,23 @@
+module main;
+
+fn abs(x: Int) [] -> Int {
+    match x >= 0 {
+        true -> x,
+        false -> 0 - x,
+    }
+}
+
+fn describe(n: Int) [] -> String {
+    match n {
+        0 -> "zero",
+        1 -> "one",
+        _ -> "other",
+    }
+}
+
+fn main() [IO] -> Unit {
+    do print(int_to_string(abs(0 - 42)));
+    do print(describe(0));
+    do print(describe(1));
+    do print(describe(99));
+}

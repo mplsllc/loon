@@ -1,0 +1,7 @@
+module main;
+
+fn main() [IO] -> Unit {
+    for i in range(0, 5) {
+        do print(int_to_string(i));
+    };
+}

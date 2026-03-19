@@ -1,0 +1,7 @@
+module main;
+
+fn main() [IO] -> Unit {
+    let x: Int = 10;
+    let y: Int = x + 5;
+    do exit(y);
+}

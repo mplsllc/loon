@@ -1,0 +1,5 @@
+module main;
+
+fn main() [IO] -> Unit {
+    do exit(3 + 4 * 5);
+}

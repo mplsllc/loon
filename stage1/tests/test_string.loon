@@ -1,0 +1,10 @@
+module main;
+
+fn greet(name: String) [IO] -> Unit {
+    do print("Hello, " + name + "!");
+}
+
+fn main() [IO] -> Unit {
+    do greet("Loon");
+    do print("length: " + int_to_string(string_length("test")));
+}
