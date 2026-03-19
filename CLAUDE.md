@@ -1,5 +1,11 @@
 # Loon — CLAUDE.md
 
+## Why Loon exists
+
+Loon is built for a world where AI writes most of the code and humans describe what they want without specifying what they don't want. The vibe coder says "connect to the database and return the user." They don't say "don't log the password, don't expose the SSN, don't leak the API key, handle the missing user case."
+
+Loon's type system says it for them. Every constraint in this language — no null, exhaustive match, effect declarations, privacy types, structured compiler errors — exists so the compiler catches what the human forgot to say and the LLM didn't know to check. The goal is a language where incorrect code doesn't just fail — it doesn't compile.
+
 ## What this is
 
 Loon is a programming language bootstrapped from x86-64 assembly.

@@ -4,7 +4,9 @@ Version 0.1 — Draft
 
 ## 1. Overview
 
-Loon is a programming language designed for AI coding agents as the primary author. Every design decision optimizes for a single constraint: LLMs generate code token-by-token, left-to-right, and cannot revise previous tokens. The language must make correct generation structurally easy and incorrect generation structurally difficult.
+Loon is a programming language designed for AI coding agents as the primary author. Its primary design goal: make it structurally impossible to write code that leaks secrets, ignores errors, or breaks production — whether the author is a human, an LLM, or both.
+
+Every design decision optimizes for a single constraint: LLMs generate code token-by-token, left-to-right, and cannot revise previous tokens. The language must make correct generation structurally easy and incorrect generation structurally difficult.
 
 The core principle is **machine-checkable intent**: a function signature tells you what it does, what it needs, what it can affect, and what can go wrong — without running the program.
 
