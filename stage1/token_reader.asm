@@ -273,9 +273,11 @@ tok_ra_copy_value:
 tok_ra_value_done:
     ; ecx = value length
     mov dword [rdi+8], ecx          ; string_length
-    ; Update str_pos
+    ; Update str_pos with bounds check
     mov rax, [rel str_pos]
     add rax, rcx
+    cmp rax, MAX_STRINGS
+    jge tok_err_str_buf_overflow
     mov [rel str_pos], rax
     ; Skip closing quote
     inc r14

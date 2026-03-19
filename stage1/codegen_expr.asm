@@ -871,12 +871,18 @@ cgx_array_get_expr:
     mov rdx, cg_close_bracket_len
     call cg_write
 
+    ; Save r10 before evaluating index (index expr may clobber r10)
+    lea rsi, [rel cg_as_push_r10]
+    mov rdx, cg_as_push_r10_len
+    call cg_write
+
     ; Evaluate index expression
     mov edi, [r12 + 16]            ; first_child = index expr
     call cgx_emit_expr
-    ; rax = index. Emit: mov rax, [r10 + rax*8]
-    lea rsi, [rel cgx_array_load]
-    mov rdx, cgx_array_load_len
+
+    ; Restore r10, then load element: pop r10; mov rax, [r10 + rax*8]
+    lea rsi, [rel cgx_array_load_safe]
+    mov rdx, cgx_array_load_safe_len
     call cg_write
     jmp cgx_done
 
@@ -1064,3 +1070,7 @@ cgx_array_alloc_len equ $ - cgx_array_alloc
 cgx_array_load:
     db "    mov rax, qword [r10 + rax*8]", 10
 cgx_array_load_len  equ $ - cgx_array_load
+cgx_array_load_safe:
+    db "    pop r10", 10
+    db "    mov rax, qword [r10 + rax*8]", 10
+cgx_array_load_safe_len equ $ - cgx_array_load_safe
