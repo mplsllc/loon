@@ -227,3 +227,4 @@ main_itoa:
 ; ============================================================
 %include "token_reader.asm"
 %include "parser.asm"
+%include "expr_parser.asm"

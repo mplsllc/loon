@@ -121,6 +121,19 @@ par_dump_body_str_len equ $ - par_dump_body_str
 par_dump_params_str: db " params="
 par_dump_params_str_len equ $ - par_dump_params_str
 par_dump_newline: db 10
+par_dump_indent: db "    "
+par_dump_indent_len equ $ - par_dump_indent
+par_dump_lbracket: db "["
+par_dump_type_eq: db "] type="
+par_dump_type_eq_len equ $ - par_dump_type_eq
+par_dump_sub_eq: db " sub="
+par_dump_sub_eq_len equ $ - par_dump_sub_eq
+par_dump_ch_eq: db " children="
+par_dump_ch_eq_len equ $ - par_dump_ch_eq
+par_dump_first_eq: db " first="
+par_dump_first_eq_len equ $ - par_dump_first_eq
+par_dump_name_eq: db " name="
+par_dump_name_eq_len equ $ - par_dump_name_eq
 
 section .bss
 par_itoa_buf resb 32
@@ -529,48 +542,13 @@ par_pfd_effects_done:
     inc qword [rel tok_pos]
 par_pfd_no_ret_generic:
 
-    ; Parse body block: LBRACE ... RBRACE
-    ; For M1.2: skip body contents, create empty NODE_BLOCK
+    ; Parse body block: { stmts; expr? }
     call par_peek_type
     cmp eax, TOK_LBRACE
     jne par_die_expect_lbrace
 
-    ; Allocate NODE_BLOCK for body
-    call par_alloc_node
-    mov rbx, rax                    ; rbx = block node
-    mov byte [rbx], NODE_BLOCK
-    mov dword [rbx + 12], 0         ; child_count = 0
-    mov dword [rbx + 16], NO_CHILD
-    mov dword [rbx + 20], NO_CHILD
-
-    ; Store body node index in fn_decl's extra field
-    mov rax, [rel node_count]
-    dec rax
-    mov [r12 + 28], eax             ; extra = body node index
-
-    ; Skip body: count braces to find matching RBRACE
-    inc qword [rel tok_pos]         ; consume LBRACE
-    mov ecx, 1                      ; brace depth
-par_pfd_skip_body:
-    call par_peek_type
-    cmp eax, TOK_EOF
-    je par_pfd_body_done            ; unterminated — will be caught later
-    cmp eax, TOK_LBRACE
-    je par_pfd_skip_open
-    cmp eax, TOK_RBRACE
-    je par_pfd_skip_close
-    inc qword [rel tok_pos]
-    jmp par_pfd_skip_body
-par_pfd_skip_open:
-    inc ecx
-    inc qword [rel tok_pos]
-    jmp par_pfd_skip_body
-par_pfd_skip_close:
-    dec ecx
-    inc qword [rel tok_pos]
-    cmp ecx, 0
-    jg par_pfd_skip_body
-par_pfd_body_done:
+    call expr_parse_block           ; eax = BLOCK node index
+    mov [r12 + 28], eax             ; fn_decl.extra = body node index
 
     pop r15
     pop r14
@@ -761,8 +739,8 @@ par_da_loop:
     cmp eax, NODE_BLOCK
     je par_da_block
 
-    ; Unknown node — skip
-    jmp par_da_next
+    ; All other node types — print generic info
+    jmp par_da_generic
 
 par_da_module:
     ; Print "  MODULE name\n"
@@ -851,10 +829,115 @@ par_da_param:
     jmp par_da_next
 
 par_da_block:
-    ; Print "    BLOCK (body)\n"
+    ; Print "    BLOCK children=N\n"
     mov rdi, STDERR
     lea rsi, [rel par_dump_body_str]
     mov rdx, par_dump_body_str_len
+    mov rax, SYS_WRITE
+    syscall
+    jmp par_da_next
+
+par_da_generic:
+    ; Print "    [N] type=T sub=S child=C first=F sib=X"
+    ; Print node index
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_indent]
+    mov rdx, par_dump_indent_len
+    mov rax, SYS_WRITE
+    syscall
+    ; Print "["
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_lbracket]
+    mov rdx, 1
+    mov rax, SYS_WRITE
+    syscall
+    ; Index number
+    mov eax, r12d
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    ; Print "] type="
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_type_eq]
+    mov rdx, par_dump_type_eq_len
+    mov rax, SYS_WRITE
+    syscall
+    ; Node type number
+    movzx eax, byte [rbx]
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    ; Print " sub="
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_sub_eq]
+    mov rdx, par_dump_sub_eq_len
+    mov rax, SYS_WRITE
+    syscall
+    movzx eax, byte [rbx + 1]
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    ; Print " children="
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_ch_eq]
+    mov rdx, par_dump_ch_eq_len
+    mov rax, SYS_WRITE
+    syscall
+    mov eax, [rbx + 12]
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    ; Print " first="
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_first_eq]
+    mov rdx, par_dump_first_eq_len
+    mov rax, SYS_WRITE
+    syscall
+    mov eax, [rbx + 16]
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    ; Print name if has one
+    mov edx, [rbx + 8]             ; string_len
+    cmp edx, 0
+    je par_da_gen_noname
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_name_eq]
+    mov rdx, par_dump_name_eq_len
+    mov rax, SYS_WRITE
+    syscall
+    mov ecx, [rbx + 4]
+    mov edx, [rbx + 8]
+    mov rdi, STDERR
+    lea rsi, [rel strings]
+    add rsi, rcx
+    mov rax, SYS_WRITE
+    syscall
+par_da_gen_noname:
+    ; Newline
+    mov rdi, STDERR
+    lea rsi, [rel par_dump_newline]
+    mov rdx, 1
     mov rax, SYS_WRITE
     syscall
     jmp par_da_next
@@ -956,6 +1039,12 @@ par_die_expect_lbracket:
     mov rdi, STDERR
     lea rsi, [rel par_err_expect_lbracket]
     mov rdx, par_err_expect_lbracket_len
+    jmp par_die_print
+
+par_die_expect_rbracket:
+    mov rdi, STDERR
+    lea rsi, [rel par_err_expect_rbracket]
+    mov rdx, par_err_expect_rbracket_len
     jmp par_die_print
 
 par_die_expect_arrow:
