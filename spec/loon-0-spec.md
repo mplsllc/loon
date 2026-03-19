@@ -96,6 +96,8 @@ expr_stmt      = expr SEMICOLON
 
 `array_set_stmt` is the one form of mutation in Loon-0 — arrays are mutable containers (like buffers). The array name must be an `IDENT` (not an arbitrary expression). This is necessary for a compiler that builds token and node arrays.
 
+**Parser note:** `array_set_stmt` and `expr_stmt` both start with `IDENT`. To keep the grammar LL(1), bare array reads as expression statements (`arr[i];` with value discarded) are a parse error. An `expr_stmt` may not begin with `IDENT LBRACKET`. When the parser sees `IDENT LBRACKET`, it always parses `array_set_stmt`. Array reads are only valid as sub-expressions (e.g., `arr[i] + 1` or `do print(int_to_string(arr[i]))`).
+
 The last item in a block may be an expression without a semicolon — this is the block's return value (tagged `RETURN_EXPR` in the AST). All other expressions are statements (tagged `EXPR_STMT`).
 
 ### 4.6 Expressions
@@ -137,6 +139,8 @@ primary     = LIT_INT
             | LPAREN expr RPAREN
             | block
 ```
+
+Note: there is no negative integer literal token. Negative values are unary negation applied to a positive literal: `0 - 42` or `MINUS LIT_INT`. This means `-42` cannot appear as a match arm pattern — use `0 - 42` in expressions or match on the positive value.
 
 ### 4.7 Special Syntax: `Array(n)`
 

@@ -96,7 +96,7 @@ Max tokens: 262144 / 20 = **13107**.
 | 13 | NODE_UNARY_NEG | Arithmetic negation. One child. |
 | 14 | NODE_CALL | Function call. `string_ref` = function name. Children = argument expressions. |
 | 15 | NODE_DO_EXPR | `do` prefix. One child (the call expression). Codegen identical to child. |
-| 16 | NODE_MATCH | Match expression. First child = discriminant expression. Remaining children = ARM nodes. |
+| 16 | NODE_MATCH | Match expression. `child_count` = number of arms. `extra` = node index of discriminant expression. `first_child` = first ARM node (sibling chain contains exactly `child_count` ARM nodes). |
 | 17 | NODE_MATCH_ARM | One arm of a match. `extra` = pattern value (integer literal or 0/1 for bool). `sub_type` = 1 if wildcard arm, 0 if literal arm. First child = body expression. |
 | 18 | NODE_FOR | For loop. `string_ref` = loop variable name. Children: start expr, end expr, body block. |
 | 19 | NODE_ARRAY_NEW | Array constructor. First child = size expression. |
