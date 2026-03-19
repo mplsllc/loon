@@ -1,0 +1,8 @@
+module main;
+
+imports [math]
+
+fn main() [IO] -> Unit {
+    do print("abs(-5) = " + int_to_string(math.abs(0 - 5)));
+    do print("max(3,7) = " + int_to_string(math.max(3, 7)));
+}

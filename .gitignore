@@ -1,0 +1,6 @@
+# Built binaries
+stage0/echo
+stage0/classify
+stage0/keywords
+stage0/lexer
+*.o

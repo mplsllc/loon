@@ -1,0 +1,15 @@
+module main;
+
+fn add(a: Int, b: Int) [] -> Int {
+    a + b
+}
+
+fn greet(name: String) [IO] -> Unit {
+    do print("Hello, " + name);
+}
+
+fn main() [IO] -> Unit {
+    let sum = add(3, 4);
+    do print("Sum: " + int_to_string(sum));
+    do greet("Loon");
+}

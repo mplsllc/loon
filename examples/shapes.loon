@@ -1,0 +1,19 @@
+module main;
+
+type Shape {
+    Circle(radius: Float),
+    Rectangle(width: Float, height: Float),
+}
+
+fn area(s: Shape) [] -> Float {
+    match s {
+        Circle(r) -> 3.14159 * r * r,
+        Rectangle(w, h) -> w * h,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let c = Circle(5.0);
+    let a = area(c);
+    do print("Area: " + float_to_string(a));
+}
