@@ -142,8 +142,9 @@ Stored in `sub_type` field of `NODE_CALL` nodes when the function name matches a
 | 6 | BUILTIN_STRING_CHAR_AT | `string_char_at` |
 | 7 | BUILTIN_READ_FILE | `read_file` |
 | 8 | BUILTIN_EXIT | `exit` |
+| 9 | BUILTIN_GET_ARG | `get_arg` |
 
-Total: 9 values (0-8). `BUILTIN_NONE` (0) means the call is to a user-defined function — codegen emits a `call` to the function label.
+Total: 10 values (0-9). `BUILTIN_NONE` (0) means the call is to a user-defined function — codegen emits a `call` to the function label.
 
 The parser sets `sub_type` on `NODE_CALL` by comparing `string_ref` against the builtin name table at parse time. If no match, `sub_type = BUILTIN_NONE`.
 

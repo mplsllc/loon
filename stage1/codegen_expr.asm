@@ -442,6 +442,10 @@ cgx_call_expr:
     je cgx_call_int_to_string
     cmp eax, BUILTIN_STRING_LENGTH
     je cgx_call_string_length
+    cmp eax, BUILTIN_GET_ARG
+    je cgx_call_get_arg
+    cmp eax, BUILTIN_READ_FILE
+    je cgx_call_read_file
 
     ; General function call: evaluate args, push 16 bytes per arg (rax+rdx),
     ; then pop into register pairs (rdi/rsi, rdx/rcx, r8/r9)
@@ -584,6 +588,39 @@ cgx_call_string_length:
     call cg_write
     lea rsi, [rel cgx_call_sl_str]
     mov rdx, cgx_call_sl_str_len
+    call cg_write
+    jmp cgx_done
+
+cgx_call_read_file:
+    ; read_file(path: String): evaluate string arg → (rax=ptr, rdx=len)
+    ; Move to rdi=ptr, rsi=len, call fn_read_file → returns rax=ptr, rdx=len
+    mov edi, [r12 + 16]
+    cmp edi, NO_CHILD
+    je cgx_done
+    call cgx_emit_expr
+    lea rsi, [rel cgx_mov_rdi_rax]
+    mov rdx, cgx_mov_rdi_rax_len
+    call cg_write
+    lea rsi, [rel cgx_mov_rsi_rdx]
+    mov rdx, cgx_mov_rsi_rdx_len
+    call cg_write
+    lea rsi, [rel cgx_call_rf_str]
+    mov rdx, cgx_call_rf_str_len
+    call cg_write
+    jmp cgx_done
+
+cgx_call_get_arg:
+    ; get_arg(n): evaluate arg → rax, mov rdi,rax, call fn_get_arg
+    ; Returns rax=ptr, rdx=len
+    mov edi, [r12 + 16]
+    cmp edi, NO_CHILD
+    je cgx_done
+    call cgx_emit_expr
+    lea rsi, [rel cgx_mov_rdi_rax]
+    mov rdx, cgx_mov_rdi_rax_len
+    call cg_write
+    lea rsi, [rel cgx_call_get_arg_str]
+    mov rdx, cgx_call_get_arg_str_len
     call cg_write
     jmp cgx_done
 
@@ -1020,6 +1057,10 @@ cgx_call_its_str:   db "    call fn_int_to_string", 10
 cgx_call_its_str_len equ $ - cgx_call_its_str
 cgx_call_sl_str:    db "    call fn_string_length", 10
 cgx_call_sl_str_len equ $ - cgx_call_sl_str
+cgx_call_get_arg_str: db "    call fn_get_arg", 10
+cgx_call_get_arg_str_len equ $ - cgx_call_get_arg_str
+cgx_call_rf_str:    db "    call fn_read_file", 10
+cgx_call_rf_str_len equ $ - cgx_call_rf_str
 
 ; String concat
 cgx_push_rdx:       db "    push rdx", 10

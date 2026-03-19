@@ -37,14 +37,18 @@ cg_section_text_len equ $ - cg_section_text
 cg_global_start:    db "global _start", 10
 cg_global_start_len equ $ - cg_global_start
 
-cg_start_label:     db "_start:", 10
-cg_start_label_len  equ $ - cg_start_label
-cg_start_align:     db "    and rsp, -16", 10
-cg_start_align_len  equ $ - cg_start_align
-cg_start_call_main: db "    call fn_main", 10
-cg_start_call_main_len equ $ - cg_start_call_main
-cg_start_exit:      db "    xor rdi, rdi", 10, "    mov rax, 60", 10, "    syscall", 10
-cg_start_exit_len   equ $ - cg_start_exit
+cg_start_code:
+    db "_start:", 10
+    db "    mov rax, [rsp]", 10             ; argc
+    db "    mov [_argc], rax", 10
+    db "    lea rax, [rsp+8]", 10           ; pointer to argv array
+    db "    mov [_argv], rax", 10
+    db "    and rsp, -16", 10               ; align AFTER saving argv
+    db "    call fn_main", 10
+    db "    xor rdi, rdi", 10
+    db "    mov rax, 60", 10
+    db "    syscall", 10
+cg_start_code_len equ $ - cg_start_code
 
 cg_fn_prefix:       db "fn_"
 cg_fn_prefix_len    equ $ - cg_fn_prefix
@@ -124,6 +128,12 @@ cg_bump_pos_decl:   db "    _bump_pos  dq _bump_heap", 10
 cg_bump_pos_len     equ $ - cg_bump_pos_decl
 cg_newline_byte:    db "    _newline_byte db 10", 10
 cg_newline_byte_len equ $ - cg_newline_byte
+
+; Argv globals in compiled output
+cg_argv_decl:
+    db "    _argc resq 1", 10
+    db "    _argv resq 1", 10
+cg_argv_decl_len equ $ - cg_argv_decl
 
 ; Runtime function labels
 cg_rt_print_label:      db "fn_print:", 10
@@ -214,18 +224,9 @@ cg_ep_next:
     jmp cg_ep_walk
 
 cg_ep_funcs_done:
-    ; Emit _start
-    lea rsi, [rel cg_start_label]
-    mov rdx, cg_start_label_len
-    call cg_write
-    lea rsi, [rel cg_start_align]
-    mov rdx, cg_start_align_len
-    call cg_write
-    lea rsi, [rel cg_start_call_main]
-    mov rdx, cg_start_call_main_len
-    call cg_write
-    lea rsi, [rel cg_start_exit]
-    mov rdx, cg_start_exit_len
+    ; Emit _start (saves argc/argv, aligns stack, calls main, exits 0)
+    lea rsi, [rel cg_start_code]
+    mov rdx, cg_start_code_len
     call cg_write
 
     ; Emit runtime builtins
@@ -991,6 +992,9 @@ cg_emit_bss_section:
     lea rsi, [rel cg_bump_heap_decl]
     mov rdx, cg_bump_heap_len
     call cg_write
+    lea rsi, [rel cg_argv_decl]
+    mov rdx, cg_argv_decl_len
+    call cg_write
     lea rsi, [rel cg_newline]
     mov rdx, 1
     call cg_write
@@ -1026,6 +1030,16 @@ cg_emit_runtime:
     ; --- fn_string_concat: rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2 ---
     lea rsi, [rel cg_rt_string_concat]
     mov rdx, cg_rt_string_concat_len
+    call cg_write
+
+    ; --- fn_get_arg: rdi=n, returns rax=ptr, rdx=len ---
+    lea rsi, [rel cg_rt_get_arg]
+    mov rdx, cg_rt_get_arg_len
+    call cg_write
+
+    ; --- fn_read_file: rdi=path_ptr, rsi=path_len, returns rax=ptr, rdx=len ---
+    lea rsi, [rel cg_rt_read_file]
+    mov rdx, cg_rt_read_file_len
     call cg_write
 
     pop rbx
@@ -1163,6 +1177,87 @@ cg_rt_string_concat:
     db "    pop rbp", 10
     db "    ret", 10, 10
 cg_rt_string_concat_len equ $ - cg_rt_string_concat
+
+cg_rt_get_arg:
+    db "fn_get_arg:", 10
+    db "    ; get_arg(n: Int) -> String: returns (ptr, len) from argv[n]", 10
+    db "    push rbp", 10
+    db "    mov rbp, rsp", 10
+    db "    mov rax, [_argv]", 10           ; base of argv array
+    db "    mov rax, [rax + rdi*8]", 10     ; argv[n] pointer
+    db "    ; compute strlen", 10
+    db "    xor rdx, rdx", 10
+    db ".ga_len:", 10
+    db "    cmp byte [rax + rdx], 0", 10
+    db "    je .ga_done", 10
+    db "    inc rdx", 10
+    db "    jmp .ga_len", 10
+    db ".ga_done:", 10
+    db "    ; rax=ptr, rdx=len", 10
+    db "    mov rsp, rbp", 10
+    db "    pop rbp", 10
+    db "    ret", 10, 10
+cg_rt_get_arg_len equ $ - cg_rt_get_arg
+
+cg_rt_read_file:
+    db "fn_read_file:", 10
+    db "    ; read_file(path: String) -> String", 10
+    db "    ; rdi=path_ptr, rsi=path_len", 10
+    db "    ; returns rax=data_ptr, rdx=data_len", 10
+    db "    push rbp", 10
+    db "    mov rbp, rsp", 10
+    db "    push rdi", 10               ; save path_ptr
+    db "    push rsi", 10               ; save path_len
+    db "    ; Copy path to bump heap and null-terminate for open()", 10
+    db "    mov rcx, rsi", 10           ; path_len
+    db "    mov r8, [rel _bump_pos]", 10
+    db "    mov rdi, r8", 10            ; dest
+    db "    ; rsi already points to source (path_ptr was in rdi, but we need rsi=src)", 10
+    db "    pop rsi", 10                ; path_len
+    db "    pop rdi", 10                ; path_ptr -> now rdi=path_ptr
+    db "    push rsi", 10               ; re-save len
+    db "    mov rsi, rdi", 10           ; src = path_ptr
+    db "    mov rdi, r8", 10            ; dest = bump pos
+    db "    pop rcx", 10                ; len
+    db "    push rcx", 10               ; save again
+    db "    rep movsb", 10
+    db "    mov byte [rdi], 0", 10      ; null terminate
+    db "    pop rcx", 10                ; path_len
+    db "    lea rax, [rcx+1]", 10
+    db "    add [rel _bump_pos], rax", 10   ; advance past path+null
+    db "    ; open(path, O_RDONLY)", 10
+    db "    mov rdi, r8", 10            ; null-terminated path
+    db "    xor rsi, rsi", 10           ; O_RDONLY = 0
+    db "    xor rdx, rdx", 10
+    db "    mov rax, 2", 10             ; SYS_OPEN
+    db "    syscall", 10
+    db "    cmp rax, 0", 10
+    db "    jl .rf_err", 10
+    db "    mov r9, rax", 10            ; fd
+    db "    ; read into bump heap", 10
+    db "    mov r8, [rel _bump_pos]", 10
+    db "    mov rdi, r9", 10            ; fd
+    db "    mov rsi, r8", 10            ; buffer
+    db "    mov rdx, 65536", 10         ; max read
+    db "    mov rax, 0", 10             ; SYS_READ
+    db "    syscall", 10
+    db "    mov r10, rax", 10           ; bytes read
+    db "    add [rel _bump_pos], rax", 10
+    db "    ; close(fd)", 10
+    db "    mov rdi, r9", 10
+    db "    mov rax, 3", 10             ; SYS_CLOSE
+    db "    syscall", 10
+    db "    ; return (ptr, len)", 10
+    db "    mov rax, r8", 10
+    db "    mov rdx, r10", 10
+    db "    mov rsp, rbp", 10
+    db "    pop rbp", 10
+    db "    ret", 10
+    db ".rf_err:", 10
+    db "    mov rdi, 1", 10
+    db "    mov rax, 60", 10
+    db "    syscall", 10, 10
+cg_rt_read_file_len equ $ - cg_rt_read_file
 
 section .text
 
