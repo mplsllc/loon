@@ -63,6 +63,25 @@ cg_epilogue_len     equ $ - cg_epilogue
 
 cg_newline:         db 10
 
+; Variable access
+cg_mov_rbp_neg:     db "    mov qword [rbp-"
+cg_mov_rbp_neg_len  equ $ - cg_mov_rbp_neg
+cg_comma_space:     db "], "
+cg_comma_space_len  equ $ - cg_comma_space
+cg_load_rbp_neg:    db "    mov rax, qword [rbp-"
+cg_load_rbp_neg_len equ $ - cg_load_rbp_neg
+cg_close_bracket:   db "]", 10
+cg_close_bracket_len equ $ - cg_close_bracket
+
+; Register names
+cg_reg_rdi:         db "rdi"
+cg_reg_rsi:         db "rsi"
+cg_reg_rdx:         db "rdx"
+cg_reg_rcx:         db "rcx"
+cg_reg_r8:          db "r8"
+cg_reg_r9:          db "r9"
+cg_reg_rax:         db "rax"
+
 section .bss
 cg_outbuf   resb 8192      ; output buffer
 cg_outpos   resq 1         ; current write position in output buffer
@@ -163,21 +182,101 @@ cg_emit_fn:
     push r12
     push r13
     push r14
+    push r15
+    sub rsp, 8                     ; local: current stack offset
 
-    ; Get node pointer
+    ; Get fn_decl node pointer
     mov rax, rdi
     imul rax, NODE_SIZE
     lea rbx, [rel nodes]
-    add rbx, rax                    ; rbx = fn_decl node
+    add rbx, rax
     mov r12, rbx                    ; r12 = fn_decl node pointer
+
+    ; ---- Pre-pass: assign stack slots to params and locals ----
+    ; Stack layout (negative offsets from rbp):
+    ;   [rbp-8]   first param (Int) or first 8 bytes of String param
+    ;   [rbp-16]  second param or second 8 bytes of String param
+    ;   etc.
+    ; Int/Bool: 8 bytes. String/Array: 16 bytes (ptr then len).
+
+    xor r14d, r14d                  ; r14 = current offset (positive, negate for rbp)
+    ; Offset starts at 8 (first slot is [rbp-8])
+
+    ; Walk params via sibling chain
+    mov r13d, [r12 + 12]           ; param count
+    mov ebx, [r12 + 16]            ; first_child = first param index
+    xor r15d, r15d                  ; r15 = param counter
+
+    ; AMD64 ABI arg registers: rdi, rsi, rdx, rcx, r8, r9
+    ; For String params, ptr in one reg, len in next
+
+cg_ef_param_loop:
+    cmp r15d, r13d
+    jge cg_ef_params_done
+    cmp ebx, NO_CHILD
+    je cg_ef_params_done
+
+    ; Get param node
+    mov eax, ebx
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    add rdi, rax                    ; rdi = param node pointer
+
+    ; Check type_info for size
+    mov eax, [rdi + 24]            ; type_info
+    cmp eax, TYPE_STRING
+    je cg_ef_param_16
+    cmp eax, TYPE_ARRAY
+    je cg_ef_param_16
+
+    ; 8-byte param (Int, Bool, Unit)
+    add r14d, 8
+    mov [rdi + 28], r14d            ; extra = stack offset (positive)
+    jmp cg_ef_param_next
+
+cg_ef_param_16:
+    ; 16-byte param (String, Array) — ptr at offset, len at offset+8
+    add r14d, 16
+    mov [rdi + 28], r14d            ; extra = stack offset (of len; ptr is at offset-8)
+    jmp cg_ef_param_next
+
+cg_ef_param_next:
+    ; Follow sibling chain
+    mov eax, ebx
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov ebx, [rdi + rax + 20]      ; next_sibling
+    inc r15d
+    jmp cg_ef_param_loop
+
+cg_ef_params_done:
+    ; Walk body block to find LET bindings and assign slots
+    mov r13d, [r12 + 28]           ; extra = body block node index
+    cmp r13d, NO_CHILD
+    je cg_ef_prepass_done
+    mov edi, r13d
+    ; r14 still has current offset
+    call cg_assign_let_slots        ; walks block, assigns offsets, updates r14
+
+cg_ef_prepass_done:
+    ; Round up stack size to 16-byte alignment
+    mov eax, r14d
+    add eax, 15
+    and eax, 0xFFFFFFF0
+    cmp eax, 16
+    jge cg_ef_has_stack
+    mov eax, 16                     ; minimum 16 bytes
+cg_ef_has_stack:
+    mov [rsp], rax                  ; save stack size on our local
+
+    ; ---- Emit function code ----
 
     ; Emit label: fn_NAME:
     lea rsi, [rel cg_fn_prefix]
     mov rdx, cg_fn_prefix_len
     call cg_write
-    ; Function name from string table
-    mov ecx, [r12 + 4]             ; string_ref
-    mov edx, [r12 + 8]             ; string_len
+    mov ecx, [r12 + 4]
+    mov edx, [r12 + 8]
     lea rsi, [rel strings]
     add rsi, rcx
     call cg_write
@@ -193,12 +292,11 @@ cg_emit_fn:
     mov rdx, cg_prologue2_len
     call cg_write
 
-    ; Reserve stack space: 256 bytes for now (enough for locals)
-    ; TODO: calculate actual space needed per function
+    ; sub rsp, N
     lea rsi, [rel cg_sub_rsp]
     mov rdx, cg_sub_rsp_len
     call cg_write
-    mov eax, 256
+    mov rax, [rsp]                  ; stack size
     lea rdi, [rel cg_itoa_buf]
     call cg_itoa
     lea rsi, [rel cg_itoa_buf]
@@ -208,17 +306,117 @@ cg_emit_fn:
     mov rdx, 1
     call cg_write
 
-    ; Get body block node index from extra field
-    mov r13d, [r12 + 28]           ; extra = body node index
+    ; Emit parameter stores: move from registers to stack slots
+    ; AMD64 arg registers in order: rdi, rsi, rdx, rcx, r8, r9
+    mov r13d, [r12 + 12]           ; param count
+    mov ebx, [r12 + 16]            ; first param node index
+    xor r15d, r15d                  ; param index (for register selection)
+    xor r14d, r14d                  ; register index (advances by 2 for String params)
+
+cg_ef_store_params:
+    cmp r15d, r13d
+    jge cg_ef_store_done
+    cmp ebx, NO_CHILD
+    je cg_ef_store_done
+
+    ; Get param node
+    mov eax, ebx
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    add rdi, rax
+
+    mov eax, [rdi + 24]            ; type_info
+    mov ecx, [rdi + 28]            ; stack offset
+
+    cmp eax, TYPE_STRING
+    je cg_ef_store_str_param
+    cmp eax, TYPE_ARRAY
+    je cg_ef_store_str_param
+
+    ; 8-byte param: mov [rbp - offset], REG
+    push rbx
+    push rcx
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    pop rcx
+    mov eax, ecx
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    ; Write register name based on r14 (register index)
+    mov edi, r14d
+    call cg_write_argreg
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+    pop rbx
+    inc r14d                        ; next register
+    jmp cg_ef_store_param_next
+
+cg_ef_store_str_param:
+    ; 16-byte: store ptr at [rbp-(offset)], len at [rbp-(offset-8)]
+    ; ptr register = r14, len register = r14+1
+    push rbx
+    push rcx
+    ; Store ptr: mov [rbp - (offset)], REG
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    pop rcx
+    push rcx
+    mov eax, ecx                    ; offset = len position
+    ; ptr is at offset-8 for the convention: extra points to end of slot
+    ; Actually let's store ptr at lower address: [rbp - offset] = ptr, [rbp - (offset-8)] = len
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    mov edi, r14d
+    call cg_write_argreg
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+    inc r14d
+    ; Store len
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    pop rcx
+    mov eax, ecx
+    sub eax, 8                      ; len at offset-8
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    mov edi, r14d
+    call cg_write_argreg
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+    inc r14d
+    pop rbx
+    jmp cg_ef_store_param_next
+
+cg_ef_store_param_next:
+    ; Follow sibling chain
+    mov eax, ebx
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov ebx, [rdi + rax + 20]
+    inc r15d
+    jmp cg_ef_store_params
+
+cg_ef_store_done:
+    ; Emit body block
+    mov r13d, [r12 + 28]
     cmp r13d, NO_CHILD
     je cg_ef_epilogue
-
-    ; Emit body block
     mov edi, r13d
     call cg_emit_block
 
 cg_ef_epilogue:
-    ; Emit epilogue
     lea rsi, [rel cg_epilogue]
     mov rdx, cg_epilogue_len
     call cg_write
@@ -226,12 +424,115 @@ cg_ef_epilogue:
     mov rdx, 1
     call cg_write
 
+    add rsp, 8
+    pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
     pop rbp
     ret
+
+; ============================================================
+; cg_assign_let_slots — walk block children, assign stack offsets to LETs
+; Input: edi = block node index, r14d = current offset
+; Output: r14d updated with new offset after all let bindings
+; ============================================================
+cg_assign_let_slots:
+    push rbx
+    push r12
+
+    ; Get block node
+    mov eax, edi
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    mov r12d, [rbx + 16]           ; first_child
+
+cg_als_loop:
+    cmp r12d, NO_CHILD
+    je cg_als_done
+
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+
+    movzx eax, byte [rbx]
+    cmp eax, NODE_LET
+    jne cg_als_next
+
+    ; Found a LET — assign stack slot
+    mov eax, [rbx + 24]            ; type_info
+    cmp eax, TYPE_STRING
+    je cg_als_let_16
+    cmp eax, TYPE_ARRAY
+    je cg_als_let_16
+
+    ; 8-byte let binding
+    add r14d, 8
+    mov [rbx + 28], r14d            ; extra = offset
+    jmp cg_als_next
+
+cg_als_let_16:
+    add r14d, 16
+    mov [rbx + 28], r14d
+    jmp cg_als_next
+
+cg_als_next:
+    mov r12d, [rbx + 20]           ; next_sibling
+    jmp cg_als_loop
+
+cg_als_done:
+    pop r12
+    pop rbx
+    ret
+
+; ============================================================
+; cg_write_argreg — emit register name for AMD64 arg position
+; Input: edi = register index (0=rdi, 1=rsi, 2=rdx, 3=rcx, 4=r8, 5=r9)
+; ============================================================
+cg_write_argreg:
+    cmp edi, 0
+    je cg_war_rdi
+    cmp edi, 1
+    je cg_war_rsi
+    cmp edi, 2
+    je cg_war_rdx
+    cmp edi, 3
+    je cg_war_rcx
+    cmp edi, 4
+    je cg_war_r8
+    cmp edi, 5
+    je cg_war_r9
+    ; Fallback
+    lea rsi, [rel cg_reg_rdi]
+    mov rdx, 3
+    jmp cg_write
+cg_war_rdi:
+    lea rsi, [rel cg_reg_rdi]
+    mov rdx, 3
+    jmp cg_write
+cg_war_rsi:
+    lea rsi, [rel cg_reg_rsi]
+    mov rdx, 3
+    jmp cg_write
+cg_war_rdx:
+    lea rsi, [rel cg_reg_rdx]
+    mov rdx, 3
+    jmp cg_write
+cg_war_rcx:
+    lea rsi, [rel cg_reg_rcx]
+    mov rdx, 3
+    jmp cg_write
+cg_war_r8:
+    lea rsi, [rel cg_reg_r8]
+    mov rdx, 2
+    jmp cg_write
+cg_war_r9:
+    lea rsi, [rel cg_reg_r9]
+    mov rdx, 2
+    jmp cg_write
 
 ; ============================================================
 ; cg_emit_block — emit a BLOCK node's children
@@ -289,12 +590,34 @@ cg_eb_return_expr:
     jmp cg_eb_next
 
 cg_eb_let:
-    ; TODO: M1.6 handles let bindings with stack slots
-    ; For now just emit the initializer (value in rax, discarded)
+    ; Emit initializer expression (result in rax)
     mov edi, [rbx + 16]            ; first_child = initializer
     cmp edi, NO_CHILD
     je cg_eb_next
+    push rbx                        ; save current node pointer
     call cgx_emit_expr
+    pop rbx
+
+    ; Store rax to stack slot: mov [rbp - offset], rax
+    mov ecx, [rbx + 28]            ; extra = stack offset
+    cmp ecx, 0
+    je cg_eb_next                   ; no slot assigned
+    push rbx
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    mov eax, ecx
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    lea rsi, [rel cg_reg_rax]
+    mov rdx, 3
+    call cg_write
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+    pop rbx
     jmp cg_eb_next
 
 cg_eb_next:

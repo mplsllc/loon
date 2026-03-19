@@ -359,18 +359,87 @@ cgx_call_expr:
     cmp eax, BUILTIN_EXIT
     je cgx_call_exit
 
-    ; For M1.5: only handle exit. Other calls handled in M1.6.
-    ; For now, emit call fn_NAME with first arg in rdi
-    ; This is a stub — M1.6 will handle proper arg passing
-
-    ; Emit first arg into rax (if any)
+    ; General function call: evaluate args onto stack, then pop into registers
+    ; Step 1: push all args onto stack (in order, so first arg is deepest)
     mov edi, [r12 + 16]            ; first_child (first arg)
+    mov ecx, [r12 + 12]            ; child_count = arg count
+    push rcx                        ; save arg count
+
+cgx_call_push_args:
     cmp edi, NO_CHILD
-    je cgx_call_emit
-    call cgx_emit_expr
-    ; Move to rdi for first arg
-    lea rsi, [rel cgx_mov_rdi_rax]
-    mov rdx, cgx_mov_rdi_rax_len
+    je cgx_call_args_pushed
+    push rdi                        ; save current arg node index
+    call cgx_emit_expr              ; result in rax
+    ; Push result onto stack
+    lea rsi, [rel cgx_push_rax]
+    mov rdx, cgx_push_rax_len
+    call cg_write
+    ; Follow sibling chain to next arg
+    pop rdi
+    mov eax, edi
+    imul eax, NODE_SIZE
+    lea rsi, [rel nodes]
+    mov edi, [rsi + rax + 20]       ; next_sibling
+    jmp cgx_call_push_args
+
+cgx_call_args_pushed:
+    ; Step 2: pop args into registers in reverse order
+    ; Args are on stack: [rsp]=last_arg, ..., [rsp+N]=first_arg
+    ; We need first arg in rdi, second in rsi, etc.
+    ; Pop in reverse: pop into r9, r8, rcx, rdx, rsi, rdi
+    pop rcx                         ; arg count
+    ; Emit pops based on arg count
+    cmp ecx, 6
+    jg cgx_call_pop6                ; max 6 register args
+    mov edi, ecx
+    jmp cgx_call_pop_start
+cgx_call_pop6:
+    mov edi, 6
+cgx_call_pop_start:
+    ; Pop edi args, last popped goes to first register
+    ; We need to pop N times into temp, then assign
+    ; Simpler: pop directly into registers in reverse order
+    ; If 1 arg: pop rdi
+    ; If 2 args: pop rsi, pop rdi
+    ; If 3 args: pop rdx, pop rsi, pop rdi
+    cmp edi, 1
+    jl cgx_call_emit
+    cmp edi, 6
+    je cgx_call_pop_r9
+    cmp edi, 5
+    je cgx_call_pop_r8
+    cmp edi, 4
+    je cgx_call_pop_rcx
+    cmp edi, 3
+    je cgx_call_pop_rdx
+    cmp edi, 2
+    je cgx_call_pop_rsi
+    ; 1 arg
+    jmp cgx_call_pop_rdi
+
+cgx_call_pop_r9:
+    lea rsi, [rel cgx_pop_r9]
+    mov rdx, cgx_pop_r9_len
+    call cg_write
+cgx_call_pop_r8:
+    lea rsi, [rel cgx_pop_r8]
+    mov rdx, cgx_pop_r8_len
+    call cg_write
+cgx_call_pop_rcx:
+    lea rsi, [rel cgx_pop_rcx_reg]
+    mov rdx, cgx_pop_rcx_reg_len
+    call cg_write
+cgx_call_pop_rdx:
+    lea rsi, [rel cgx_pop_rdx]
+    mov rdx, cgx_pop_rdx_len
+    call cg_write
+cgx_call_pop_rsi:
+    lea rsi, [rel cgx_pop_rsi]
+    mov rdx, cgx_pop_rsi_len
+    call cg_write
+cgx_call_pop_rdi:
+    lea rsi, [rel cgx_pop_rdi]
+    mov rdx, cgx_pop_rdi_len
     call cg_write
 
 cgx_call_emit:
@@ -378,7 +447,6 @@ cgx_call_emit:
     lea rsi, [rel cgx_call]
     mov rdx, cgx_call_len
     call cg_write
-    ; Function name
     mov ecx, [r12 + 4]
     mov edx, [r12 + 8]
     lea rsi, [rel strings]
@@ -416,15 +484,24 @@ cgx_call_exit_emit:
     jmp cgx_done
 
 cgx_ident_ref:
-    ; TODO: M1.6 — load variable from stack slot
-    ; For now emit mov rax, 0 as placeholder
-    lea rsi, [rel cgx_mov_rax]
-    mov rdx, cgx_mov_rax_len
+    ; Load variable from stack slot
+    ; Find the PARAM or LET node with matching name to get its offset
+    mov ecx, [r12 + 4]             ; string_ref of this IDENT
+    mov edx, [r12 + 8]             ; string_len
+    ; Search backward through nodes for matching PARAM or LET
+    mov edi, ecx
+    mov esi, edx
+    call cgx_find_var_offset        ; returns offset in eax
+
+    ; Emit: mov rax, [rbp - offset]
+    push rax
+    lea rsi, [rel cg_load_rbp_neg]
+    mov rdx, cg_load_rbp_neg_len
     call cg_write
-    xor eax, eax
+    pop rax
     call cg_write_int
-    lea rsi, [rel cgx_newline]
-    mov rdx, 1
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
     call cg_write
     jmp cgx_done
 
@@ -455,8 +532,105 @@ cgx_done:
     pop rbp
     ret
 
+; ============================================================
+; cgx_find_var_offset — search AST for PARAM or LET with matching name
+; Input: edi = string_ref (name offset), esi = string_len (name length)
+; Output: eax = stack offset from that node's extra field
+; ============================================================
+cgx_find_var_offset:
+    push rbx
+    push rcx
+    push rdx
+    push r8
+    push r9
+    push r10
+
+    ; edi = name string_ref (offset), esi = name string_len
+    ; We need to compare actual bytes, not offsets
+    mov r9d, edi                    ; r9 = target name offset
+    mov r10d, esi                   ; r10 = target name length
+
+    xor ecx, ecx                   ; node index
+cgx_fvo_loop:
+    cmp ecx, [rel node_count]
+    jge cgx_fvo_not_found
+
+    mov eax, ecx
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+
+    movzx eax, byte [rbx]          ; node_type
+    cmp eax, NODE_PARAM
+    je cgx_fvo_check
+    cmp eax, NODE_LET
+    je cgx_fvo_check
+    jmp cgx_fvo_next
+
+cgx_fvo_check:
+    ; Compare string lengths first
+    mov eax, [rbx + 8]             ; candidate name_len
+    cmp eax, r10d
+    jne cgx_fvo_next
+
+    ; Compare actual string bytes
+    mov eax, [rbx + 4]             ; candidate name offset
+    lea rdx, [rel strings]
+    lea r8, [rdx + rax]            ; r8 = candidate name ptr
+    lea rdx, [rel strings]
+    mov eax, r9d
+    lea rdx, [rdx + rax]           ; rdx = target name ptr
+
+    xor eax, eax                   ; byte index
+cgx_fvo_cmp:
+    cmp eax, r10d
+    jge cgx_fvo_match
+    movzx edi, byte [r8 + rax]
+    cmp dil, byte [rdx + rax]
+    jne cgx_fvo_next
+    inc eax
+    jmp cgx_fvo_cmp
+
+cgx_fvo_match:
+    mov eax, [rbx + 28]            ; extra = stack offset
+    pop r10
+    pop r9
+    pop r8
+    pop rdx
+    pop rcx
+    pop rbx
+    ret
+
+cgx_fvo_next:
+    inc ecx
+    jmp cgx_fvo_loop
+
+cgx_fvo_not_found:
+    xor eax, eax
+    pop r10
+    pop r9
+    pop r8
+    pop rdx
+    pop rcx
+    pop rbx
+    ret
+
 section .data
 cgx_mov_rcx_rax:   db "    mov rcx, rax", 10
 cgx_mov_rcx_rax_len equ $ - cgx_mov_rcx_rax
 cgx_pop_rax:        db "    pop rax", 10
 cgx_pop_rax_len     equ $ - cgx_pop_rax
+
+; Pop instructions for call arg setup
+cgx_pop_rdi:        db "    pop rdi", 10
+cgx_pop_rdi_len     equ $ - cgx_pop_rdi
+cgx_pop_rsi:        db "    pop rsi", 10
+cgx_pop_rsi_len     equ $ - cgx_pop_rsi
+cgx_pop_rdx:        db "    pop rdx", 10
+cgx_pop_rdx_len     equ $ - cgx_pop_rdx
+cgx_pop_rcx_reg:    db "    pop rcx", 10
+cgx_pop_rcx_reg_len equ $ - cgx_pop_rcx_reg
+cgx_pop_r8:         db "    pop r8", 10
+cgx_pop_r8_len      equ $ - cgx_pop_r8
+cgx_pop_r9:         db "    pop r9", 10
+cgx_pop_r9_len      equ $ - cgx_pop_r9
