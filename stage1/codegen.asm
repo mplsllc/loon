@@ -82,10 +82,54 @@ cg_reg_r8:          db "r8"
 cg_reg_r9:          db "r9"
 cg_reg_rax:         db "rax"
 
+; Section headers
+cg_section_data:    db "section .data", 10
+cg_section_data_len equ $ - cg_section_data
+cg_section_bss:     db "section .bss", 10
+cg_section_bss_len  equ $ - cg_section_bss
+
+; String literal labels
+cg_str_label:       db "    _s"
+cg_str_label_len    equ $ - cg_str_label
+cg_str_db:          db '    db "'
+cg_str_db_len       equ $ - cg_str_db
+cg_str_db_end:      db '"', 10
+cg_str_db_end_len   equ $ - cg_str_db_end
+cg_str_len_label:   db "    _s"
+cg_str_len_lbl_len  equ $ - cg_str_len_label
+cg_str_len_equ:     db "_len equ "
+cg_str_len_equ_len  equ $ - cg_str_len_equ
+
+; Bump heap in compiled output
+cg_bump_heap_decl:  db "    _bump_heap resb 1048576", 10
+cg_bump_heap_len    equ $ - cg_bump_heap_decl
+cg_bump_pos_decl:   db "    _bump_pos  dq _bump_heap", 10
+cg_bump_pos_len     equ $ - cg_bump_pos_decl
+cg_newline_byte:    db "    _newline_byte db 10", 10
+cg_newline_byte_len equ $ - cg_newline_byte
+
+; Runtime function labels
+cg_rt_print_label:      db "fn_print:", 10
+cg_rt_print_label_len   equ $ - cg_rt_print_label
+cg_rt_print_raw_label:  db "fn_print_raw:", 10
+cg_rt_print_raw_label_len equ $ - cg_rt_print_raw_label
+cg_rt_int_to_string_label: db "fn_int_to_string:", 10
+cg_rt_int_to_string_label_len equ $ - cg_rt_int_to_string_label
+cg_rt_string_length_label: db "fn_string_length:", 10
+cg_rt_string_length_label_len equ $ - cg_rt_string_length_label
+cg_rt_string_equals_label: db "fn_string_equals:", 10
+cg_rt_string_equals_label_len equ $ - cg_rt_string_equals_label
+cg_rt_string_concat_label: db "fn_string_concat:", 10
+cg_rt_string_concat_label_len equ $ - cg_rt_string_concat_label
+
 section .bss
 cg_outbuf   resb 8192      ; output buffer
 cg_outpos   resq 1         ; current write position in output buffer
 cg_itoa_buf resb 32        ; scratch for number→string
+cg_str_lit_count resq 1    ; number of string literals emitted in .data
+; Map: string literal node index → str_lit label number
+; (we assign label numbers sequentially as we encounter STR_LIT nodes)
+cg_str_lit_map resb 65536  ; 16384 nodes * 4 bytes = node_index → label_number
 
 section .text
 
@@ -102,9 +146,16 @@ cg_emit_program:
     push r14
     push r15
 
-    ; Initialize output buffer
+    ; Initialize output buffer and string literal counter
     xor rax, rax
     mov [rel cg_outpos], rax
+    mov [rel cg_str_lit_count], rax
+
+    ; Emit: section .data (string literals + runtime data)
+    call cg_emit_data_section
+
+    ; Emit: section .bss (bump heap)
+    call cg_emit_bss_section
 
     ; Emit: section .text
     lea rsi, [rel cg_section_text]
@@ -159,6 +210,9 @@ cg_ep_funcs_done:
     lea rsi, [rel cg_start_exit]
     mov rdx, cg_start_exit_len
     call cg_write
+
+    ; Emit runtime builtins
+    call cg_emit_runtime
 
     ; Flush output buffer
     call cg_flush
@@ -333,7 +387,7 @@ cg_ef_store_params:
     cmp eax, TYPE_ARRAY
     je cg_ef_store_str_param
 
-    ; 8-byte param: mov [rbp - offset], REG
+    ; 8-byte param: mov [rbp - offset], REG (first of the pair)
     push rbx
     push rcx
     lea rsi, [rel cg_mov_rbp_neg]
@@ -352,7 +406,7 @@ cg_ef_store_params:
     mov rdx, 1
     call cg_write
     pop rbx
-    inc r14d                        ; next register
+    add r14d, 2                     ; skip pair (caller pushes 16 bytes per arg)
     jmp cg_ef_store_param_next
 
 cg_ef_store_str_param:
@@ -635,6 +689,292 @@ cg_eb_done:
     pop rbx
     pop rbp
     ret
+
+; ============================================================
+; cg_emit_data_section — emit .data with string literals
+; Walk all AST nodes, find NODE_STR_LIT, emit each as a label
+; ============================================================
+cg_emit_data_section:
+    push rbx
+    push r12
+    push r13
+
+    lea rsi, [rel cg_section_data]
+    mov rdx, cg_section_data_len
+    call cg_write
+
+    ; Emit newline byte constant (used by print)
+    lea rsi, [rel cg_newline_byte]
+    mov rdx, cg_newline_byte_len
+    call cg_write
+
+    ; Emit bump_pos (initialized to bump_heap address)
+    lea rsi, [rel cg_bump_pos_decl]
+    mov rdx, cg_bump_pos_len
+    call cg_write
+
+    ; Walk all nodes for STR_LIT
+    xor r12d, r12d                  ; node index
+    xor r13d, r13d                  ; string literal counter
+
+cg_eds_loop:
+    cmp r12, [rel node_count]
+    jge cg_eds_done
+
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+
+    movzx eax, byte [rbx]
+    cmp eax, NODE_STR_LIT
+    jne cg_eds_next
+
+    ; Found a STR_LIT — emit: _sN db "contents"\n  _sN_len equ N
+    ; Store mapping: node index → label number
+    mov eax, r12d
+    lea rdi, [rel cg_str_lit_map]
+    mov dword [rdi + rax*4], r13d
+
+    ; Emit: _sN db "..."
+    ; Label: _sN:  (but we use  _sN  db  "..." format for NASM)
+    lea rsi, [rel cg_str_label]
+    mov rdx, cg_str_label_len
+    call cg_write
+    mov eax, r13d
+    call cg_write_int
+    lea rsi, [rel cg_str_db]       ; ' db "'
+    mov rdx, cg_str_db_len
+    call cg_write
+
+    ; Write the actual string bytes from the string table
+    mov ecx, [rbx + 4]             ; string_ref
+    mov edx, [rbx + 8]             ; string_len
+    lea rsi, [rel strings]
+    add rsi, rcx
+    call cg_write
+
+    ; Close quote + newline
+    lea rsi, [rel cg_str_db_end]
+    mov rdx, cg_str_db_end_len
+    call cg_write
+
+    ; Emit: _sN_len equ N
+    lea rsi, [rel cg_str_label]
+    mov rdx, cg_str_label_len
+    call cg_write
+    mov eax, r13d
+    call cg_write_int
+    lea rsi, [rel cg_str_len_equ]
+    mov rdx, cg_str_len_equ_len
+    call cg_write
+    mov eax, [rbx + 8]             ; string_len
+    call cg_write_int
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+
+    inc r13d                        ; next label number
+
+cg_eds_next:
+    inc r12
+    jmp cg_eds_loop
+
+cg_eds_done:
+    mov [rel cg_str_lit_count], r13
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; ============================================================
+; cg_emit_bss_section — emit .bss with bump heap
+; ============================================================
+cg_emit_bss_section:
+    lea rsi, [rel cg_section_bss]
+    mov rdx, cg_section_bss_len
+    call cg_write
+    lea rsi, [rel cg_bump_heap_decl]
+    mov rdx, cg_bump_heap_len
+    call cg_write
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+    ret
+
+; ============================================================
+; cg_emit_runtime — emit runtime builtin functions
+; These are NASM functions included in the compiled output
+; ============================================================
+cg_emit_runtime:
+    push rbx
+
+    ; --- fn_print: write(1, ptr=rdi, len=rsi) then write(1, newline, 1) ---
+    lea rsi, [rel cg_rt_print]
+    mov rdx, cg_rt_print_len
+    call cg_write
+
+    ; --- fn_print_raw: write(1, ptr=rdi, len=rsi) ---
+    lea rsi, [rel cg_rt_print_raw]
+    mov rdx, cg_rt_print_raw_len
+    call cg_write
+
+    ; --- fn_int_to_string: rdi=int, returns rax=ptr, rdx=len ---
+    lea rsi, [rel cg_rt_int_to_string]
+    mov rdx, cg_rt_int_to_string_len
+    call cg_write
+
+    ; --- fn_string_length: rdi=ptr, rsi=len, returns rax=len ---
+    lea rsi, [rel cg_rt_string_length]
+    mov rdx, cg_rt_string_length_len
+    call cg_write
+
+    ; --- fn_string_concat: rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2 ---
+    lea rsi, [rel cg_rt_string_concat]
+    mov rdx, cg_rt_string_concat_len
+    call cg_write
+
+    pop rbx
+    ret
+
+section .data
+; Runtime function implementations as literal NASM text
+; Each is a complete function emitted into the compiled binary
+
+cg_rt_print:
+    db "fn_print:", 10
+    db "    push rdi", 10
+    db "    push rsi", 10
+    db "    mov rdx, rsi", 10       ; len
+    db "    mov rsi, rdi", 10       ; ptr
+    db "    mov rdi, 1", 10         ; stdout
+    db "    mov rax, 1", 10         ; write
+    db "    syscall", 10
+    db "    mov rdi, 1", 10
+    db "    lea rsi, [rel _newline_byte]", 10
+    db "    mov rdx, 1", 10
+    db "    mov rax, 1", 10
+    db "    syscall", 10
+    db "    pop rsi", 10
+    db "    pop rdi", 10
+    db "    ret", 10, 10
+cg_rt_print_len equ $ - cg_rt_print
+
+cg_rt_print_raw:
+    db "fn_print_raw:", 10
+    db "    mov rdx, rsi", 10
+    db "    mov rsi, rdi", 10
+    db "    mov rdi, 1", 10
+    db "    mov rax, 1", 10
+    db "    syscall", 10
+    db "    ret", 10, 10
+cg_rt_print_raw_len equ $ - cg_rt_print_raw
+
+cg_rt_int_to_string:
+    db "fn_int_to_string:", 10
+    db "    push rbp", 10
+    db "    mov rbp, rsp", 10
+    db "    sub rsp, 32", 10        ; local buffer
+    db "    mov r8, rdi", 10        ; save original value
+    db "    lea r9, [rbp-1]", 10    ; write position (end of buffer, backwards)
+    db "    xor ecx, ecx", 10      ; digit count
+    db "    cmp rdi, 0", 10
+    db "    jge .its_pos", 10
+    db "    neg rdi", 10
+    db ".its_pos:", 10
+    db "    cmp rdi, 0", 10
+    db "    jne .its_loop", 10
+    db "    mov byte [r9], '0'", 10
+    db "    inc ecx", 10
+    db "    dec r9", 10
+    db "    jmp .its_sign", 10
+    db ".its_loop:", 10
+    db "    cmp rdi, 0", 10
+    db "    je .its_sign", 10
+    db "    xor edx, edx", 10
+    db "    mov rax, rdi", 10
+    db "    mov rbx, 10", 10
+    db "    div rbx", 10
+    db "    add dl, '0'", 10
+    db "    mov byte [r9], dl", 10
+    db "    dec r9", 10
+    db "    inc ecx", 10
+    db "    mov rdi, rax", 10
+    db "    jmp .its_loop", 10
+    db ".its_sign:", 10
+    db "    cmp r8, 0", 10
+    db "    jge .its_done", 10
+    db "    mov byte [r9], '-'", 10
+    db "    dec r9", 10
+    db "    inc ecx", 10
+    db ".its_done:", 10
+    db "    ; Copy to bump heap", 10
+    db "    mov rsi, [rel _bump_pos]", 10
+    db "    lea rdi, [r9+1]", 10    ; start of digits
+    db "    mov rdx, rcx", 10       ; length
+    db "    push rcx", 10           ; save length
+    db "    ; memcpy rsi=src→rdi=dst? No: rdi=dest, rsi=src for rep movsb", 10
+    db "    mov rdi, [rel _bump_pos]", 10
+    db "    lea rsi, [r9+1]", 10
+    db "    mov rcx, rdx", 10
+    db "    rep movsb", 10
+    db "    pop rcx", 10
+    db "    mov rax, [rel _bump_pos]", 10  ; return ptr
+    db "    mov rdx, rcx", 10       ; return len
+    db "    add qword [rel _bump_pos], rcx", 10
+    db "    mov rsp, rbp", 10
+    db "    pop rbp", 10
+    db "    ret", 10, 10
+cg_rt_int_to_string_len equ $ - cg_rt_int_to_string
+
+cg_rt_string_length:
+    db "fn_string_length:", 10
+    db "    mov rax, rsi", 10       ; len is in rsi (second part of String param)
+    db "    ret", 10, 10
+cg_rt_string_length_len equ $ - cg_rt_string_length
+
+cg_rt_string_concat:
+    db "fn_string_concat:", 10
+    db "    ; rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2", 10
+    db "    push rbp", 10
+    db "    mov rbp, rsp", 10
+    db "    push rdi", 10           ; save ptr1
+    db "    push rsi", 10           ; save len1
+    db "    push rdx", 10           ; save ptr2
+    db "    push rcx", 10           ; save len2
+    db "    ; Total length", 10
+    db "    mov rax, rsi", 10
+    db "    add rax, rcx", 10       ; total = len1 + len2
+    db "    ; Allocate from bump heap", 10
+    db "    mov r8, [rel _bump_pos]", 10
+    db "    add [rel _bump_pos], rax", 10
+    db "    ; Copy first string", 10
+    db "    mov rdi, r8", 10        ; dest
+    db "    mov rsi, [rbp-8]", 10   ; ptr1
+    db "    mov rcx, [rbp-16]", 10  ; len1
+    db "    rep movsb", 10
+    db "    ; Copy second string", 10
+    db "    mov rsi, [rbp-24]", 10  ; ptr2
+    db "    mov rcx, [rbp-32]", 10  ; len2
+    db "    rep movsb", 10
+    db "    ; Return (ptr, total_len)", 10
+    db "    mov rax, r8", 10
+    db "    pop rcx", 10            ; len2
+    db "    pop rdx", 10            ; ptr2
+    db "    pop rsi", 10            ; len1
+    db "    pop rdi", 10            ; ptr1
+    db "    add rsi, rcx", 10       ; total_len = len1 + len2
+    db "    mov rdx, rsi", 10       ; rdx = total length
+    db "    mov rsp, rbp", 10
+    db "    pop rbp", 10
+    db "    ret", 10, 10
+cg_rt_string_concat_len equ $ - cg_rt_string_concat
+
+section .text
 
 ; ============================================================
 ; Output helpers — buffered writes to stdout

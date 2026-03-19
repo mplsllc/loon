@@ -107,6 +107,16 @@ nasm -f elf64 -o output.o output.asm && ld -o output output.o
 
 `--dump-ast` produces no stdout output and no output.asm — diagnostic mode only.
 
+## String return convention
+
+Functions returning String or Array return a 16-byte (ptr, len) pair:
+- `rax` = pointer
+- `rdx` = length
+
+This applies to all builtins (`int_to_string`, `string_concat`, `read_file`) and all user-defined functions returning String or Array. Callers must capture both `rax` and `rdx` after any such call.
+
+For String parameters: `rdi`=ptr, `rsi`=len (first param). Second String param: `rdx`=ptr, `rcx`=len.
+
 ## Project structure
 
 ```

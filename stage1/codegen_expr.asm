@@ -157,6 +157,15 @@ cgx_bool_lit:
     jmp cgx_done
 
 cgx_binop:
+    ; Check for string concat — needs separate code path (16-byte values)
+    movzx eax, byte [r12 + 1]
+    cmp eax, BINOP_ADD
+    jne cgx_binop_generic
+    mov eax, [r12 + 24]
+    cmp eax, TYPE_STRING
+    je cgx_binop_str_concat
+
+cgx_binop_generic:
     ; Emit left child → push rax → emit right child → pop rcx → operation
     mov edi, [r12 + 16]            ; first_child (left)
     call cgx_emit_expr
@@ -224,6 +233,73 @@ cgx_binop:
     jmp cgx_done                    ; unknown op
 
 cgx_op_add:
+    ; String + is intercepted before generic binop. If we get here, it's Int.
+    lea rsi, [rel cgx_add]
+    mov rdx, cgx_add_len
+    call cg_write
+    jmp cgx_done
+
+cgx_binop_str_concat:
+    ; String concat: emit left (rax=ptr, rdx=len), push both,
+    ; emit right (rax=ptr, rdx=len), arrange args, call fn_string_concat
+    ; fn_string_concat(rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2) -> rax=ptr, rdx=len
+    mov edi, [r12 + 16]            ; left child
+    call cgx_emit_expr              ; rax=ptr, rdx=len
+    ; Push both ptr and len
+    lea rsi, [rel cgx_push_rax]
+    mov rdx, cgx_push_rax_len
+    call cg_write
+    lea rsi, [rel cgx_push_rdx]
+    mov rdx, cgx_push_rdx_len
+    call cg_write
+    ; Emit right child
+    mov eax, [r12 + 16]            ; left child index
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    mov edi, [rbx + rax + 20]      ; right child
+    call cgx_emit_expr              ; rax=ptr2, rdx=len2
+    ; Set up args: rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2
+    ; Current: rax=ptr2, rdx=len2. Stack has [rsp]=len1, [rsp+8]=ptr1
+    ; mov rcx, rdx (len2)
+    ; mov rdx, rax (ptr2)
+    ; pop rsi (len1)
+    ; pop rdi (ptr1)
+    lea rsi, [rel cgx_str_concat_setup]
+    mov rdx, cgx_str_concat_setup_len
+    call cg_write
+    jmp cgx_done
+
+; (dead code from refactor removed)
+    ; dead path — all comments below are inert, guarded by jmp above
+    ; rax=right.ptr, rdx=right.len. But the push/pop is for single 8-byte values.
+    ; For string binop we need a different approach:
+    ; Left string is in (rax, rdx) → push both → eval right → set up 4 args → call concat
+    ; Actually the current binop flow pushes rax after left, then evaluates right.
+    ; For strings, left produces (rax=ptr, rdx=len). We pushed rax (ptr only).
+    ; We need to also have pushed rdx. Let me fix the approach:
+    ; The generic binop code already ran: emit left → push rax → emit right → mov rcx,rax → pop rax
+    ; So now: rax = left.ptr (from push/pop), rcx = right.ptr
+    ; But we lost left.len and right.len!
+    ; Fix: for string concat, we need to push BOTH ptr and len.
+    ; This requires special handling in the binop emit path.
+    ; For now, use the stack differently: emit left, push rax+rdx,
+    ; emit right, pop left back, call concat.
+    ; But the binop code already ran before we get here...
+    ;
+    ; Simpler fix: after the generic push/pop, rax and rcx have just the ptrs.
+    ; We need to re-emit. This means string + can't use the generic binop path.
+    ; Leave this as a TODO and handle it properly.
+    ; For now: emit a call to fn_string_concat with the values already set up
+    ; rax = left ptr (popped), rcx = right ptr (was in rax before mov rcx,rax)
+    ; We need lens too. This won't work with generic binop.
+    ; HACK for M1.7: emit left, push rax, push rdx, emit right,
+    ; arrange args, call concat. Override the generic path.
+    ;
+    ; Actually, the generic binop already emitted all the code. We can't undo it.
+    ; We need to intercept BEFORE the generic binop path for string +.
+    ; Let me restructure: check type_info on BINOP_ADD before the generic emit.
+    ; This requires moving the check earlier. For now, just emit the add instruction
+    ; and fix this properly. String concat won't work yet in this commit.
     lea rsi, [rel cgx_add]
     mov rdx, cgx_add_len
     call cg_write
@@ -358,9 +434,20 @@ cgx_call_expr:
     movzx eax, byte [r12 + 1]      ; sub_type = builtin id
     cmp eax, BUILTIN_EXIT
     je cgx_call_exit
+    cmp eax, BUILTIN_PRINT
+    je cgx_call_print
+    cmp eax, BUILTIN_PRINT_RAW
+    je cgx_call_print_raw
+    cmp eax, BUILTIN_INT_TO_STRING
+    je cgx_call_int_to_string
+    cmp eax, BUILTIN_STRING_LENGTH
+    je cgx_call_string_length
 
-    ; General function call: evaluate args onto stack, then pop into registers
-    ; Step 1: push all args onto stack (in order, so first arg is deepest)
+    ; General function call: evaluate args, push 16 bytes per arg (rax+rdx),
+    ; then pop into register pairs (rdi/rsi, rdx/rcx, r8/r9)
+    ; This treats every arg as potentially 16-byte (String). For Int args,
+    ; rdx is junk but the callee only uses the first register of each pair.
+    ; Callee param store handles splitting: Int params take 1 reg, String take 2.
     mov edi, [r12 + 16]            ; first_child (first arg)
     mov ecx, [r12 + 12]            ; child_count = arg count
     push rcx                        ; save arg count
@@ -369,12 +456,15 @@ cgx_call_push_args:
     cmp edi, NO_CHILD
     je cgx_call_args_pushed
     push rdi                        ; save current arg node index
-    call cgx_emit_expr              ; result in rax
-    ; Push result onto stack
+    call cgx_emit_expr              ; result in rax (rdx for strings)
+    ; Push both rax and rdx — 16 bytes per arg always
+    lea rsi, [rel cgx_push_rdx]
+    mov rdx, cgx_push_rdx_len
+    call cg_write
     lea rsi, [rel cgx_push_rax]
     mov rdx, cgx_push_rax_len
     call cg_write
-    ; Follow sibling chain to next arg
+    ; Follow sibling chain
     pop rdi
     mov eax, edi
     imul eax, NODE_SIZE
@@ -383,63 +473,41 @@ cgx_call_push_args:
     jmp cgx_call_push_args
 
 cgx_call_args_pushed:
-    ; Step 2: pop args into registers in reverse order
-    ; Args are on stack: [rsp]=last_arg, ..., [rsp+N]=first_arg
-    ; We need first arg in rdi, second in rsi, etc.
-    ; Pop in reverse: pop into r9, r8, rcx, rdx, rsi, rdi
+    ; Pop register pairs in reverse. Last arg popped first.
+    ; Each arg is 16 bytes on stack.
+    ; Arg 1 → (rdi, rsi), Arg 2 → (rdx, rcx), Arg 3 → (r8, r9)
     pop rcx                         ; arg count
-    ; Emit pops based on arg count
-    cmp ecx, 6
-    jg cgx_call_pop6                ; max 6 register args
-    mov edi, ecx
-    jmp cgx_call_pop_start
-cgx_call_pop6:
-    mov edi, 6
-cgx_call_pop_start:
-    ; Pop edi args, last popped goes to first register
-    ; We need to pop N times into temp, then assign
-    ; Simpler: pop directly into registers in reverse order
-    ; If 1 arg: pop rdi
-    ; If 2 args: pop rsi, pop rdi
-    ; If 3 args: pop rdx, pop rsi, pop rdi
-    cmp edi, 1
-    jl cgx_call_emit
-    cmp edi, 6
-    je cgx_call_pop_r9
-    cmp edi, 5
-    je cgx_call_pop_r8
-    cmp edi, 4
-    je cgx_call_pop_rcx
-    cmp edi, 3
-    je cgx_call_pop_rdx
-    cmp edi, 2
-    je cgx_call_pop_rsi
-    ; 1 arg
-    jmp cgx_call_pop_rdi
+    cmp ecx, 3
+    jge cgx_call_pop3
+    cmp ecx, 2
+    je cgx_call_pop2
+    cmp ecx, 1
+    je cgx_call_pop1
+    jmp cgx_call_emit
 
-cgx_call_pop_r9:
-    lea rsi, [rel cgx_pop_r9]
-    mov rdx, cgx_pop_r9_len
-    call cg_write
-cgx_call_pop_r8:
+cgx_call_pop3:
+    ; Pop arg 3 into (r8, r9)
     lea rsi, [rel cgx_pop_r8]
     mov rdx, cgx_pop_r8_len
     call cg_write
-cgx_call_pop_rcx:
-    lea rsi, [rel cgx_pop_rcx_reg]
-    mov rdx, cgx_pop_rcx_reg_len
+    lea rsi, [rel cgx_pop_r9]
+    mov rdx, cgx_pop_r9_len
     call cg_write
-cgx_call_pop_rdx:
+cgx_call_pop2:
+    ; Pop arg 2 into (rdx, rcx)
     lea rsi, [rel cgx_pop_rdx]
     mov rdx, cgx_pop_rdx_len
     call cg_write
-cgx_call_pop_rsi:
-    lea rsi, [rel cgx_pop_rsi]
-    mov rdx, cgx_pop_rsi_len
+    lea rsi, [rel cgx_pop_rcx_reg]
+    mov rdx, cgx_pop_rcx_reg_len
     call cg_write
-cgx_call_pop_rdi:
+cgx_call_pop1:
+    ; Pop arg 1 into (rdi, rsi)
     lea rsi, [rel cgx_pop_rdi]
     mov rdx, cgx_pop_rdi_len
+    call cg_write
+    lea rsi, [rel cgx_pop_rsi]
+    mov rdx, cgx_pop_rsi_len
     call cg_write
 
 cgx_call_emit:
@@ -454,6 +522,68 @@ cgx_call_emit:
     call cg_write
     lea rsi, [rel cgx_newline]
     mov rdx, 1
+    call cg_write
+    jmp cgx_done
+
+cgx_call_print:
+cgx_call_print_raw:
+    ; print(s) / print_raw(s): evaluate string arg → (rax=ptr, rdx=len)
+    ; Then: mov rdi, rax; mov rsi, rdx; call fn_print/fn_print_raw
+    mov edi, [r12 + 16]            ; first arg
+    cmp edi, NO_CHILD
+    je cgx_done
+    call cgx_emit_expr              ; rax=ptr, rdx=len after string expr
+    ; Emit: mov rdi, rax / mov rsi, rdx / call fn_print
+    lea rsi, [rel cgx_mov_rdi_rax]
+    mov rdx, cgx_mov_rdi_rax_len
+    call cg_write
+    lea rsi, [rel cgx_mov_rsi_rdx]
+    mov rdx, cgx_mov_rsi_rdx_len
+    call cg_write
+    ; Which print function?
+    movzx eax, byte [r12 + 1]
+    cmp eax, BUILTIN_PRINT
+    je cgx_cp_print
+    lea rsi, [rel cgx_call_print_raw_str]
+    mov rdx, cgx_call_print_raw_str_len
+    call cg_write
+    jmp cgx_done
+cgx_cp_print:
+    lea rsi, [rel cgx_call_print_str]
+    mov rdx, cgx_call_print_str_len
+    call cg_write
+    jmp cgx_done
+
+cgx_call_int_to_string:
+    ; int_to_string(n): evaluate arg → rax, mov rdi,rax, call fn_int_to_string
+    ; Returns rax=ptr, rdx=len
+    mov edi, [r12 + 16]
+    cmp edi, NO_CHILD
+    je cgx_done
+    call cgx_emit_expr
+    lea rsi, [rel cgx_mov_rdi_rax]
+    mov rdx, cgx_mov_rdi_rax_len
+    call cg_write
+    lea rsi, [rel cgx_call_its_str]
+    mov rdx, cgx_call_its_str_len
+    call cg_write
+    jmp cgx_done
+
+cgx_call_string_length:
+    ; string_length(s): evaluate string arg → (rax=ptr, rdx=len)
+    ; Move to rdi=ptr, rsi=len, call fn_string_length → rax=len
+    mov edi, [r12 + 16]
+    cmp edi, NO_CHILD
+    je cgx_done
+    call cgx_emit_expr
+    lea rsi, [rel cgx_mov_rdi_rax]
+    mov rdx, cgx_mov_rdi_rax_len
+    call cg_write
+    lea rsi, [rel cgx_mov_rsi_rdx]
+    mov rdx, cgx_mov_rsi_rdx_len
+    call cg_write
+    lea rsi, [rel cgx_call_sl_str]
+    mov rdx, cgx_call_sl_str_len
     call cg_write
     jmp cgx_done
 
@@ -485,15 +615,20 @@ cgx_call_exit_emit:
 
 cgx_ident_ref:
     ; Load variable from stack slot
-    ; Find the PARAM or LET node with matching name to get its offset
+    ; Find the PARAM or LET node with matching name to get its offset and type
     mov ecx, [r12 + 4]             ; string_ref of this IDENT
     mov edx, [r12 + 8]             ; string_len
-    ; Search backward through nodes for matching PARAM or LET
     mov edi, ecx
     mov esi, edx
-    call cgx_find_var_offset        ; returns offset in eax
+    call cgx_find_var_offset        ; eax = offset, r11d = type_info
 
-    ; Emit: mov rax, [rbp - offset]
+    ; Check if it's a String/Array (16-byte value: ptr at [rbp-offset], len at [rbp-(offset-8)])
+    cmp r11d, TYPE_STRING
+    je cgx_ident_str
+    cmp r11d, TYPE_ARRAY
+    je cgx_ident_str
+
+    ; 8-byte value: emit mov rax, [rbp - offset]
     push rax
     lea rsi, [rel cg_load_rbp_neg]
     mov rdx, cg_load_rbp_neg_len
@@ -505,8 +640,59 @@ cgx_ident_ref:
     call cg_write
     jmp cgx_done
 
+cgx_ident_str:
+    ; 16-byte value: load ptr into rax, len into rdx
+    ; ptr at [rbp - offset], len at [rbp - (offset-8)]
+    push rax                        ; save offset
+    ; Emit: mov rax, [rbp - offset]  (ptr)
+    lea rsi, [rel cg_load_rbp_neg]
+    mov rdx, cg_load_rbp_neg_len
+    call cg_write
+    pop rax
+    push rax
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+    ; Emit: mov rdx, [rbp - (offset-8)]  (len)
+    lea rsi, [rel cgx_load_rdx_rbp_neg]
+    mov rdx, cgx_load_rdx_rbp_neg_len
+    call cg_write
+    pop rax
+    sub eax, 8                      ; len is 8 bytes before ptr
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+    jmp cgx_done
+
 cgx_str_lit:
-    ; TODO: M1.7 — load string pointer+length
+    ; Load string literal pointer and length
+    ; Look up this node's label number from cg_str_lit_map
+    lea rdi, [rel cg_str_lit_map]
+    mov eax, [rdi + r13*4]         ; r13 = node index, eax = label number
+
+    ; Emit: lea rax, [rel _sN]
+    lea rsi, [rel cgx_lea_rax_str]
+    mov rdx, cgx_lea_rax_str_len
+    call cg_write
+    call cg_write_int
+    lea rsi, [rel cgx_close_bracket_nl]
+    mov rdx, cgx_close_bracket_nl_len
+    call cg_write
+
+    ; Emit: mov rdx, _sN_len
+    lea rsi, [rel cgx_mov_rdx_str]
+    mov rdx, cgx_mov_rdx_str_len
+    call cg_write
+    ; Re-look up label number
+    lea rdi, [rel cg_str_lit_map]
+    mov eax, [rdi + r13*4]
+    call cg_write_int
+    lea rsi, [rel cgx_str_len_suffix]
+    mov rdx, cgx_str_len_suffix_len
+    call cg_write
+
     jmp cgx_done
 
 cgx_match_expr:
@@ -592,7 +778,8 @@ cgx_fvo_cmp:
     jmp cgx_fvo_cmp
 
 cgx_fvo_match:
-    mov eax, [rbx + 28]            ; extra = stack offset
+    mov eax, [rbx + 28]            ; extra = stack offset (returned in eax)
+    mov r11d, [rbx + 24]           ; type_info (returned in r11d — caller-saved)
     pop r10
     pop r9
     pop r8
@@ -634,3 +821,40 @@ cgx_pop_r8:         db "    pop r8", 10
 cgx_pop_r8_len      equ $ - cgx_pop_r8
 cgx_pop_r9:         db "    pop r9", 10
 cgx_pop_r9_len      equ $ - cgx_pop_r9
+
+; String literal load
+cgx_lea_rax_str:    db "    lea rax, [rel _s"
+cgx_lea_rax_str_len equ $ - cgx_lea_rax_str
+cgx_close_bracket_nl: db "]", 10
+cgx_close_bracket_nl_len equ $ - cgx_close_bracket_nl
+cgx_mov_rdx_str:    db "    mov rdx, _s"
+cgx_mov_rdx_str_len equ $ - cgx_mov_rdx_str
+cgx_str_len_suffix: db "_len", 10
+cgx_str_len_suffix_len equ $ - cgx_str_len_suffix
+
+; Builtin call strings
+cgx_mov_rsi_rdx:    db "    mov rsi, rdx", 10
+cgx_mov_rsi_rdx_len equ $ - cgx_mov_rsi_rdx
+cgx_call_print_str: db "    call fn_print", 10
+cgx_call_print_str_len equ $ - cgx_call_print_str
+cgx_call_print_raw_str: db "    call fn_print_raw", 10
+cgx_call_print_raw_str_len equ $ - cgx_call_print_raw_str
+cgx_call_its_str:   db "    call fn_int_to_string", 10
+cgx_call_its_str_len equ $ - cgx_call_its_str
+cgx_call_sl_str:    db "    call fn_string_length", 10
+cgx_call_sl_str_len equ $ - cgx_call_sl_str
+
+; String concat
+cgx_push_rdx:       db "    push rdx", 10
+cgx_push_rdx_len    equ $ - cgx_push_rdx
+cgx_str_concat_setup:
+    db "    mov rcx, rdx", 10      ; len2
+    db "    mov rdx, rax", 10      ; ptr2
+    db "    pop rsi", 10           ; len1
+    db "    pop rdi", 10           ; ptr1
+    db "    call fn_string_concat", 10
+cgx_str_concat_setup_len equ $ - cgx_str_concat_setup
+
+; String ident load
+cgx_load_rdx_rbp_neg: db "    mov rdx, qword [rbp-"
+cgx_load_rdx_rbp_neg_len equ $ - cgx_load_rdx_rbp_neg
