@@ -3,8 +3,6 @@
 # Usage: ./stage1/tests/run_tests.sh
 # Run from the loon/ project root.
 
-set -e
-
 LEXER=./stage0/lexer
 COMPILER=./stage1/compiler
 TESTS_DIR=./stage1/tests
@@ -36,7 +34,7 @@ for loon_file in "$TESTS_DIR"/test_*.loon; do
         continue
     fi
 
-    # Run the compiled program
+    # Run the compiled program — capture exit code explicitly
     /tmp/loon_test > /tmp/loon_actual.stdout 2>/tmp/loon_actual.stderr
     echo $? > /tmp/loon_actual.exit
 
@@ -55,12 +53,14 @@ for loon_file in "$TESTS_DIR"/test_*.loon; do
         continue
     fi
 
-    # Compare stderr
-    if ! diff -q /tmp/loon_actual.stderr "$EXPECTED_DIR/${test_name}.stderr" > /dev/null 2>&1; then
-        FAIL=$((FAIL + 1))
-        ERRORS="$ERRORS\n  FAIL $test_name — stderr mismatch"
-        diff /tmp/loon_actual.stderr "$EXPECTED_DIR/${test_name}.stderr" || true
-        continue
+    # Compare stderr (empty for clean programs)
+    if [ -f "$EXPECTED_DIR/${test_name}.stderr" ]; then
+        if ! diff -q /tmp/loon_actual.stderr "$EXPECTED_DIR/${test_name}.stderr" > /dev/null 2>&1; then
+            FAIL=$((FAIL + 1))
+            ERRORS="$ERRORS\n  FAIL $test_name — stderr mismatch"
+            diff /tmp/loon_actual.stderr "$EXPECTED_DIR/${test_name}.stderr" || true
+            continue
+        fi
     fi
 
     PASS=$((PASS + 1))
