@@ -3,4 +3,6 @@ stage0/echo
 stage0/classify
 stage0/keywords
 stage0/lexer
+stage1/compiler
+stage2/compiler
 *.o
