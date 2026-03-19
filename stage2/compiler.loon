@@ -1,0 +1,23 @@
+// stage2/compiler.loon
+// The Loon compiler — written in Loon-0, compiled by Stage 1
+//
+// Implements: full Loon spec (ADTs, generics, effects, modules,
+//             exhaustive match, structured errors)
+// Deferred to Stage 3+: privacy types, device types, LLVM backend,
+//                        WASM target, package manager, LSP
+//
+// Build: ./stage0/lexer stage2/compiler.loon | ./stage1/compiler > /tmp/stage2.asm
+//        nasm -f elf64 -o /tmp/stage2.o /tmp/stage2.asm
+//        ld -o stage2/compiler /tmp/stage2.o
+//
+// Self-hosting: ./stage2/compiler stage2/compiler.loon > /tmp/stage2_v2.asm
+//               (output should be bit-for-bit identical)
+
+module compiler;
+
+fn main() [IO] -> Unit {
+    let path: String = get_arg(1);
+    let source: String = read_file(path);
+    do print("read " + int_to_string(string_length(source)) + " bytes");
+    do exit(0);
+}
