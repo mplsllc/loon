@@ -97,7 +97,8 @@ _start:
     cmp qword [rel dump_ast_flag], 1
     je .dump_ast
 
-    ; TODO: Phase 3 — call cg_emit_program
+    ; Phase 3: Emit NASM assembly to stdout
+    call cg_emit_program
 
     ; Exit 0
     xor rdi, rdi
@@ -228,3 +229,5 @@ main_itoa:
 %include "token_reader.asm"
 %include "parser.asm"
 %include "expr_parser.asm"
+%include "codegen.asm"
+%include "codegen_expr.asm"
