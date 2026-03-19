@@ -14,9 +14,10 @@ Every design decision optimizes for machine-verifiable intent.
 
 ## Current stage
 
-Stage 1 — writing the parser + codegen in assembly.
-Stage 0 (lexer) is complete and tested.
+Stage 1 complete — Loon-0 compiles and runs.
+Stage 0 (lexer) and Stage 1 (parser + codegen) are finished and tested.
 The spec is in spec/loon-spec.md. The bootstrap subset is in spec/loon-0-spec.md.
+Assembly is never written again. Stage 2 will be written in Loon-0.
 No Rust. No C. No existing language toolchain.
 
 ## What is absolutely banned
