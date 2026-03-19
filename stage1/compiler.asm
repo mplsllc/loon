@@ -18,6 +18,12 @@ section .bss
     strings     resb 131072         ; 128KB — string table
     bump_heap   resb 1048576        ; 1MB — runtime bump allocator
 
+    ; Function table — populated by parser first pass for forward calls
+    ; Each entry (32 bytes): name_offset(4), name_len(4), param_count(4),
+    ;                         node_index(4), return_type(4), padding(12)
+    func_table  resb 8192          ; 256 entries × 32 bytes
+    func_count  resq 1             ; number of functions found
+
     tok_count       resq 1          ; number of tokens read
     tok_pos         resq 1          ; parser's current token index
     node_count      resq 1          ; number of AST nodes allocated
@@ -34,6 +40,10 @@ section .data
     ; Debug output
     main_tok_count_msg: db "tokens: "
     main_tok_count_msg_len equ $ - main_tok_count_msg
+    main_node_count_msg: db "nodes: "
+    main_node_count_msg_len equ $ - main_node_count_msg
+    main_func_count_msg: db "funcs: "
+    main_func_count_msg_len equ $ - main_func_count_msg
     main_newline: db 10
 
     ; Temp buffer for integer-to-string conversion
@@ -80,11 +90,13 @@ _start:
     ; Phase 1: Read token stream from stdin
     call tok_read_all
 
-    ; If --dump-ast, print token count to stderr and exit
+    ; Phase 2: Parse tokens into AST
+    call par_parse_program
+
+    ; If --dump-ast, print diagnostics to stderr and exit
     cmp qword [rel dump_ast_flag], 1
     je .dump_ast
 
-    ; TODO: Phase 2 — call par_parse_program
     ; TODO: Phase 3 — call cg_emit_program
 
     ; Exit 0
@@ -99,25 +111,62 @@ _start:
     mov rdx, main_tok_count_msg_len
     mov rax, SYS_WRITE
     syscall
-
-    ; Convert tok_count to decimal string
     mov rax, [rel tok_count]
     lea rdi, [rel main_itoa_buf]
     call main_itoa
-
-    ; Print the number
     mov rdi, STDERR
     lea rsi, [rel main_itoa_buf]
-    mov rdx, rcx                   ; length from main_itoa
+    mov rdx, rcx
     mov rax, SYS_WRITE
     syscall
-
-    ; Print newline
     mov rdi, STDERR
     lea rsi, [rel main_newline]
     mov rdx, 1
     mov rax, SYS_WRITE
     syscall
+
+    ; Print "nodes: N\n" to stderr
+    mov rdi, STDERR
+    lea rsi, [rel main_node_count_msg]
+    mov rdx, main_node_count_msg_len
+    mov rax, SYS_WRITE
+    syscall
+    mov rax, [rel node_count]
+    lea rdi, [rel main_itoa_buf]
+    call main_itoa
+    mov rdi, STDERR
+    lea rsi, [rel main_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    mov rdi, STDERR
+    lea rsi, [rel main_newline]
+    mov rdx, 1
+    mov rax, SYS_WRITE
+    syscall
+
+    ; Print "funcs: N\n" to stderr
+    mov rdi, STDERR
+    lea rsi, [rel main_func_count_msg]
+    mov rdx, main_func_count_msg_len
+    mov rax, SYS_WRITE
+    syscall
+    mov rax, [rel func_count]
+    lea rdi, [rel main_itoa_buf]
+    call main_itoa
+    mov rdi, STDERR
+    lea rsi, [rel main_itoa_buf]
+    mov rdx, rcx
+    mov rax, SYS_WRITE
+    syscall
+    mov rdi, STDERR
+    lea rsi, [rel main_newline]
+    mov rdx, 1
+    mov rax, SYS_WRITE
+    syscall
+
+    ; Call par_dump_ast to print AST nodes
+    call par_dump_ast
 
     ; Exit 0
     xor rdi, rdi
@@ -177,3 +226,4 @@ main_itoa:
 ; Include components
 ; ============================================================
 %include "token_reader.asm"
+%include "parser.asm"
