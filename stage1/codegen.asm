@@ -43,7 +43,7 @@ cg_start_align:     db "    and rsp, -16", 10
 cg_start_align_len  equ $ - cg_start_align
 cg_start_call_main: db "    call fn_main", 10
 cg_start_call_main_len equ $ - cg_start_call_main
-cg_start_exit:      db "    mov rdi, rax", 10, "    mov rax, 60", 10, "    syscall", 10
+cg_start_exit:      db "    xor rdi, rdi", 10, "    mov rax, 60", 10, "    syscall", 10
 cg_start_exit_len   equ $ - cg_start_exit
 
 cg_fn_prefix:       db "fn_"
