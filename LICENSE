@@ -1,0 +1,281 @@
+# MPLS License
+## MPLS Principled Libre Software
+### Version 1.0 (Intent Document)
+
+*Legal formalization to follow with counsel. The values expressed 
+here are binding in spirit and will be binding in law when formal 
+text is complete. Until then, this document represents the full 
+intent of the copyright holder and should be interpreted in that 
+spirit.*
+
+---
+
+## What MPLS Stands For
+
+MPLS — MPLS Principled Libre Software.
+
+This license comes from Minneapolis, Minnesota. From a solo founder 
+who thought carefully about what software should be and who it should 
+serve. Not a foundation. Not a corporation. A person, with a city, 
+and a set of values that don't bend.
+
+---
+
+## Why This License Exists
+
+The licenses that protect software freedom were written for a 
+different world. The GPL was written when the enemy was proprietary 
+lock-in. The MIT license was written when the goal was maximum 
+adoption. Both were right for their moment.
+
+This is a different moment.
+
+Platforms extract value from creators at unprecedented scale.
+Governments surveil with capabilities previous generations 
+couldn't imagine.
+AI tools of extraordinary power assist human creativity —
+and institutions seek to claim ownership of what those 
+humans made.
+The commons is being enclosed, again, by different means 
+but the same intent.
+
+The MPLS License is written for this moment.
+
+It stands in a lineage:
+
+    GNU  — GNU's Not Unix         (1983, software freedom)
+    GIMP — GNU Image Manipulation (1995, creative tools for all)
+    MPLS — MPLS Principled Libre  (2025, the agentic era)
+
+Same spirit. New threats. New instrument.
+
+---
+
+## What This License Believes
+
+**People first.**
+Always. When the interests of institutions conflict with the 
+interests of people, people win. This is not balanced against 
+business needs. It is the tiebreaker.
+
+**Creators own what they build.**
+If you conceived it, directed it, and shaped it — you made it.
+What you made is yours.
+
+This includes work created with AI assistance or any other tool.
+The idea was yours. The direction was yours. The judgment of 
+what to keep and what to discard was yours. That is authorship.
+That is ownership.
+
+The tool does not own the work.
+The platform does not own the work.
+The AI does not own the work.
+You do.
+
+No institution — corporate, governmental, or otherwise — may 
+claim ownership of your creative work on the basis that a tool 
+assisted in its creation. A paintbrush doesn't own the painting.
+A compiler doesn't own the program. A powerful assistant doesn't 
+own the idea it helped realize.
+
+**Safety is the default, not the option.**
+Privacy from governments. Privacy from corporations. Privacy 
+from bad actors. Protection from systems built to exploit.
+These are not features to be enabled. They are the ground state.
+
+**Freedom and protection belong together.**
+You can have both. This license proves it.
+
+The creativity to build anything.
+The openness for everyone to benefit.
+The protection this moment requires.
+
+---
+
+## What You Can Do
+
+You are free to use this software if you are:
+
+- A person, anywhere in the world
+- A small organization (under $10M annual revenue 
+  AND under 1M users)
+- A nonprofit or educational institution
+- A researcher or student
+- An open source project
+
+You may:
+- Use this software for any purpose not prohibited below
+- Build commercial products and charge for them
+- Keep what you build private or open it — your choice
+- Modify this software for your own use
+- Distribute this software with attribution
+
+**Attribution is always required.**
+Credit the origin. Credit the creators. 
+That is the minimum the commons asks.
+
+---
+
+## What Large Organizations Must Do
+
+If you are an organization over $10M annual revenue 
+OR over 1M users, you must either:
+
+**Contribute back** — modifications to this software 
+must be released under the MPLS License, or
+
+**Obtain a commercial license** — contact MPLS LLC 
+at mpls.llc for terms.
+
+This is not a punishment for success. It is reciprocity.
+The commons made your scale possible.
+The commons asks something back.
+
+---
+
+## What Nobody Can Do
+
+These restrictions are absolute.
+They are not tiers.
+They are not unlockable by payment.
+They are not subject to national security exceptions.
+They are not negotiable.
+
+**No surveillance.**
+This software may not be used to build systems that track, 
+monitor, or profile individuals without their meaningful 
+informed consent. This includes mass surveillance 
+infrastructure, location tracking systems, behavioral 
+profiling engines, social credit systems, or any system 
+designed to monitor people without their knowledge.
+
+**No weapons.**
+This software may not be used in the development, targeting, 
+guidance, or operation of weapons systems of any kind.
+This includes autonomous weapons, drone targeting systems,
+missile guidance, cyberweapons designed to cause physical 
+harm, and any military application where the software 
+contributes to the harm or death of people.
+
+**No oppression.**
+This software may not be used to suppress political dissent, 
+restrict freedom of expression, identify or target individuals 
+for their beliefs, ethnicity, religion, sexuality, or political 
+views, or to enforce laws that criminalize identity or belief.
+
+**No manipulation.**
+This software may not be used to build systems designed to 
+manipulate human behavior, belief, or decision-making without 
+disclosure — including algorithmic radicalization systems, 
+coordinated inauthentic behavior infrastructure, or mass 
+psychological manipulation platforms.
+
+**No extraction without reciprocity.**
+This software and works created with it may not be used as 
+training data for commercial AI systems without the explicit 
+permission of the human creator of that work.
+The human creator retains full rights regardless of what 
+tools they used to create. Automated collection and use 
+of their work without permission is a violation of this 
+license regardless of its technical form.
+
+**No secret government compliance.**
+If any entity is compelled by government order to modify 
+this software in ways that weaken its security, privacy, 
+or integrity guarantees, that entity must publicly disclose 
+the existence of such an order to the maximum extent 
+permitted by law.
+
+Silent compliance with orders that harm users is prohibited.
+
+If disclosure is legally prevented, the entity must cease 
+distribution rather than distribute a secretly compromised 
+version.
+
+---
+
+## Consequences of Violation
+
+Violation of any prohibited use clause immediately and 
+irrevocably terminates all rights granted under this license.
+
+There is no cure period.
+There is no path to reinstatement.
+The violation is permanent.
+
+We do not offer second chances to those who surveil people,
+build weapons, or oppress communities.
+The line exists because crossing it is a choice, not a mistake.
+
+---
+
+## On Enforceability
+
+We are not naive.
+
+We know that determined bad actors will ignore license terms.
+We know that enforcement across jurisdictions is imperfect.
+We know that powerful institutions have powerful lawyers.
+
+We write these restrictions anyway because:
+
+**Code should stand for something.**
+
+The people who build with this software should know 
+what it stands for.
+
+The people harmed by surveillance, weapons, and manipulation 
+deserve to know that at least some software refused.
+
+This license is a legal instrument and a statement of identity.
+Both matter. Neither cancels the other.
+
+---
+
+## The Free Software Lineage
+
+This license honors and extends the tradition of:
+
+Richard Stallman, who refused to accept proprietary software 
+and gave us the GPL.
+
+Linus Torvalds, who built a kernel the whole world could use.
+
+The thousands of contributors who built the commons we all 
+stand on.
+
+We stand on that foundation.
+We build forward from it.
+We answer the threats this moment presents 
+that they could not have anticipated.
+
+---
+
+## Final Words
+
+The free software movement gave us the right to see the code.
+The MPLS License gives us the right to control what it does
+and who benefits from it.
+
+If you cannot agree to these terms, do not use this software.
+
+If you can —
+
+Welcome.
+Build something good.
+The commons is yours.
+
+---
+
+*MPLS License v1.0*
+*Copyright © 2025 MPLS LLC, Minneapolis, Minnesota*
+*Patrick, founder*
+
+*"MPLS Principled Libre Software"*
+
+*This license may be adopted by other projects. 
+If you share these values, you are welcome to use it.
+The commons grows when good values spread.*
+
+*For commercial licensing, legal questions, or to report 
+violations: mpls.llc*
