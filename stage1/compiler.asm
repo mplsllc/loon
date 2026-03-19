@@ -231,3 +231,4 @@ main_itoa:
 %include "expr_parser.asm"
 %include "codegen.asm"
 %include "codegen_expr.asm"
+%include "codegen_match.asm"

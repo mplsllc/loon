@@ -696,7 +696,7 @@ cgx_str_lit:
     jmp cgx_done
 
 cgx_match_expr:
-    ; TODO: M1.8
+    call cgm_emit_match
     jmp cgx_done
 
 cgx_for_expr:
