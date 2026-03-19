@@ -82,6 +82,23 @@ cg_reg_r8:          db "r8"
 cg_reg_r9:          db "r9"
 cg_reg_rax:         db "rax"
 
+; Array operations
+cg_as_load_r10:     db "    mov r10, qword [rbp-"
+cg_as_load_r10_len  equ $ - cg_as_load_r10
+cg_as_load_r11:     db "    mov r11, qword [rbp-"
+cg_as_load_r11_len  equ $ - cg_as_load_r11
+cg_as_store:
+    db "    pop rcx", 10
+    db "    mov qword [r10 + rcx*8], rax", 10
+cg_as_store_len     equ $ - cg_as_store
+cg_as_push_r10:     db "    push r10", 10
+cg_as_push_r10_len  equ $ - cg_as_push_r10
+cg_as_store_full:
+    db "    pop r10", 10
+    db "    pop rcx", 10
+    db "    mov qword [r10 + rcx*8], rax", 10
+cg_as_store_full_len equ $ - cg_as_store_full
+
 ; Section headers
 cg_section_data:    db "section .data", 10
 cg_section_data_len equ $ - cg_section_data
@@ -488,13 +505,16 @@ cg_ef_epilogue:
     ret
 
 ; ============================================================
-; cg_assign_let_slots — walk block children, assign stack offsets to LETs
+; cg_assign_let_slots — walk block children, assign stack offsets
+; Handles: NODE_LET, NODE_FOR (loop var + end temp), NODE_ARRAY_SET
+; Recurses into nested blocks (for bodies, match arms)
 ; Input: edi = block node index, r14d = current offset
-; Output: r14d updated with new offset after all let bindings
+; Output: r14d updated
 ; ============================================================
 cg_assign_let_slots:
     push rbx
     push r12
+    push r13
 
     ; Get block node
     mov eax, edi
@@ -513,31 +533,99 @@ cg_als_loop:
     add rbx, rax
 
     movzx eax, byte [rbx]
-    cmp eax, NODE_LET
-    jne cg_als_next
 
-    ; Found a LET — assign stack slot
+    cmp eax, NODE_LET
+    je cg_als_let
+
+    ; Check for EXPR_STMT or RETURN_EXPR wrapping a FOR or MATCH
+    cmp eax, NODE_EXPR_STMT
+    je cg_als_check_inner
+    cmp eax, NODE_RETURN_EXPR
+    je cg_als_check_inner
+
+    jmp cg_als_next
+
+cg_als_let:
+    ; Assign stack slot based on type
     mov eax, [rbx + 24]            ; type_info
     cmp eax, TYPE_STRING
     je cg_als_let_16
     cmp eax, TYPE_ARRAY
     je cg_als_let_16
-
-    ; 8-byte let binding
+    ; 8-byte
     add r14d, 8
-    mov [rbx + 28], r14d            ; extra = offset
+    mov [rbx + 28], r14d
     jmp cg_als_next
-
 cg_als_let_16:
     add r14d, 16
     mov [rbx + 28], r14d
     jmp cg_als_next
 
+cg_als_check_inner:
+    ; Check if the wrapped expression is a FOR
+    mov r13d, [rbx + 16]           ; first_child of EXPR_STMT/RETURN_EXPR
+    cmp r13d, NO_CHILD
+    je cg_als_next
+    mov eax, r13d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    movzx eax, byte [rbx]
+    cmp eax, NODE_FOR
+    je cg_als_for
+    cmp eax, NODE_MATCH
+    je cg_als_match
+    jmp cg_als_next
+
+cg_als_for:
+    ; FOR node needs 2 slots: loop variable (8 bytes) + end value (8 bytes)
+    ; Store loop var offset in FOR node's extra field
+    add r14d, 8
+    mov [rbx + 28], r14d           ; extra = loop var offset
+    ; End value temp: we'll store its offset at a known delta (+8 from loop var)
+    add r14d, 8                    ; end value slot = loop_var_offset + 8
+    ; Recurse into body block (third child — follow sibling chain)
+    ; Children: start, end, body. Get body = third child.
+    mov eax, [rbx + 16]            ; first_child = start expr
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov eax, [rdi + rax + 20]      ; start.next_sibling = end expr
+    imul eax, NODE_SIZE
+    mov eax, [rdi + rax + 20]      ; end.next_sibling = body block
+    cmp eax, NO_CHILD
+    je cg_als_next
+    ; Recurse into body block
+    mov edi, eax
+    call cg_assign_let_slots
+    jmp cg_als_next
+
+cg_als_match:
+    ; Walk match arms and recurse into arm bodies
+    ; Match arms are in the sibling chain from first_child
+    mov r13d, [rbx + 16]           ; first arm
+cg_als_match_arm:
+    cmp r13d, NO_CHILD
+    je cg_als_next
+    mov eax, r13d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    ; Arm body is first_child — but it's an expression, not necessarily a block
+    ; No need to recurse unless it contains nested for/let
+    ; For simplicity, skip recursion into match arms for now
+    mov r13d, [rbx + 20]           ; next_sibling
+    jmp cg_als_match_arm
+
 cg_als_next:
-    mov r12d, [rbx + 20]           ; next_sibling
+    ; Restore r12 node pointer (may have been clobbered)
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    mov r12d, [rbx + rax + 20]     ; next_sibling
     jmp cg_als_loop
 
 cg_als_done:
+    pop r13
     pop r12
     pop rbx
     ret
@@ -626,6 +714,8 @@ cg_eb_loop:
     je cg_eb_return_expr
     cmp eax, NODE_LET
     je cg_eb_let
+    cmp eax, NODE_ARRAY_SET
+    je cg_eb_array_set
 
     ; Skip unknown
     jmp cg_eb_next
@@ -672,6 +762,106 @@ cg_eb_let:
     mov rdx, 1
     call cg_write
     pop rbx
+    ; For Array/String types, also store rdx (len) at offset-8
+    mov eax, [rbx + 24]            ; type_info
+    cmp eax, TYPE_ARRAY
+    je cg_eb_let_store_rdx
+    cmp eax, TYPE_STRING
+    je cg_eb_let_store_rdx
+    jmp cg_eb_next
+cg_eb_let_store_rdx:
+    mov ecx, [rbx + 28]            ; offset
+    sub ecx, 8                     ; len goes at offset-8
+    push rbx
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    mov eax, ecx
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    lea rsi, [rel cg_reg_rdx]
+    mov rdx, 3
+    call cg_write
+    lea rsi, [rel cg_newline]
+    mov rdx, 1
+    call cg_write
+    pop rbx
+    jmp cg_eb_next
+
+cg_eb_array_set:
+    ; NODE_ARRAY_SET: string_ref = array name
+    ; first_child = index expr, second child = value expr
+    ; 1. Load array (ptr, len) from stack
+    ; 2. Evaluate index expr → push index
+    ; 3. Evaluate value expr → value in rax
+    ; 4. Pop index → compute address → store
+    push rbx
+
+    ; Load array ptr and len from named variable
+    mov edi, [rbx + 4]             ; array name string_ref
+    mov esi, [rbx + 8]             ; array name string_len
+    call cgx_find_var_offset        ; eax = offset, r11d = type
+
+    ; Emit: mov r10, [rbp - offset]  (array ptr)
+    push rax
+    lea rsi, [rel cg_as_load_r10]
+    mov rdx, cg_as_load_r10_len
+    call cg_write
+    pop rax
+    push rax
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+
+    ; Emit: mov r11, [rbp - (offset-8)]  (array len, for bounds check)
+    lea rsi, [rel cg_as_load_r11]
+    mov rdx, cg_as_load_r11_len
+    call cg_write
+    pop rax
+    sub eax, 8
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+
+    pop rbx                         ; restore ARRAY_SET node
+
+    ; Evaluate index expression
+    mov edi, [rbx + 16]            ; first_child = index
+    push rbx
+    call cgx_emit_expr              ; index in rax
+
+    ; Push index
+    lea rsi, [rel cgm_push_rax]
+    mov rdx, cgm_push_rax_len
+    call cg_write
+
+    ; Save r10 (array ptr) before evaluating value expression
+    ; (value expr may contain ARRAY_GET that clobbers r10)
+    lea rsi, [rel cg_as_push_r10]
+    mov rdx, cg_as_push_r10_len
+    call cg_write
+
+    ; Get second child (value) — sibling of index
+    pop rbx
+    mov eax, [rbx + 16]            ; first_child = index node
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov edi, [rdi + rax + 20]      ; index.next_sibling = value node
+    push rbx
+    call cgx_emit_expr              ; value in rax
+    pop rbx
+
+    ; Emit: pop r10 (restore array ptr)
+    ; Emit: pop rcx (index)
+    ; Emit: mov [r10 + rcx*8], rax
+    lea rsi, [rel cg_as_store_full]
+    mov rdx, cg_as_store_full_len
+    call cg_write
+
     jmp cg_eb_next
 
 cg_eb_next:

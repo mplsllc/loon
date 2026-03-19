@@ -1,0 +1,14 @@
+module main;
+
+fn main() [IO] -> Unit {
+    let arr: Array<Int> = Array(5);
+    for i in range(0, 5) {
+        arr[i] = i;
+    };
+    let sum: Array<Int> = Array(1);
+    sum[0] = 0;
+    for j in range(0, 5) {
+        sum[0] = sum[0] + arr[j];
+    };
+    do print(int_to_string(sum[0]));
+}

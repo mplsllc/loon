@@ -700,15 +700,184 @@ cgx_match_expr:
     jmp cgx_done
 
 cgx_for_expr:
-    ; TODO: M1.9
+    ; FOR node: string_ref = loop var name, extra = loop var stack offset
+    ; Children: start expr, end expr, body block
+    ; Label scheme: .LfN_top, .LfN_end (N from label_counter)
+    push r14
+    push r15
+    sub rsp, 8                     ; local: label number
+
+    ; Get label number
+    mov rax, [rel label_counter]
+    mov [rsp], rax
+    inc qword [rel label_counter]
+
+    ; Get loop var offset and end-value offset
+    mov r14d, [r12 + 28]           ; extra = loop var stack offset
+    mov r15d, r14d
+    add r15d, 8                    ; end value at offset+8
+
+    ; Emit start expr → store to loop var
+    mov edi, [r12 + 16]            ; first_child = start expr
+    call cgx_emit_expr
+    ; Emit: mov [rbp - loop_var_offset], rax
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    mov eax, r14d
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    lea rsi, [rel cg_reg_rax]
+    mov rdx, 3
+    call cg_write
+    lea rsi, [rel cgx_newline]
+    mov rdx, 1
+    call cg_write
+
+    ; Emit end expr → store to end temp
+    mov eax, [r12 + 16]            ; start node index
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov edi, [rdi + rax + 20]      ; end expr node index
+    push rdi                        ; save end node index for body lookup
+    call cgx_emit_expr
+    ; Emit: mov [rbp - end_offset], rax
+    lea rsi, [rel cg_mov_rbp_neg]
+    mov rdx, cg_mov_rbp_neg_len
+    call cg_write
+    mov eax, r15d
+    call cg_write_int
+    lea rsi, [rel cg_comma_space]
+    mov rdx, cg_comma_space_len
+    call cg_write
+    lea rsi, [rel cg_reg_rax]
+    mov rdx, 3
+    call cg_write
+    lea rsi, [rel cgx_newline]
+    mov rdx, 1
+    call cg_write
+
+    ; Emit top label: .LfN_top:
+    lea rsi, [rel cgx_for_lf_prefix]
+    mov rdx, cgx_for_lf_prefix_len
+    call cg_write
+    mov rax, [rsp + 8]             ; label number (below saved end node)
+    call cg_write_int
+    lea rsi, [rel cgx_for_top_label]
+    mov rdx, cgx_for_top_label_len
+    call cg_write
+
+    ; Emit: mov rax, [rbp - loop_var]; cmp rax, [rbp - end]; jge .LfN_end
+    lea rsi, [rel cg_load_rbp_neg]
+    mov rdx, cg_load_rbp_neg_len
+    call cg_write
+    mov eax, r14d
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+
+    ; cmp rax, [rbp - end_offset]
+    lea rsi, [rel cgx_for_cmp]
+    mov rdx, cgx_for_cmp_len
+    call cg_write
+    mov eax, r15d
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+
+    ; jge .LfN_end
+    lea rsi, [rel cgx_for_jge]
+    mov rdx, cgx_for_jge_len
+    call cg_write
+    mov rax, [rsp + 8]
+    call cg_write_int
+    lea rsi, [rel cgx_for_end_ref]
+    mov rdx, cgx_for_end_ref_len
+    call cg_write
+
+    ; Emit body block
+    pop rdi                         ; end node index
+    mov eax, edi
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov edi, [rdi + rax + 20]      ; end.next_sibling = body block
+    call cg_emit_block
+
+    ; Emit: inc qword [rbp - loop_var]; jmp .LfN_top
+    lea rsi, [rel cgx_for_inc]
+    mov rdx, cgx_for_inc_len
+    call cg_write
+    mov eax, r14d
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+
+    lea rsi, [rel cgx_for_jmp_top]
+    mov rdx, cgx_for_jmp_top_len
+    call cg_write
+    mov rax, [rsp]
+    call cg_write_int
+    lea rsi, [rel cgx_for_top_ref]
+    mov rdx, cgx_for_top_ref_len
+    call cg_write
+
+    ; Emit end label: .LfN_end:
+    lea rsi, [rel cgx_for_lf_prefix]
+    mov rdx, cgx_for_lf_prefix_len
+    call cg_write
+    mov rax, [rsp]
+    call cg_write_int
+    lea rsi, [rel cgx_for_end_label]
+    mov rdx, cgx_for_end_label_len
+    call cg_write
+
+    add rsp, 8
+    pop r15
+    pop r14
     jmp cgx_done
 
 cgx_array_new_expr:
-    ; TODO: M1.9
+    ; Array(n): evaluate size → allocate from bump heap
+    ; Emit: evaluate size expr
+    mov edi, [r12 + 16]            ; first_child = size expr
+    call cgx_emit_expr
+    ; rax = count. Emit allocation code.
+    lea rsi, [rel cgx_array_alloc]
+    mov rdx, cgx_array_alloc_len
+    call cg_write
+    ; Result: rax = ptr, rdx = count
     jmp cgx_done
 
 cgx_array_get_expr:
-    ; TODO: M1.9
+    ; Array index read: load array, evaluate index, load element
+    ; Load array (ptr, len) from named variable
+    mov edi, [r12 + 4]             ; array name string_ref
+    mov esi, [r12 + 8]             ; array name string_len
+    call cgx_find_var_offset        ; eax = offset, r11d = type
+
+    ; Emit: mov r10, [rbp - offset]  (ptr)
+    push rax
+    lea rsi, [rel cg_as_load_r10]
+    mov rdx, cg_as_load_r10_len
+    call cg_write
+    pop rax
+    call cg_write_int
+    lea rsi, [rel cg_close_bracket]
+    mov rdx, cg_close_bracket_len
+    call cg_write
+
+    ; Evaluate index expression
+    mov edi, [r12 + 16]            ; first_child = index expr
+    call cgx_emit_expr
+    ; rax = index. Emit: mov rax, [r10 + rax*8]
+    lea rsi, [rel cgx_array_load]
+    mov rdx, cgx_array_load_len
+    call cg_write
     jmp cgx_done
 
 cgx_done:
@@ -736,7 +905,7 @@ cgx_find_var_offset:
     mov r9d, edi                    ; r9 = target name offset
     mov r10d, esi                   ; r10 = target name length
 
-    xor ecx, ecx                   ; node index
+    xor ecx, ecx                   ; search forward (names must be unique per spec)
 cgx_fvo_loop:
     cmp ecx, [rel node_count]
     jge cgx_fvo_not_found
@@ -750,6 +919,8 @@ cgx_fvo_loop:
     cmp eax, NODE_PARAM
     je cgx_fvo_check
     cmp eax, NODE_LET
+    je cgx_fvo_check
+    cmp eax, NODE_FOR
     je cgx_fvo_check
     jmp cgx_fvo_next
 
@@ -858,3 +1029,38 @@ cgx_str_concat_setup_len equ $ - cgx_str_concat_setup
 ; String ident load
 cgx_load_rdx_rbp_neg: db "    mov rdx, qword [rbp-"
 cgx_load_rdx_rbp_neg_len equ $ - cgx_load_rdx_rbp_neg
+
+; For loop labels and operations
+cgx_for_lf_prefix:   db ".Lf"
+cgx_for_lf_prefix_len equ $ - cgx_for_lf_prefix
+cgx_for_top_label:   db "_top:", 10
+cgx_for_top_label_len equ $ - cgx_for_top_label
+cgx_for_top_ref:     db "_top", 10
+cgx_for_top_ref_len  equ $ - cgx_for_top_ref
+cgx_for_end_label:   db "_end:", 10
+cgx_for_end_label_len equ $ - cgx_for_end_label
+cgx_for_end_ref:     db "_end", 10
+cgx_for_end_ref_len  equ $ - cgx_for_end_ref
+cgx_for_cmp:         db "    cmp rax, qword [rbp-"
+cgx_for_cmp_len      equ $ - cgx_for_cmp
+cgx_for_jge:         db "    jge .Lf"
+cgx_for_jge_len      equ $ - cgx_for_jge
+cgx_for_inc:         db "    inc qword [rbp-"
+cgx_for_inc_len      equ $ - cgx_for_inc
+cgx_for_jmp_top:     db "    jmp .Lf"
+cgx_for_jmp_top_len  equ $ - cgx_for_jmp_top
+
+; Array allocation
+cgx_array_alloc:
+    db "    mov rcx, rax", 10          ; save count
+    db "    shl rax, 3", 10            ; count * 8
+    db "    mov rdi, [rel _bump_pos]", 10
+    db "    add [rel _bump_pos], rax", 10
+    db "    mov rax, rdi", 10          ; return ptr
+    db "    mov rdx, rcx", 10          ; return count (len)
+cgx_array_alloc_len equ $ - cgx_array_alloc
+
+; Array element load
+cgx_array_load:
+    db "    mov rax, qword [r10 + rax*8]", 10
+cgx_array_load_len  equ $ - cgx_array_load
