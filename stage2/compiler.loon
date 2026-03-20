@@ -85,14 +85,14 @@ fn pp_parse(pp_g: Array<Int>, pp_t: Array<Int>, pp_n: Array<Int>) [] -> Unit {
 }
 
 fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
-    do teat(pf_g);
+    do teat(pf_g); // KW_FN
     let pf_fi: Int = nalloc(pf_g, pf_n);
     pf_n[pf_fi * 10] = 1;
     pf_n[pf_fi * 10 + 2] = tsoff(pf_g, pf_t);
     pf_n[pf_fi * 10 + 3] = tslen(pf_g, pf_t);
-    do teat(pf_g);
+    do teat(pf_g); // fn name
     // Params
-    do teat(pf_g);
+    do teat(pf_g); // LPAREN
     pf_g[15] = 0; pf_g[16] = 0 - 1; pf_g[17] = 0 - 1;
     for _pfp in range(0, 32) {
         match tcur(pf_g, pf_t) == 20 { true -> { }, false -> {
@@ -152,9 +152,9 @@ fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
                             pb_g[22] = pb_g[22] + 1;
                         },
                         false -> {
-                            let pb_wi: Int = nalloc(pb_g, pb_n);
-                            pb_n[pb_wi*10] = 6; pb_n[pb_wi*10+4] = 1; pb_n[pb_wi*10+5] = pb_ei;
-                            match pb_g[20] == 0-1 { true -> { pb_g[20] = pb_wi; pb_g[21] = pb_wi; }, false -> { pb_n[pb_g[21]*10+6] = pb_wi; pb_g[21] = pb_wi; } };
+                            let pb_ri: Int = nalloc(pb_g, pb_n);
+                            pb_n[pb_ri*10] = 6; pb_n[pb_ri*10+4] = 1; pb_n[pb_ri*10+5] = pb_ei;
+                            match pb_g[20] == 0-1 { true -> { pb_g[20] = pb_ri; pb_g[21] = pb_ri; }, false -> { pb_n[pb_g[21]*10+6] = pb_ri; pb_g[21] = pb_ri; } };
                             pb_g[22] = pb_g[22] + 1;
                         },
                     };
@@ -221,9 +221,9 @@ fn pmul_parse(pm_g: Array<Int>, pm_t: Array<Int>, pm_n: Array<Int>) [] -> Int {
 // Level 6: unary ! - do
 fn pun_parse(pu_g: Array<Int>, pu_t: Array<Int>, pu_n: Array<Int>) [] -> Int {
     let pu_tt: Int = tcur(pu_g, pu_t);
-    match pu_tt == 37 { true -> { do teat(pu_g); let pu_ci: Int = pun_parse(pu_g, pu_t, pu_n); let pu_ni: Int = nalloc(pu_g, pu_n); pu_n[pu_ni*10]=12; pu_n[pu_ni*10+4]=1; pu_n[pu_ni*10+5]=pu_ci; pu_ni },
-    false -> match pu_tt == 25 { true -> { do teat(pu_g); let pu_ci: Int = pun_parse(pu_g, pu_t, pu_n); let pu_ni: Int = nalloc(pu_g, pu_n); pu_n[pu_ni*10]=13; pu_n[pu_ni*10+4]=1; pu_n[pu_ni*10+5]=pu_ci; pu_ni },
-    false -> match pu_tt == 6 { true -> { do teat(pu_g); let pu_ci: Int = ppf_parse(pu_g, pu_t, pu_n); let pu_ni: Int = nalloc(pu_g, pu_n); pu_n[pu_ni*10]=15; pu_n[pu_ni*10+4]=1; pu_n[pu_ni*10+5]=pu_ci; pu_ni },
+    match pu_tt == 37 { true -> { do teat(pu_g); let pu_c1: Int = pun_parse(pu_g, pu_t, pu_n); let pu_n1: Int = nalloc(pu_g, pu_n); pu_n[pu_n1*10]=12; pu_n[pu_n1*10+4]=1; pu_n[pu_n1*10+5]=pu_c1; pu_n1 },
+    false -> match pu_tt == 25 { true -> { do teat(pu_g); let pu_c2: Int = pun_parse(pu_g, pu_t, pu_n); let pu_n2: Int = nalloc(pu_g, pu_n); pu_n[pu_n2*10]=13; pu_n[pu_n2*10+4]=1; pu_n[pu_n2*10+5]=pu_c2; pu_n2 },
+    false -> match pu_tt == 6 { true -> { do teat(pu_g); let pu_c3: Int = ppf_parse(pu_g, pu_t, pu_n); let pu_n3: Int = nalloc(pu_g, pu_n); pu_n[pu_n3*10]=15; pu_n[pu_n3*10+4]=1; pu_n[pu_n3*10+5]=pu_c3; pu_n3 },
     false -> ppf_parse(pu_g, pu_t, pu_n) } } }
 }
 // Level 7: postfix f() arr[i]
@@ -234,10 +234,10 @@ fn ppf_parse(pf2_g: Array<Int>, pf2_t: Array<Int>, pf2_n: Array<Int>) [] -> Int 
 // Primary
 fn ppri_parse(pr_g: Array<Int>, pr_t: Array<Int>, pr_n: Array<Int>) [] -> Int {
     let pr_tt: Int = tcur(pr_g, pr_t);
-    match pr_tt == 14 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=7; pr_n[pr_ni*10+2]=tsoff(pr_g,pr_t); pr_n[pr_ni*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_ni },
-    false -> match pr_tt == 16 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=8; pr_n[pr_ni*10+2]=tsoff(pr_g,pr_t); pr_n[pr_ni*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_ni },
-    false -> match pr_tt == 11 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=9; pr_n[pr_ni*10+8]=1; do teat(pr_g); pr_ni },
-    false -> match pr_tt == 12 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=9; pr_n[pr_ni*10+8]=0; do teat(pr_g); pr_ni },
+    match pr_tt == 14 { true -> { let pr_i1: Int = nalloc(pr_g, pr_n); pr_n[pr_i1*10]=7; pr_n[pr_i1*10+2]=tsoff(pr_g,pr_t); pr_n[pr_i1*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_i1 },
+    false -> match pr_tt == 16 { true -> { let pr_s1: Int = nalloc(pr_g, pr_n); pr_n[pr_s1*10]=8; pr_n[pr_s1*10+2]=tsoff(pr_g,pr_t); pr_n[pr_s1*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_s1 },
+    false -> match pr_tt == 11 { true -> { let pr_b1: Int = nalloc(pr_g, pr_n); pr_n[pr_b1*10]=9; pr_n[pr_b1*10+8]=1; do teat(pr_g); pr_b1 },
+    false -> match pr_tt == 12 { true -> { let pr_b2: Int = nalloc(pr_g, pr_n); pr_n[pr_b2*10]=9; pr_n[pr_b2*10+8]=0; do teat(pr_g); pr_b2 },
     false -> match pr_tt == 19 { true -> { do teat(pr_g); let pr_ei: Int = pe_parse(pr_g, pr_t, pr_n); do teat(pr_g); pr_ei },
     false -> match pr_tt == 17 { true -> pb_parse(pr_g, pr_t, pr_n),
     false -> pic_parse(pr_g, pr_t, pr_n) } } } } } }
