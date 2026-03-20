@@ -1,0 +1,13 @@
+module main;
+
+fn classify(s: String) [] -> Int {
+    match s {
+        "fn" -> 0,
+        "let" -> 1,
+        _ -> 99,
+    }
+}
+
+fn main() [IO] -> Unit {
+    do exit(classify("fn") + classify("let") + classify("other"));
+}

@@ -341,7 +341,7 @@ fn pl_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [] -> Int {
     pl_n[pl_li * 10 + 2] = tsoff(pl_g, pl_t);
     pl_n[pl_li * 10 + 3] = tslen(pl_g, pl_t);
     do teat(pl_g);
-    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; do teat(pl_g); match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> 0 }; } }; }, false -> { } };
+    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; do teat(pl_g); pl_n[pl_li*10+9]=1; match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> 0 }; } }; }, false -> { } };
     do teat(pl_g);
     let pl_vi: Int = pe_parse(pl_g, pl_t, pl_n);
     pl_n[pl_li * 10 + 4] = 1; pl_n[pl_li * 10 + 5] = pl_vi;
@@ -354,7 +354,24 @@ fn pe_parse(pe_g: Array<Int>, pe_t: Array<Int>, pe_n: Array<Int>) [] -> Int {
     let pe_tt: Int = tcur(pe_g, pe_t);
     match pe_tt == 3 { true -> pm_parse(pe_g, pe_t, pe_n),
     false -> match pe_tt == 4 { true -> pfor_parse(pe_g, pe_t, pe_n),
-    false -> por_parse(pe_g, pe_t, pe_n) } }
+    false -> ppipe_parse(pe_g, pe_t, pe_n) } }
+}
+
+// Level 0: |> (pipe) — desugars a |> f to f(a)
+fn ppipe_parse(pp2_g: Array<Int>, pp2_t: Array<Int>, pp2_n: Array<Int>) [] -> Int {
+    let pp2_l: Array<Int> = Array(1); pp2_l[0] = por_parse(pp2_g, pp2_t, pp2_n);
+    for _pp2 in range(0, 256) { match tcur(pp2_g, pp2_t) == 39 { true -> {
+        do teat(pp2_g); // eat |>
+        let pp2_fn_off: Int = tsoff(pp2_g, pp2_t);
+        let pp2_fn_len: Int = tslen(pp2_g, pp2_t);
+        do teat(pp2_g); // eat function name
+        let pp2_ci: Int = nalloc(pp2_g, pp2_n);
+        pp2_n[pp2_ci * 10] = 14; pp2_n[pp2_ci * 10 + 2] = pp2_fn_off;
+        pp2_n[pp2_ci * 10 + 3] = pp2_fn_len; pp2_n[pp2_ci * 10 + 4] = 1;
+        pp2_n[pp2_ci * 10 + 5] = pp2_l[0];
+        pp2_l[0] = pp2_ci;
+    }, false -> { } }; };
+    pp2_l[0]
 }
 
 // Level 1: ||
@@ -517,6 +534,15 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [IO] -> Int
         }, false -> { } };
         match pm2_is_adt[0] == 1 { true -> {
             do pm_adt_arm(pm2_g, pm2_t, pm2_n);
+        }, false -> match pm2_pt == 16 { true -> {
+            // String literal match arm: NODE_MATCH_ARM_STR (26)
+            let pm2_ai: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_ai*10]=26;
+            pm2_n[pm2_ai*10+2]=tsoff(pm2_g,pm2_t); pm2_n[pm2_ai*10+3]=tslen(pm2_g,pm2_t);
+            do teat(pm2_g); do teat(pm2_g); // eat string + arrow
+            let pm2_body: Int = pe_parse(pm2_g, pm2_t, pm2_n);
+            pm2_n[pm2_ai*10+4]=1; pm2_n[pm2_ai*10+5]=pm2_body;
+            match pm2_g[26] == 0-1 { true -> { pm2_g[26] = pm2_ai; pm2_g[27] = pm2_ai; }, false -> { pm2_n[pm2_g[27]*10+6] = pm2_ai; pm2_g[27] = pm2_ai; } };
+            pm2_g[28] = pm2_g[28] + 1;
         }, false -> {
             // Original match arm: true/false/int/wildcard
             let pm2_ai: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_ai*10]=17;
@@ -529,7 +555,7 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [IO] -> Int
             pm2_n[pm2_ai*10+4]=1; pm2_n[pm2_ai*10+5]=pm2_body;
             match pm2_g[26] == 0-1 { true -> { pm2_g[26] = pm2_ai; pm2_g[27] = pm2_ai; }, false -> { pm2_n[pm2_g[27]*10+6] = pm2_ai; pm2_g[27] = pm2_ai; } };
             pm2_g[28] = pm2_g[28] + 1;
-        } };
+        } } };
         match tcur(pm2_g, pm2_t) == 42 { true -> { do teat(pm2_g); }, false -> { } };
     } }; };
     do teat(pm2_g);
@@ -651,7 +677,8 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     // Walk nodes for STR_LIT, emit each
     cg_g[29] = 0; // string literal counter
     for cg_si in range(0, cg_g[12]) {
-        match cg_n[cg_si * 10] == 8 {
+        let cg_is_str: Int = match cg_n[cg_si * 10] == 8 { true -> 1, false -> match cg_n[cg_si * 10] == 26 { true -> 1, false -> 0 } };
+        match cg_is_str == 1 {
             true -> {
                 let cg_off: Int = cg_n[cg_si * 10 + 2];
                 let cg_len: Int = cg_n[cg_si * 10 + 3];
@@ -713,6 +740,7 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do cg_rt_getarg(cg_g, cg_n, cg_s);
     do cg_rt_readfile(cg_g, cg_n, cg_s);
     do cg_rt_print_byte(cg_g, cg_n, cg_s);
+    do cg_rt_streq(cg_g, cg_n, cg_s);
 }
 
 // ===== Runtime function emitters =====
@@ -819,6 +847,20 @@ fn cg_rt_print_byte(pb_g: Array<Int>, pb_n: Array<Int>, pb_s: Array<Int>) [IO] -
     do emit_line("    lea rsi, [rbp-1]"); do emit_line("    mov rdi, 1"); do emit_line("    mov rdx, 1");
     do emit_line("    mov rax, 1"); do emit_line("    syscall");
     do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line("");
+}
+
+// string_equals(ptr1=rdi, len1=rsi, ptr2=rdx, len2=rcx) → rax=0/1
+fn cg_rt_streq(sq_g: Array<Int>, sq_n: Array<Int>, sq_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_string_equals:");
+    do emit_line("    cmp rsi, rcx"); do emit_line("    jne .seq_fail");
+    do emit_line("    xor r8, r8");
+    do emit_line(".seq_loop:"); do emit_line("    cmp r8, rsi"); do emit_line("    jge .seq_pass");
+    do emit_line("    movzx rax, byte [rdi + r8]"); do emit_line("    movzx rcx, byte [rdx + r8]");
+    do emit_line("    cmp al, cl"); do emit_line("    jne .seq_fail");
+    do emit_line("    inc r8"); do emit_line("    jmp .seq_loop");
+    do emit_line(".seq_pass:"); do emit_line("    mov rax, 1"); do emit_line("    ret");
+    do emit_line(".seq_fail:"); do emit_line("    xor rax, rax"); do emit_line("    ret");
     do emit_line("");
 }
 
@@ -1065,9 +1107,10 @@ fn cg_str(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>) [IO] -> Unit {
 
 // g[115..120]: 115=match_node 116=arm_count 117=label_id 118=arm_iter 119=arm_idx 120=pass(0=cmp,1=body)
 fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
-    // Check if first arm is ADT (type 25)
     let cm_first_arm: Int = cm_n[cm_g[31]*10+5];
-    match cm_n[cm_first_arm*10] == 25 { true -> do cg_match_adt(cm_g, cm_n, cm_s),
+    let cm_arm_type: Int = cm_n[cm_first_arm*10];
+    match cm_arm_type == 25 { true -> do cg_match_adt(cm_g, cm_n, cm_s),
+    false -> match cm_arm_type == 26 { true -> do cg_match_str(cm_g, cm_n, cm_s),
     false -> {
         cm_g[115]=cm_g[31]; cm_g[116]=cm_n[cm_g[115]*10+4]; cm_g[117]=cm_g[32]; cm_g[32]=cm_g[32]+1;
         cm_g[31]=cm_n[cm_g[115]*10+8]; do cg_expr(cm_g, cm_n, cm_s);
@@ -1077,7 +1120,7 @@ fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
         cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=1;
         do cg_mpass(cm_g, cm_n, cm_s);
         do print_raw(".Lm"); do print_raw(int_to_string(cm_g[117])); do emit_line("_end:");
-    } };
+    } } };
 }
 fn cg_mpass(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
     for _mp in range(0, mp_g[116]) {
@@ -1204,6 +1247,48 @@ fn cg_marm_adt_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> U
 }
 
 // Array(N): allocate N*8 bytes from bump heap, return (ptr, len) in rax/rdx
+// String match: compare discriminant with string literal per arm
+fn cg_match_str(ms_g: Array<Int>, ms_n: Array<Int>, ms_s: Array<Int>) [IO] -> Unit {
+    ms_g[115]=ms_g[31]; ms_g[116]=ms_n[ms_g[115]*10+4]; ms_g[117]=ms_g[32]; ms_g[32]=ms_g[32]+1;
+    // Evaluate discriminant → rax=ptr, rdx=len (String)
+    ms_g[31]=ms_n[ms_g[115]*10+8]; do cg_expr(ms_g, ms_n, ms_s);
+    do emit_line("    push rdx"); do emit_line("    push rax"); // save string on stack
+    // Comparison pass
+    ms_g[118]=ms_n[ms_g[115]*10+5]; ms_g[119]=0;
+    for _msc in range(0, ms_g[116]) {
+        match ms_n[ms_g[118]*10] == 26 { true -> {
+            let ms_idx: Int = ms_n[ms_g[118]*10+8]; // _sN index
+            do emit_line("    mov rdi, [rsp]"); do emit_line("    mov rsi, [rsp+8]");
+            do print_raw("    lea rdx, [rel _s"); do print_raw(int_to_string(ms_idx)); do emit_line("]");
+            do print_raw("    mov rcx, _s"); do print_raw(int_to_string(ms_idx)); do emit_line("_len");
+            do emit_line("    call _rt_string_equals");
+            do print_raw("    cmp rax, 1"); do emit_line("");
+            do print_raw("    je .Lm"); do print_raw(int_to_string(ms_g[117])); do print_raw("_a"); do emit_line(int_to_string(ms_g[119]));
+        }, false -> {
+            // Wildcard arm
+            do print_raw("    jmp .Lm"); do print_raw(int_to_string(ms_g[117])); do print_raw("_a"); do emit_line(int_to_string(ms_g[119]));
+        } };
+        ms_g[119]=ms_g[119]+1; ms_g[118]=ms_n[ms_g[118]*10+6];
+    };
+    // Body pass
+    ms_g[118]=ms_n[ms_g[115]*10+5]; ms_g[119]=0;
+    for _msb in range(0, ms_g[116]) {
+        do print_raw(".Lm"); do print_raw(int_to_string(ms_g[117])); do print_raw("_a"); do print_raw(int_to_string(ms_g[119])); do emit_line(":");
+        ms_g[121]=ms_g[121]+1; ms_g[122]=200+ms_g[121]*6;
+        ms_g[ms_g[122]]=ms_g[115]; ms_g[ms_g[122]+1]=ms_g[116]; ms_g[ms_g[122]+2]=ms_g[117];
+        ms_g[ms_g[122]+3]=ms_g[118]; ms_g[ms_g[122]+4]=ms_g[119]; ms_g[ms_g[122]+5]=0;
+        ms_g[31]=ms_n[ms_g[118]*10+5]; do cg_expr(ms_g, ms_n, ms_s);
+        ms_g[122]=200+ms_g[121]*6;
+        ms_g[115]=ms_g[ms_g[122]]; ms_g[116]=ms_g[ms_g[122]+1]; ms_g[117]=ms_g[ms_g[122]+2];
+        ms_g[118]=ms_g[ms_g[122]+3]; ms_g[119]=ms_g[ms_g[122]+4];
+        ms_g[121]=ms_g[121]-1;
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ms_g[117])); do emit_line("_end");
+        ms_g[119]=ms_g[119]+1; ms_g[118]=ms_n[ms_g[118]*10+6];
+    };
+    do print_raw(".Lm"); do print_raw(int_to_string(ms_g[117])); do emit_line("_end:");
+    do emit_line("    add rsp, 16");
+}
+
 fn cg_arynew(an_g: Array<Int>, an_n: Array<Int>, an_s: Array<Int>) [IO] -> Unit {
     do cg_expr(an_g, an_n, an_s); // g[31] already set to size expr by caller
     do emit_line("    mov rcx, rax"); // save count
@@ -1634,9 +1719,37 @@ fn tc_check_effects(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -
 }
 
 // Main type check entry point
+// Type mismatch check: scan LET nodes with type annotations
+fn tc_check_types(tt_g: Array<Int>, tt_n: Array<Int>, tt_s: Array<Int>) [IO] -> Unit {
+    for tt_ni in range(0, tt_g[12]) {
+        match tt_n[tt_ni * 10] == 4 { true -> {
+            let tt_decl: Int = tt_n[tt_ni * 10 + 7];
+            match tt_n[tt_ni * 10 + 9] == 1 { true -> {
+                let tt_init: Int = tt_n[tt_ni * 10 + 5];
+                match tt_init >= 1 { true -> {
+                    let tt_init_nt: Int = tt_n[tt_init * 10];
+                    // Only check literals with unambiguous types
+                    // INT_LIT(7)/BOOL_LIT(9) → 0 (Int), STR_LIT(8) → 2 (String)
+                    let tt_can_check: Int = match tt_init_nt == 7 { true -> 1, false -> match tt_init_nt == 8 { true -> 1, false -> match tt_init_nt == 9 { true -> 1, false -> 0 } } };
+                    match tt_can_check == 1 { true -> {
+                        let tt_actual: Int = match tt_init_nt == 8 { true -> 2, false -> 0 };
+                        match tt_decl == 2 { true -> match tt_actual == 0 { true -> {
+                            tt_g[905]=tt_ni; tt_g[906]=1; tt_g[907]=2; tt_g[908]=0; do tc_error(tt_g, tt_n, tt_s);
+                        }, false -> { } }, false -> { } };
+                        match tt_decl == 0 { true -> match tt_actual == 2 { true -> {
+                            tt_g[905]=tt_ni; tt_g[906]=1; tt_g[907]=0; tt_g[908]=2; do tc_error(tt_g, tt_n, tt_s);
+                        }, false -> { } }, false -> { } };
+                    }, false -> { } };
+                }, false -> { } };
+            }, false -> { } };
+        }, false -> { } };
+    };
+}
+
 fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     tc_g[911] = 0;
     do tc_check_effects(tc_g, tc_n, tc_s);
+    do tc_check_types(tc_g, tc_n, tc_s);
     match tc_g[911] > 0 { true -> do exit(1), false -> { } };
 }
 

@@ -1,0 +1,5 @@
+module main;
+fn main() [IO] -> Unit {
+    let x: Int = "not an int";
+    do exit(0);
+}
