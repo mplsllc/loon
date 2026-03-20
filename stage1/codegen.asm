@@ -515,17 +515,23 @@ cg_ef_epilogue:
 ; Input: edi = block node index, r14d = current offset
 ; Output: r14d updated
 ; ============================================================
+; ============================================================
+; cg_assign_let_slots — walk a BLOCK's children via sibling chain
+; For each child: if LET → assign slot. If it contains a nested
+; BLOCK (via FOR body, MATCH arm), recurse into that BLOCK.
+; Input: edi = BLOCK node index
+; Uses r14d as the running stack offset (shared across calls)
+; ============================================================
 cg_assign_let_slots:
     push rbx
     push r12
-    push r13
 
-    ; Get block node
+    ; Get the BLOCK node
     mov eax, edi
     imul eax, NODE_SIZE
     lea rbx, [rel nodes]
     add rbx, rax
-    mov r12d, [rbx + 16]           ; first_child
+    mov r12d, [rbx + 16]           ; first_child of BLOCK
 
 cg_als_loop:
     cmp r12d, NO_CHILD
@@ -535,128 +541,40 @@ cg_als_loop:
     imul eax, NODE_SIZE
     lea rbx, [rel nodes]
     add rbx, rax
-
     movzx eax, byte [rbx]
 
     cmp eax, NODE_LET
     je cg_als_let
-
-    ; Check for EXPR_STMT or RETURN_EXPR wrapping a FOR or MATCH
     cmp eax, NODE_EXPR_STMT
-    je cg_als_check_inner
+    je cg_als_walk_child
     cmp eax, NODE_RETURN_EXPR
-    je cg_als_check_inner
-
+    je cg_als_walk_child
+    cmp eax, NODE_ARRAY_SET
+    je cg_als_next
     jmp cg_als_next
 
 cg_als_let:
-    ; Assign stack slot based on type
-    mov eax, [rbx + 24]            ; type_info
+    mov eax, [rbx + 24]
     cmp eax, TYPE_STRING
     je cg_als_let_16
     cmp eax, TYPE_ARRAY
     je cg_als_let_16
-    ; 8-byte
     add r14d, 8
     mov [rbx + 28], r14d
-    jmp cg_als_next
+    ; Also walk the initializer for nested blocks
+    jmp cg_als_walk_child
 cg_als_let_16:
     add r14d, 16
     mov [rbx + 28], r14d
-    jmp cg_als_next
+    jmp cg_als_walk_child
 
-cg_als_check_inner:
-    ; Check if the wrapped expression is a FOR
-    mov r13d, [rbx + 16]           ; first_child of EXPR_STMT/RETURN_EXPR
-    cmp r13d, NO_CHILD
-    je cg_als_next
-    mov eax, r13d
-    imul eax, NODE_SIZE
-    lea rbx, [rel nodes]
-    add rbx, rax
-    movzx eax, byte [rbx]
-    cmp eax, NODE_FOR
-    je cg_als_for
-    cmp eax, NODE_MATCH
-    je cg_als_match
+cg_als_walk_child:
+    ; Depth-first walk of this node's subtree to find nested FOR/MATCH/BLOCK
+    mov edi, [rbx + 16]            ; first_child
+    call cg_als_walk_expr
     jmp cg_als_next
-
-cg_als_for:
-    ; FOR node needs 2 slots: loop variable (8 bytes) + end value (8 bytes)
-    ; Store loop var offset in FOR node's extra field
-    add r14d, 8
-    mov [rbx + 28], r14d           ; extra = loop var offset
-    ; End value temp: we'll store its offset at a known delta (+8 from loop var)
-    add r14d, 8                    ; end value slot = loop_var_offset + 8
-    ; Recurse into body block (third child — follow sibling chain)
-    ; Children: start, end, body. Get body = third child.
-    mov eax, [rbx + 16]            ; first_child = start expr
-    imul eax, NODE_SIZE
-    lea rdi, [rel nodes]
-    mov eax, [rdi + rax + 20]      ; start.next_sibling = end expr
-    imul eax, NODE_SIZE
-    mov eax, [rdi + rax + 20]      ; end.next_sibling = body block
-    cmp eax, NO_CHILD
-    je cg_als_next
-    ; Recurse into body block
-    mov edi, eax
-    call cg_assign_let_slots
-    jmp cg_als_next
-
-cg_als_match:
-    ; Walk match arms and recurse into arm bodies
-    ; Arms may contain blocks with let/for inside (e.g., kw_match in compiler.loon)
-    mov r13d, [rbx + 16]           ; first arm
-cg_als_match_arm:
-    cmp r13d, NO_CHILD
-    je cg_als_next
-    mov eax, r13d
-    imul eax, NODE_SIZE
-    lea rbx, [rel nodes]
-    add rbx, rax
-    ; Arm body is first_child — check if it's a BLOCK
-    mov eax, [rbx + 16]            ; first_child of arm = body expression
-    cmp eax, NO_CHILD
-    je cg_als_match_arm_next
-    push rbx
-    push r13
-    imul eax, NODE_SIZE
-    lea rdi, [rel nodes]
-    add rdi, rax
-    movzx eax, byte [rdi]
-    cmp eax, NODE_BLOCK
-    jne cg_als_match_arm_not_block
-    ; It's a block — recurse
-    mov eax, [rbx + 16]
-    mov edi, eax
-    call cg_assign_let_slots
-    jmp cg_als_match_arm_recursed
-cg_als_match_arm_not_block:
-    ; Check if it's a FOR or MATCH directly (unlikely but handle it)
-    cmp eax, NODE_FOR
-    jne cg_als_match_arm_recursed
-    ; Assign FOR slots
-    mov eax, [rbx + 16]
-    imul eax, NODE_SIZE
-    lea rbx, [rel nodes]
-    add rbx, rax
-    add r14d, 8
-    mov [rbx + 28], r14d
-    add r14d, 8
-cg_als_match_arm_recursed:
-    pop r13
-    pop rbx
-cg_als_match_arm_next:
-    ; Recalculate rbx for current arm (may have been clobbered)
-    mov eax, r13d
-    imul eax, NODE_SIZE
-    lea rbx, [rel nodes]
-    add rbx, rax
-    mov r13d, [rbx + 20]           ; next_sibling
-    jmp cg_als_match_arm
 
 cg_als_next:
-    ; Restore r12 node pointer (may have been clobbered)
     mov eax, r12d
     imul eax, NODE_SIZE
     lea rbx, [rel nodes]
@@ -664,7 +582,112 @@ cg_als_next:
     jmp cg_als_loop
 
 cg_als_done:
-    pop r13
+    pop r12
+    pop rbx
+    ret
+
+; ============================================================
+; cg_als_walk_expr — walk an expression tree depth-first
+; Finds FOR, MATCH, BLOCK nodes and handles them
+; Does NOT follow next_sibling (to avoid escaping into the
+; parent's sibling chain). Only follows first_child.
+; Input: edi = node index
+; ============================================================
+cg_als_walk_expr:
+    push rbx
+    push r12
+
+    mov r12d, edi
+    cmp r12d, NO_CHILD
+    je cg_alw_done
+
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    movzx eax, byte [rbx]
+
+    cmp eax, NODE_FOR
+    je cg_alw_for
+    cmp eax, NODE_MATCH
+    je cg_alw_match
+    cmp eax, NODE_BLOCK
+    je cg_alw_block
+
+    ; For other expression nodes, walk first_child to find nested structures
+    ; But also walk next_sibling ONLY for nodes that are operands (BINOP children etc.)
+    ; Actually: walk both first_child and next_sibling for expression nodes.
+    ; Expression nodes' next_sibling links operands (left→right for BINOP,
+    ; arg→arg for CALL). These don't contain LET/FOR definitions, so walking
+    ; them is safe — we just won't find anything to assign.
+    mov edi, [rbx + 16]
+    call cg_als_walk_expr
+    ; Reload and walk next_sibling
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    mov edi, [rbx + rax + 20]
+    call cg_als_walk_expr
+    jmp cg_alw_done
+
+cg_alw_for:
+    ; Assign 2 slots for FOR
+    add r14d, 8
+    mov [rbx + 28], r14d           ; loop var
+    add r14d, 8                    ; end value cache
+    ; Walk FOR children: start, end, body
+    ; Children linked via first_child → next_sibling chain
+    mov edi, [rbx + 16]            ; first_child = start expr
+    call cg_als_walk_expr          ; walk start (probably no nested blocks)
+    ; Get end expr (start.next_sibling)
+    mov eax, [rbx + 16]
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov eax, [rdi + rax + 20]      ; end expr index
+    push rax                       ; save end index
+    mov edi, eax
+    call cg_als_walk_expr          ; walk end
+    ; Get body (end.next_sibling)
+    pop rax
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    mov edi, [rdi + rax + 20]      ; body BLOCK index
+    cmp edi, NO_CHILD
+    je cg_alw_done
+    ; Recurse into body BLOCK
+    call cg_assign_let_slots
+    jmp cg_alw_done
+
+cg_alw_match:
+    ; Walk match arms — each arm's body might contain blocks
+    ; Match discriminant is in extra field, arms are in child chain
+    mov r12d, [rbx + 16]           ; first arm
+cg_alw_match_arm:
+    cmp r12d, NO_CHILD
+    je cg_alw_done
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    ; Arm body is first_child
+    mov edi, [rbx + 16]
+    push r12
+    call cg_als_walk_expr          ; walk arm body (may find BLOCK)
+    pop r12
+    ; Next arm
+    mov eax, r12d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    mov r12d, [rbx + rax + 20]
+    jmp cg_alw_match_arm
+
+cg_alw_block:
+    ; Found a nested BLOCK — recurse with the BLOCK walker
+    mov edi, r12d
+    call cg_assign_let_slots
+    jmp cg_alw_done
+
+cg_alw_done:
     pop r12
     pop rbx
     ret

@@ -696,21 +696,30 @@ expr_padd_mk:
     mov dword [rax + 12], 2
     mov dword [rax + 24], TYPE_INT  ; default; string dispatch set later
     mov dword [rax + 20], NO_CHILD
-    ; Check if this is string + : if left is STR_LIT, set type_info=STRING
+    ; Check if this is string + : if left or right is STR_LIT or has type_info=STRING
     cmp cl, BINOP_ADD
     jne expr_padd_not_str
     push rax                        ; save binop pointer
     mov eax, r12d                   ; left child index
     imul eax, NODE_SIZE
     lea rdi, [rel nodes]
-    movzx ecx, byte [rdi + rax]    ; left node_type
+    ; Check left node_type == STR_LIT
+    movzx ecx, byte [rdi + rax]
     cmp cl, NODE_STR_LIT
     je expr_padd_set_str
-    ; Also check right
+    ; Check left type_info == STRING
+    mov ecx, [rdi + rax + 24]
+    cmp ecx, TYPE_STRING
+    je expr_padd_set_str
+    ; Check right node_type == STR_LIT
     mov eax, ebx
     imul eax, NODE_SIZE
     movzx ecx, byte [rdi + rax]
     cmp cl, NODE_STR_LIT
+    je expr_padd_set_str
+    ; Check right type_info == STRING
+    mov ecx, [rdi + rax + 24]
+    cmp ecx, TYPE_STRING
     je expr_padd_set_str
     pop rax
     jmp expr_padd_not_str
