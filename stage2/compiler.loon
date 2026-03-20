@@ -3,11 +3,12 @@
 //        nasm -f elf64 -o /tmp/stage2.o /tmp/stage2.asm && ld -o stage2/compiler /tmp/stage2.o
 module compiler;
 
-// State: gst[0]=src_len [1]=pos [2]=line [3]=col [4]=tok_count [5]=str_pos [6]=mode
-// String table stored in gsb starting at offset src_len (past source bytes)
-// gst[7]=emit_line gst[8]=emit_col (saved before token read)
+// State: g[0]=src_len [1]=pos [2]=line [3]=col [4]=tok_count [5]=str_pos
+//        [6]=mode(0=normal,1=comment) [7]=emit_line [8]=emit_col
+//        [9]=str_off [10]=str_len (for current token value)
+// String table: stored in s[] starting at offset src_len
 
-// Char classification
+// ===== Character classification =====
 fn is_lower(c: Int) [] -> Bool { match c >= 97 { true -> match c <= 122 { true -> true, false -> false }, false -> false } }
 fn is_upper(c: Int) [] -> Bool { match c >= 65 { true -> match c <= 90 { true -> true, false -> false }, false -> false } }
 fn is_alpha(c: Int) [] -> Bool { match is_lower(c) { true -> true, false -> match is_upper(c) { true -> true, false -> match c == 95 { true -> true, false -> false } } } }
@@ -15,7 +16,7 @@ fn is_digit(c: Int) [] -> Bool { match c >= 48 { true -> match c <= 57 { true ->
 fn is_alnum(c: Int) [] -> Bool { match is_alpha(c) { true -> true, false -> is_digit(c) } }
 fn is_ws(c: Int) [] -> Bool { match c == 32 { true -> true, false -> match c == 9 { true -> true, false -> match c == 10 { true -> true, false -> match c == 13 { true -> true, false -> false } } } } }
 
-// Lexer primitives
+// ===== Lexer primitives =====
 fn xpeek(g: Array<Int>, s: Array<Int>) [] -> Int { s[g[1]] }
 fn xend(g: Array<Int>) [] -> Bool { match g[1] >= g[0] { true -> true, false -> false } }
 fn xadv(g: Array<Int>, s: Array<Int>) [] -> Int {
@@ -24,73 +25,192 @@ fn xadv(g: Array<Int>, s: Array<Int>) [] -> Int {
     match c == 10 { true -> { g[2] = g[2] + 1; g[3] = 1; c }, false -> { g[3] = g[3] + 1; c } }
 }
 
-// Emit token with value: type at g[7] tmp, str_off/len from args
+// ===== Token emission =====
 fn xemit(g: Array<Int>, tk: Array<Int>, t: Int) [] -> Unit {
     let b: Int = g[4] * 5;
     tk[b] = t; tk[b + 1] = 0; tk[b + 2] = 0; tk[b + 3] = g[7]; tk[b + 4] = g[8];
     g[4] = g[4] + 1;
 }
-
-// Emit token with string value
 fn xemitv(g: Array<Int>, tk: Array<Int>, t: Int) [] -> Unit {
     let b: Int = g[4] * 5;
     tk[b] = t; tk[b + 1] = g[9]; tk[b + 2] = g[10]; tk[b + 3] = g[7]; tk[b + 4] = g[8];
     g[4] = g[4] + 1;
 }
 
-// Keyword detection by length + byte comparison
-// g[9]=str_off, g[10]=str_len set by caller, bytes in s[off..off+len]
+// ===== Keyword detection (by length, byte comparison) =====
 fn kw2(g: Array<Int>, s: Array<Int>) [] -> Int {
     let o: Int = g[9];
-    match s[o] == 102 { true -> match s[o + 1] == 110 { true -> 0, false -> 0 - 1 }, false ->
-    match s[o] == 105 { true -> match s[o + 1] == 110 { true -> 5, false -> 0 - 1 }, false ->
-    match s[o] == 100 { true -> match s[o + 1] == 111 { true -> 6, false -> 0 - 1 }, false -> 0 - 1 } } }
+    match s[o] == 102 { true -> match s[o+1] == 110 { true -> 0, false -> 0-1 }, false ->
+    match s[o] == 105 { true -> match s[o+1] == 110 { true -> 5, false -> 0-1 }, false ->
+    match s[o] == 100 { true -> match s[o+1] == 111 { true -> 6, false -> 0-1 }, false -> 0-1 } } }
 }
-
 fn kw3(g: Array<Int>, s: Array<Int>) [] -> Int {
     let o: Int = g[9];
-    match s[o] == 108 { true -> match s[o + 1] == 101 { true -> match s[o + 2] == 116 { true -> 1, false -> 0 - 1 }, false -> 0 - 1 }, false ->
-    match s[o] == 102 { true -> match s[o + 1] == 111 { true -> match s[o + 2] == 114 { true -> 4, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 } }
+    match s[o] == 108 { true -> match s[o+1] == 101 { true -> match s[o+2] == 116 { true -> 1, false -> 0-1 }, false -> 0-1 }, false ->
+    match s[o] == 102 { true -> match s[o+1] == 111 { true -> match s[o+2] == 114 { true -> 4, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
 }
-
 fn kw4(g: Array<Int>, s: Array<Int>) [] -> Int {
     let o: Int = g[9];
-    match s[o] == 116 { true -> match s[o + 1] == 121 { true -> match s[o + 2] == 112 { true -> match s[o + 3] == 101 { true -> 2, false -> 0 - 1 }, false -> 0 - 1 }, false ->
-    match s[o + 1] == 114 { true -> match s[o + 2] == 117 { true -> match s[o + 3] == 101 { true -> 11, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 } }, false -> 0 - 1 }
+    match s[o] == 116 { true -> match s[o+1] == 121 { true -> match s[o+2] == 112 { true -> match s[o+3] == 101 { true -> 2, false -> 0-1 }, false -> 0-1 }, false ->
+    match s[o+1] == 114 { true -> match s[o+2] == 117 { true -> match s[o+3] == 101 { true -> 11, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }, false -> 0-1 }
 }
-
 fn kw5(g: Array<Int>, s: Array<Int>) [] -> Int {
     let o: Int = g[9];
-    match s[o] == 109 { true -> match s[o + 1] == 97 { true -> match s[o + 2] == 116 { true -> match s[o + 3] == 99 { true -> match s[o + 4] == 104 { true -> 3, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false ->
-    match s[o] == 102 { true -> match s[o + 1] == 97 { true -> match s[o + 2] == 108 { true -> match s[o + 3] == 115 { true -> match s[o + 4] == 101 { true -> 12, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 } }
+    match s[o] == 109 { true -> match s[o+1] == 97 { true -> match s[o+2] == 116 { true -> match s[o+3] == 99 { true -> match s[o+4] == 104 { true -> 3, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false ->
+    match s[o] == 102 { true -> match s[o+1] == 97 { true -> match s[o+2] == 108 { true -> match s[o+3] == 115 { true -> match s[o+4] == 101 { true -> 12, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
 }
-
 fn kw6(g: Array<Int>, s: Array<Int>) [] -> Int {
     let o: Int = g[9];
-    match s[o] == 109 { true -> match s[o + 1] == 111 { true -> match s[o + 2] == 100 { true -> match s[o + 3] == 117 { true -> match s[o + 4] == 108 { true -> match s[o + 5] == 101 { true -> 7, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }
+    match s[o] == 109 { true -> match s[o+1] == 111 { true -> match s[o+2] == 100 { true -> match s[o+3] == 117 { true -> match s[o+4] == 108 { true -> match s[o+5] == 101 { true -> 7, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }
 }
-
 fn kw7(g: Array<Int>, s: Array<Int>) [] -> Int {
     let o: Int = g[9];
-    match s[o] == 105 { true -> match s[o + 1] == 109 { true -> match s[o + 2] == 112 { true -> match s[o + 3] == 111 { true -> match s[o + 4] == 114 { true -> match s[o + 5] == 116 { true -> match s[o + 6] == 115 { true -> 8, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false ->
-    match s[o] == 101 { true -> match s[o + 1] == 120 { true -> match s[o + 2] == 112 { true -> match s[o + 3] == 111 { true -> match s[o + 4] == 114 { true -> match s[o + 5] == 116 { true -> match s[o + 6] == 115 { true -> 9, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 } }
+    match s[o] == 105 { true -> match s[o+1] == 109 { true -> match s[o+2] == 112 { true -> match s[o+3] == 111 { true -> match s[o+4] == 114 { true -> match s[o+5] == 116 { true -> match s[o+6] == 115 { true -> 8, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false ->
+    match s[o] == 101 { true -> match s[o+1] == 120 { true -> match s[o+2] == 112 { true -> match s[o+3] == 111 { true -> match s[o+4] == 114 { true -> match s[o+5] == 116 { true -> match s[o+6] == 115 { true -> 9, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
 }
-
-// Dispatch keyword check by length
 fn kwtype(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let xl: Int = g[10];
-    match xl {
-        2 -> kw2(g, s),
-        3 -> kw3(g, s),
-        4 -> kw4(g, s),
-        5 -> kw5(g, s),
-        6 -> kw6(g, s),
-        7 -> kw7(g, s),
-        _ -> 0 - 1,
-    }
+    match g[10] { 2 -> kw2(g, s), 3 -> kw3(g, s), 4 -> kw4(g, s), 5 -> kw5(g, s), 6 -> kw6(g, s), 7 -> kw7(g, s), _ -> 0-1 }
 }
 
-// Token name for output
+// ===== Reader functions — each has exactly one FOR loop =====
+
+fn lex_word(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
+    g[9] = g[5];
+    for _id in range(0, 256) {
+        match xend(g) { true -> { }, false -> match is_alnum(xpeek(g, s)) {
+            true -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
+            false -> { },
+        } };
+    };
+    g[10] = g[5] - g[9];
+    let kt: Int = kwtype(g, s);
+    match kt >= 0 { true -> do xemit(g, tk, kt), false -> do xemitv(g, tk, 13) };
+}
+
+fn lex_num(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
+    g[9] = g[5];
+    let isf: Array<Int> = Array(1);
+    isf[0] = 0;
+    for _ni in range(0, 256) {
+        match xend(g) { true -> { }, false -> {
+            let nc: Int = xpeek(g, s);
+            match is_digit(nc) {
+                true -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
+                false -> match nc == 46 {
+                    true -> match isf[0] == 0 {
+                        true -> { isf[0] = 1; s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
+                        false -> { },
+                    },
+                    false -> { },
+                },
+            };
+        } };
+    };
+    g[10] = g[5] - g[9];
+    match isf[0] { 0 -> do xemitv(g, tk, 14), _ -> do xemitv(g, tk, 15) };
+}
+
+fn lex_str(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
+    let _q: Int = xadv(g, s);
+    g[9] = g[5];
+    for _si in range(0, 65536) {
+        match xend(g) { true -> { }, false -> {
+            let sc: Int = xpeek(g, s);
+            match sc == 34 { true -> { }, false -> match sc == 92 {
+                true -> {
+                    let _bs: Int = xadv(g, s);
+                    match xend(g) { true -> { }, false -> {
+                        let ec: Int = xadv(g, s);
+                        match ec {
+                            110 -> { s[g[5]] = 10; g[5] = g[5] + 1; },
+                            116 -> { s[g[5]] = 9; g[5] = g[5] + 1; },
+                            92  -> { s[g[5]] = 92; g[5] = g[5] + 1; },
+                            34  -> { s[g[5]] = 34; g[5] = g[5] + 1; },
+                            _   -> { s[g[5]] = ec; g[5] = g[5] + 1; },
+                        };
+                    } };
+                },
+                false -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
+            } };
+        } };
+    };
+    g[10] = g[5] - g[9];
+    match xend(g) { true -> { }, false -> match xpeek(g, s) == 34 { true -> { let _cq: Int = xadv(g, s); }, false -> { } } };
+    do xemitv(g, tk, 16);
+}
+
+fn lex_sym(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
+    let c: Int = xadv(g, s);
+    match c {
+        123 -> do xemit(g, tk, 17), 125 -> do xemit(g, tk, 18),
+        40 -> do xemit(g, tk, 19), 41 -> do xemit(g, tk, 20),
+        91 -> do xemit(g, tk, 21), 93 -> do xemit(g, tk, 22),
+        43 -> do xemit(g, tk, 24), 42 -> do xemit(g, tk, 26),
+        37 -> do xemit(g, tk, 28), 58 -> do xemit(g, tk, 40),
+        59 -> do xemit(g, tk, 41), 44 -> do xemit(g, tk, 42),
+        46 -> do xemit(g, tk, 43),
+        45 -> match xend(g) { true -> do xemit(g, tk, 25), false -> match xpeek(g, s) == 62 { true -> { let _gt: Int = xadv(g, s); do xemit(g, tk, 38); }, false -> do xemit(g, tk, 25) } },
+        61 -> match xend(g) { true -> do xemit(g, tk, 23), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 29); }, false -> do xemit(g, tk, 23) } },
+        33 -> match xend(g) { true -> do xemit(g, tk, 37), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 30); }, false -> do xemit(g, tk, 37) } },
+        60 -> match xend(g) { true -> do xemit(g, tk, 31), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 33); }, false -> do xemit(g, tk, 31) } },
+        62 -> match xend(g) { true -> do xemit(g, tk, 32), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 34); }, false -> do xemit(g, tk, 32) } },
+        38 -> match xend(g) { true -> { }, false -> match xpeek(g, s) == 38 { true -> { let _a: Int = xadv(g, s); do xemit(g, tk, 35); }, false -> { } } },
+        124 -> match xend(g) { true -> { }, false -> match xpeek(g, s) == 124 { true -> { let _o: Int = xadv(g, s); do xemit(g, tk, 36); }, false -> match xpeek(g, s) == 62 { true -> { let _p: Int = xadv(g, s); do xemit(g, tk, 39); }, false -> { } } } },
+        _ -> { do print("error: unexpected char"); do exit(1); },
+    };
+}
+
+// ===== Dispatch — called for each non-ws, non-comment char =====
+fn lex_dispatch(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
+    g[7] = g[2]; g[8] = g[3];
+    let c: Int = xpeek(g, s);
+    match c == 47 {
+        true -> match g[1] + 1 < g[0] {
+            true -> match s[g[1] + 1] == 47 {
+                true -> { let _s1: Int = xadv(g, s); let _s2: Int = xadv(g, s); g[6] = 1; },
+                false -> do lex_sym(g, tk, s),
+            },
+            false -> do lex_sym(g, tk, s),
+        },
+        false -> match c == 34 {
+            true -> do lex_str(g, tk, s),
+            false -> match is_alpha(c) {
+                true -> do lex_word(g, tk, s),
+                false -> match is_digit(c) {
+                    true -> do lex_num(g, tk, s),
+                    false -> do lex_sym(g, tk, s),
+                },
+            },
+        },
+    };
+}
+
+// ===== Main lex loop — flat, one char per iteration =====
+fn lex_all(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
+    g[1] = 0; g[2] = 1; g[3] = 1; g[4] = 0; g[5] = g[0]; g[6] = 0;
+    for _i in range(0, 1048576) {
+        match xend(g) {
+            true -> { },
+            false -> {
+                let c: Int = xpeek(g, s);
+                match g[6] == 1 {
+                    true -> match c == 10 {
+                        true -> { g[6] = 0; let _n: Int = xadv(g, s); },
+                        false -> { let _cc: Int = xadv(g, s); },
+                    },
+                    false -> match is_ws(c) {
+                        true -> { let _w: Int = xadv(g, s); },
+                        false -> do lex_dispatch(g, tk, s),
+                    },
+                };
+            },
+        };
+    };
+    g[7] = g[2]; g[8] = g[3];
+    do xemit(g, tk, 44);
+}
+
+// ===== Token name =====
 fn tname(t: Int) [] -> String {
     match t {
         0 -> "KW_FN", 1 -> "KW_LET", 2 -> "KW_TYPE", 3 -> "KW_MATCH",
@@ -108,122 +228,7 @@ fn tname(t: Int) [] -> String {
     }
 }
 
-// Main lexer — flat state machine
-fn lex_all(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    g[1] = 0; g[2] = 1; g[3] = 1; g[4] = 0; g[5] = g[0]; g[6] = 0;
-    // g[5] = str_pos starts at src_len (string table is past source in gsb)
-    for _i in range(0, 1048576) {
-        match xend(g) {
-            true -> { },
-            false -> {
-                let c: Int = xpeek(g, s);
-                match g[6] == 1 {
-                    // Comment mode
-                    true -> match c == 10 {
-                        true -> { g[6] = 0; let _n: Int = xadv(g, s); },
-                        false -> { let _cc: Int = xadv(g, s); },
-                    },
-                    false -> match is_ws(c) {
-                        true -> { let _w: Int = xadv(g, s); },
-                        false -> {
-                            g[7] = g[2]; g[8] = g[3]; // save line/col for token
-                            match c == 47 {
-                                // Slash or comment
-                                true -> match g[1] + 1 < g[0] {
-                                    true -> match s[g[1] + 1] == 47 {
-                                        true -> { let _s1: Int = xadv(g, s); let _s2: Int = xadv(g, s); g[6] = 1; },
-                                        false -> { let _sl: Int = xadv(g, s); do xemit(g, tk, 27); },
-                                    },
-                                    false -> { let _sl: Int = xadv(g, s); do xemit(g, tk, 27); },
-                                },
-                                false -> match c == 34 {
-                                    // String literal
-                                    true -> {
-                                        let _q: Int = xadv(g, s);
-                                        g[9] = g[5]; // str_off
-                                        for _si in range(0, 65536) {
-                                            match xend(g) { true -> { }, false -> {
-                                                let sc: Int = xpeek(g, s);
-                                                match sc == 34 { true -> { }, false -> match sc == 92 {
-                                                    true -> {
-                                                        let _bs: Int = xadv(g, s);
-                                                        match xend(g) { true -> { }, false -> {
-                                                            let ec: Int = xadv(g, s);
-                                                            match ec { 110 -> { s[g[5]] = 10; g[5] = g[5] + 1; }, 116 -> { s[g[5]] = 9; g[5] = g[5] + 1; }, 92 -> { s[g[5]] = 92; g[5] = g[5] + 1; }, 34 -> { s[g[5]] = 34; g[5] = g[5] + 1; }, _ -> { s[g[5]] = ec; g[5] = g[5] + 1; } };
-                                                        } };
-                                                    },
-                                                    false -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
-                                                } };
-                                            } };
-                                        };
-                                        g[10] = g[5] - g[9]; // str_len
-                                        match xend(g) { true -> { }, false -> match xpeek(g, s) == 34 { true -> { let _cq: Int = xadv(g, s); }, false -> { } } };
-                                        do xemitv(g, tk, 16);
-                                    },
-                                    false -> match is_alpha(c) {
-                                        // Identifier or keyword
-                                        true -> {
-                                            g[9] = g[5]; // str_off
-                                            for _id in range(0, 256) {
-                                                match xend(g) { true -> { }, false -> match is_alnum(xpeek(g, s)) { true -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; }, false -> { } } };
-                                            };
-                                            g[10] = g[5] - g[9]; // str_len
-                                            let kt: Int = kwtype(g, s);
-                                            match kt >= 0 {
-                                                true -> do xemit(g, tk, kt),
-                                                false -> do xemitv(g, tk, 13),
-                                            };
-                                        },
-                                        false -> match is_digit(c) {
-                                            // Number
-                                            true -> {
-                                                g[9] = g[5];
-                                                let isf: Array<Int> = Array(1);
-                                                isf[0] = 0;
-                                                for _ni in range(0, 256) {
-                                                    match xend(g) { true -> { }, false -> {
-                                                        let nc: Int = xpeek(g, s);
-                                                        match is_digit(nc) { true -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; }, false -> match nc == 46 { true -> match isf[0] == 0 { true -> { isf[0] = 1; s[g[5]] = xadv(g, s); g[5] = g[5] + 1; }, false -> { } }, false -> { } } };
-                                                    } };
-                                                };
-                                                g[10] = g[5] - g[9];
-                                                match isf[0] { 0 -> do xemitv(g, tk, 14), _ -> do xemitv(g, tk, 15) };
-                                            },
-                                            false -> {
-                                                // Symbols
-                                                let _sc: Int = xadv(g, s);
-                                                match c {
-                                                    123 -> do xemit(g, tk, 17), 125 -> do xemit(g, tk, 18),
-                                                    40 -> do xemit(g, tk, 19), 41 -> do xemit(g, tk, 20),
-                                                    91 -> do xemit(g, tk, 21), 93 -> do xemit(g, tk, 22),
-                                                    43 -> do xemit(g, tk, 24), 42 -> do xemit(g, tk, 26),
-                                                    37 -> do xemit(g, tk, 28), 58 -> do xemit(g, tk, 40),
-                                                    59 -> do xemit(g, tk, 41), 44 -> do xemit(g, tk, 42),
-                                                    46 -> do xemit(g, tk, 43),
-                                                    45 -> match xend(g) { true -> do xemit(g, tk, 25), false -> match xpeek(g, s) == 62 { true -> { let _gt: Int = xadv(g, s); do xemit(g, tk, 38); }, false -> do xemit(g, tk, 25) } },
-                                                    61 -> match xend(g) { true -> do xemit(g, tk, 23), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 29); }, false -> do xemit(g, tk, 23) } },
-                                                    33 -> match xend(g) { true -> do xemit(g, tk, 37), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 30); }, false -> do xemit(g, tk, 37) } },
-                                                    60 -> match xend(g) { true -> do xemit(g, tk, 31), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 33); }, false -> do xemit(g, tk, 31) } },
-                                                    62 -> match xend(g) { true -> do xemit(g, tk, 32), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 34); }, false -> do xemit(g, tk, 32) } },
-                                                    38 -> match xend(g) { true -> { }, false -> match xpeek(g, s) == 38 { true -> { let _a: Int = xadv(g, s); do xemit(g, tk, 35); }, false -> { } } },
-                                                    124 -> match xend(g) { true -> { }, false -> match xpeek(g, s) == 124 { true -> { let _o: Int = xadv(g, s); do xemit(g, tk, 36); }, false -> match xpeek(g, s) == 62 { true -> { let _p: Int = xadv(g, s); do xemit(g, tk, 39); }, false -> { } } } },
-                                                    _ -> { do print("error: unexpected char"); do exit(1); },
-                                                };
-                                            },
-                                        },
-                                    },
-                                },
-                            };
-                        },
-                    },
-                };
-            },
-        };
-    };
-    g[7] = g[2]; g[8] = g[3];
-    do xemit(g, tk, 44);
-}
-
+// ===== Main =====
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
     let slen: Int = string_length(source);
@@ -234,7 +239,11 @@ fn main() [IO] -> Unit {
         gb[ci] = string_char_at(source, ci);
     };
     gs[0] = slen;
+    gs[0] = slen;
     do lex_all(gs, gt, gb);
-    do print("tokens: " + int_to_string(gs[4]));
+    for ti in range(0, gs[4]) {
+        let b: Int = ti * 5;
+        do print(int_to_string(gt[b]) + " " + int_to_string(gt[b + 3]) + ":" + int_to_string(gt[b + 4]));
+    };
     do exit(0);
 }
