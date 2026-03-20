@@ -42,9 +42,9 @@ fn kwtype(kg: Array<Int>, ks: Array<Int>) [] -> Int { match kg[10] { 2 -> kw2(kg
 fn lex_word(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; for _id in range(0, 256) { match xend(lg) { true -> { }, false -> match is_alnum(xpeek(lg, ls)) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } } }; }; lg[10] = lg[5] - lg[9]; let lkt: Int = kwtype(lg, ls); match lkt >= 0 { true -> do xemit(lg, lt, lkt), false -> do xemitv(lg, lt, 13) }; }
 fn lex_num(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; let lisf: Array<Int> = Array(1); lisf[0] = 0; for _ni in range(0, 256) { match xend(lg) { true -> { }, false -> { let lnc: Int = xpeek(lg, ls); match is_digit(lnc) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> match lnc == 46 { true -> match lisf[0] == 0 { true -> { lisf[0] = 1; ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } }, false -> { } } }; } }; }; lg[10] = lg[5] - lg[9]; match lisf[0] { 0 -> do xemitv(lg, lt, 14), _ -> do xemitv(lg, lt, 15) }; }
 fn lex_str(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let _lq: Int = xadv(lg, ls); lg[9] = lg[5]; for _si in range(0, 65536) { match xend(lg) { true -> { }, false -> { let lsc: Int = xpeek(lg, ls); match lsc == 34 { true -> { }, false -> match lsc == 92 { true -> { let _lbs: Int = xadv(lg, ls); match xend(lg) { true -> { }, false -> { let lec: Int = xadv(lg, ls); match lec { 110 -> { ls[lg[5]] = 10; lg[5] = lg[5] + 1; }, 116 -> { ls[lg[5]] = 9; lg[5] = lg[5] + 1; }, 92 -> { ls[lg[5]] = 92; lg[5] = lg[5] + 1; }, 34 -> { ls[lg[5]] = 34; lg[5] = lg[5] + 1; }, _ -> { ls[lg[5]] = lec; lg[5] = lg[5] + 1; } }; } }; }, false -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; } } }; } }; }; lg[10] = lg[5] - lg[9]; match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 34 { true -> { let _lcq: Int = xadv(lg, ls); }, false -> { } } }; do xemitv(lg, lt, 16); }
-fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let lc: Int = xadv(lg, ls); match lc { 123 -> do xemit(lg, lt, 17), 125 -> do xemit(lg, lt, 18), 40 -> do xemit(lg, lt, 19), 41 -> do xemit(lg, lt, 20), 91 -> do xemit(lg, lt, 21), 93 -> do xemit(lg, lt, 22), 43 -> do xemit(lg, lt, 24), 42 -> do xemit(lg, lt, 26), 47 -> do xemit(lg, lt, 27), 37 -> do xemit(lg, lt, 28), 58 -> do xemit(lg, lt, 40), 59 -> do xemit(lg, lt, 41), 44 -> do xemit(lg, lt, 42), 46 -> do xemit(lg, lt, 43), 45 -> match xend(lg) { true -> do xemit(lg, lt, 25), false -> match xpeek(lg, ls) == 62 { true -> { let _lgt: Int = xadv(lg, ls); do xemit(lg, lt, 38); }, false -> do xemit(lg, lt, 25) } }, 61 -> match xend(lg) { true -> do xemit(lg, lt, 23), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 29); }, false -> do xemit(lg, lt, 23) } }, 33 -> match xend(lg) { true -> do xemit(lg, lt, 37), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 30); }, false -> do xemit(lg, lt, 37) } }, 60 -> match xend(lg) { true -> do xemit(lg, lt, 31), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 33); }, false -> do xemit(lg, lt, 31) } }, 62 -> match xend(lg) { true -> do xemit(lg, lt, 32), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 34); }, false -> do xemit(lg, lt, 32) } }, 38 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 38 { true -> { let _la: Int = xadv(lg, ls); do xemit(lg, lt, 35); }, false -> { } } }, 124 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 124 { true -> { let _lo: Int = xadv(lg, ls); do xemit(lg, lt, 36); }, false -> match xpeek(lg, ls) == 62 { true -> { let _lp: Int = xadv(lg, ls); do xemit(lg, lt, 39); }, false -> { } } } }, _ -> { do print("error: unexpected char"); do exit(1); } }; }
-fn lex_dispatch(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[7] = lg[2]; lg[8] = lg[3]; let lc: Int = xpeek(lg, ls); match lc == 47 { true -> match lg[1] + 1 < lg[0] { true -> match ls[lg[1] + 1] == 47 { true -> { let _ls1: Int = xadv(lg, ls); let _ls2: Int = xadv(lg, ls); lg[6] = 1; }, false -> do lex_sym(lg, lt, ls) }, false -> do lex_sym(lg, lt, ls) }, false -> match lc == 34 { true -> do lex_str(lg, lt, ls), false -> match is_alpha(lc) { true -> do lex_word(lg, lt, ls), false -> match is_digit(lc) { true -> do lex_num(lg, lt, ls), false -> do lex_sym(lg, lt, ls) } } } }; }
-fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = lg[0]; lg[6] = 0; for _li in range(0, 1048576) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
+fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { let lc: Int = xadv(lg, ls); match lc { 123 -> do xemit(lg, lt, 17), 125 -> do xemit(lg, lt, 18), 40 -> do xemit(lg, lt, 19), 41 -> do xemit(lg, lt, 20), 91 -> do xemit(lg, lt, 21), 93 -> do xemit(lg, lt, 22), 43 -> do xemit(lg, lt, 24), 42 -> do xemit(lg, lt, 26), 47 -> do xemit(lg, lt, 27), 37 -> do xemit(lg, lt, 28), 58 -> do xemit(lg, lt, 40), 59 -> do xemit(lg, lt, 41), 44 -> do xemit(lg, lt, 42), 46 -> do xemit(lg, lt, 43), 45 -> match xend(lg) { true -> do xemit(lg, lt, 25), false -> match xpeek(lg, ls) == 62 { true -> { let _lgt: Int = xadv(lg, ls); do xemit(lg, lt, 38); }, false -> do xemit(lg, lt, 25) } }, 61 -> match xend(lg) { true -> do xemit(lg, lt, 23), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 29); }, false -> do xemit(lg, lt, 23) } }, 33 -> match xend(lg) { true -> do xemit(lg, lt, 37), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 30); }, false -> do xemit(lg, lt, 37) } }, 60 -> match xend(lg) { true -> do xemit(lg, lt, 31), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 33); }, false -> do xemit(lg, lt, 31) } }, 62 -> match xend(lg) { true -> do xemit(lg, lt, 32), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 34); }, false -> do xemit(lg, lt, 32) } }, 38 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 38 { true -> { let _la: Int = xadv(lg, ls); do xemit(lg, lt, 35); }, false -> { } } }, 124 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 124 { true -> { let _lo: Int = xadv(lg, ls); do xemit(lg, lt, 36); }, false -> match xpeek(lg, ls) == 62 { true -> { let _lp: Int = xadv(lg, ls); do xemit(lg, lt, 39); }, false -> { } } } }, _ -> { do print("error: unexpected char"); do exit(1); } }; }
+fn lex_dispatch(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[7] = lg[2]; lg[8] = lg[3]; let lc: Int = xpeek(lg, ls); match lc == 47 { true -> match lg[1] + 1 < lg[0] { true -> match ls[lg[1] + 1] == 47 { true -> { let _ls1: Int = xadv(lg, ls); let _ls2: Int = xadv(lg, ls); lg[6] = 1; }, false -> do lex_sym(lg, lt, ls) }, false -> do lex_sym(lg, lt, ls) }, false -> match lc == 34 { true -> do lex_str(lg, lt, ls), false -> match is_alpha(lc) { true -> do lex_word(lg, lt, ls), false -> match is_digit(lc) { true -> do lex_num(lg, lt, ls), false -> do lex_sym(lg, lt, ls) } } } }; }
+fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = lg[0]; lg[6] = 0; for _li in range(0, 1048576) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
 
 // ===== Token access =====
 fn tcur(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5] }
@@ -229,13 +229,19 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
     do teat(pf_g);
     pf_n[pf_fi * 10 + 4] = pf_g[15];
     pf_n[pf_fi * 10 + 5] = pf_g[16];
-    // Effects
-    do teat(pf_g);
-    for _pfe in range(0, 16) { match tcur(pf_g, pf_t) == 22 { true -> { }, false -> { do teat(pf_g); } }; };
-    do teat(pf_g);
-    // Return type
-    do teat(pf_g); do teat(pf_g);
-    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); }, false -> { } };
+    // Effects: store bitmask in field 9 (0=pure, 1=IO)
+    do teat(pf_g); // eat LBRACKET
+    pf_n[pf_fi * 10 + 9] = 0;
+    for _pfe in range(0, 16) { match tcur(pf_g, pf_t) == 22 { true -> { }, false -> {
+        match tcur(pf_g, pf_t) == 13 { true -> match tslen(pf_g, pf_t) == 2 { true -> { pf_n[pf_fi * 10 + 9] = 1; }, false -> { } }, false -> { } };
+        do teat(pf_g);
+    } }; };
+    do teat(pf_g); // eat RBRACKET
+    // Return type: store in field 7
+    do teat(pf_g); // eat ARROW
+    pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1];
+    do teat(pf_g); // eat return type name
+    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }; } };
     // Body
     let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
     pf_n[pf_fi * 10 + 8] = pf_bi;
@@ -495,7 +501,7 @@ fn pm_adt_arm(pa_g: Array<Int>, pa_t: Array<Int>, pa_n: Array<Int>) [] -> Unit {
 }
 
 // Match
-fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
+fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [IO] -> Int {
     do teat(pm2_g); let pm2_disc: Int = pe_parse(pm2_g, pm2_t, pm2_n);
     let pm2_mi: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_mi*10]=16; pm2_n[pm2_mi*10+8]=pm2_disc;
     do teat(pm2_g);
@@ -536,7 +542,7 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
 
 // Exhaustive match check — called after parsing match arms
 // Uses g[26]=first arm, g[28]=arm count. Checks if ADT arms cover all variants.
-fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [] -> Unit {
+fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [IO] -> Unit {
     // Check if any arm is ADT (type 25)
     let ce_has_adt: Array<Int> = Array(1); ce_has_adt[0] = 0;
     let ce_has_wild: Array<Int> = Array(1); ce_has_wild[0] = 0;
@@ -653,7 +659,8 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
                 do print_raw("    _s" + int_to_string(cg_g[29]) + "    db ");
                 do print_byte(34); // opening "
                 for cg_sj in range(0, cg_len) {
-                    do print_byte(cg_s[cg_off + cg_sj]);
+                    let cg_ch: Int = cg_s[cg_off + cg_sj];
+                    match cg_ch == 34 { true -> { do print_byte(34); do print_raw(",34,"); do print_byte(34); }, false -> { do print_byte(cg_ch); } };
                 };
                 do print_byte(34); // closing "
                 do emit_line("");
@@ -1508,22 +1515,153 @@ fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
     match ne_ok[0] == 1 { true -> true, false -> false }
 }
 
+// ===== Type Checker + Effect Verifier =====
+// gs[910] = --json flag, gs[911] = error count
+
+fn tc_type_name(tn_t: Int) [] -> String {
+    match tn_t { 0 -> "Int", 2 -> "String", 4 -> "Array", 6 -> "ADT", _ -> "Unknown" }
+}
+
+// Report a type error. g[905]=node, g[906]=kind (1=type_mismatch, 2=undeclared_effect), g[907]=expected, g[908]=received
+fn tc_error(te_g: Array<Int>, te_n: Array<Int>, te_s: Array<Int>) [IO] -> Unit {
+    te_g[911] = te_g[911] + 1;
+    let te_kind: String = match te_g[906] { 1 -> "type_mismatch", 2 -> "undeclared_effect", _ -> "error" };
+    match te_g[910] == 1 { true -> {
+        // JSON output
+        do print_byte(123);
+        do print_byte(34); do print_raw("error"); do print_byte(34); do print_raw(":");
+        do print_byte(34); do print_raw(te_kind); do print_byte(34);
+        match te_g[906] == 2 { true -> {
+            do print_raw(","); do print_byte(34); do print_raw("function"); do print_byte(34); do print_raw(":");
+            do print_byte(34);
+            let te_fo: Int = te_n[te_g[905] * 10 + 2]; let te_fl: Int = te_n[te_g[905] * 10 + 3];
+            for te_i in range(0, te_fl) { do print_byte(te_s[te_fo + te_i]); };
+            do print_byte(34);
+        }, false -> { } };
+        match te_g[906] == 1 { true -> {
+            do print_raw(","); do print_byte(34); do print_raw("expected"); do print_byte(34); do print_raw(":");
+            do print_byte(34); do print_raw(tc_type_name(te_g[907])); do print_byte(34);
+            do print_raw(","); do print_byte(34); do print_raw("received"); do print_byte(34); do print_raw(":");
+            do print_byte(34); do print_raw(tc_type_name(te_g[908])); do print_byte(34);
+        }, false -> { } };
+        do print_byte(125);
+        do print("");
+    }, false -> {
+        do print_raw("error: ");
+        match te_g[906] == 1 { true -> {
+            do print_raw("type mismatch: expected "); do print_raw(tc_type_name(te_g[907]));
+            do print_raw(", got "); do print(tc_type_name(te_g[908]));
+        }, false -> match te_g[906] == 2 { true -> {
+            do print_raw("undeclared effect: function ");
+            let te_fo2: Int = te_n[te_g[905] * 10 + 2]; let te_fl2: Int = te_n[te_g[905] * 10 + 3];
+            for te_i2 in range(0, te_fl2) { do print_byte(te_s[te_fo2 + te_i2]); };
+            do print(" uses IO but declares []");
+        }, false -> do print("unknown error") } };
+    } };
+}
+
+// Look up function return type by name at g[40]/g[41]
+fn tc_fn_ret_type(fr_g: Array<Int>, fr_n: Array<Int>, fr_s: Array<Int>) [] -> Int {
+    let fr_res: Array<Int> = Array(1); fr_res[0] = 0;
+    for fr_fi in range(0, fr_g[12]) {
+        match fr_n[fr_fi * 10] == 1 { true -> {
+            match fr_n[fr_fi * 10 + 3] == fr_g[41] { true -> {
+                fr_g[42] = fr_g[41];
+                let fr_sv41: Int = fr_g[41];
+                fr_g[41] = fr_n[fr_fi * 10 + 2];
+                match cg_name_eq(fr_g, fr_s) { true -> { fr_res[0] = fr_n[fr_fi * 10 + 7]; }, false -> { } };
+                fr_g[41] = fr_sv41;
+            }, false -> { } };
+        }, false -> { } };
+    };
+    fr_res[0]
+}
+
+// Look up function effects by name at g[40]/g[41]. Only checks builtins if not user-defined.
+fn tc_fn_effects(fe_g: Array<Int>, fe_n: Array<Int>, fe_s: Array<Int>) [] -> Int {
+    let fe_res: Array<Int> = Array(1); fe_res[0] = 0;
+    let fe_found: Array<Int> = Array(1); fe_found[0] = 0;
+    for fe_fi in range(0, fe_g[12]) {
+        match fe_n[fe_fi * 10] == 1 { true -> {
+            match fe_n[fe_fi * 10 + 3] == fe_g[41] { true -> {
+                fe_g[42] = fe_g[41];
+                let fe_sv41: Int = fe_g[41];
+                fe_g[41] = fe_n[fe_fi * 10 + 2];
+                match cg_name_eq(fe_g, fe_s) { true -> { fe_res[0] = fe_n[fe_fi * 10 + 9]; fe_found[0] = 1; }, false -> { } };
+                fe_g[41] = fe_sv41;
+            }, false -> { } };
+        }, false -> { } };
+    };
+    // Builtins (only if not found as user function): print* exit read_file = IO
+    match fe_found[0] == 0 { true -> {
+        let fe_fc: Int = fe_s[fe_g[40]];
+        match fe_fc == 112 { true -> { fe_res[0] = 1; }, false -> { } };
+        match fe_fc == 114 { true -> { fe_res[0] = 1; }, false -> { } };
+        match fe_fc == 101 { true -> { fe_res[0] = 1; }, false -> { } };
+    }, false -> { } };
+    fe_res[0]
+}
+
+// Effect checker: iterative scan for DO_EXPR → CALL within pure function boundaries
+fn tc_check_effects(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -> Unit {
+    for ce_fi in range(0, ce_g[12]) {
+        match ce_n[ce_fi * 10] == 1 { true -> {
+            match ce_n[ce_fi * 10 + 9] == 0 { true -> {
+                // Pure function — find boundary
+                let ce_end: Array<Int> = Array(1); ce_end[0] = ce_g[12];
+                for ce_bi in range(ce_fi + 1, ce_g[12]) {
+                    match ce_n[ce_bi * 10] == 1 { true -> match ce_end[0] == ce_g[12] { true -> { ce_end[0] = ce_bi; }, false -> { } }, false -> { } };
+                    match ce_n[ce_bi * 10] == 22 { true -> match ce_end[0] == ce_g[12] { true -> { ce_end[0] = ce_bi; }, false -> { } }, false -> { } };
+                };
+                // Scan for DO_EXPR → CALL to IO function
+                let ce_found_io: Array<Int> = Array(1); ce_found_io[0] = 0;
+                for ce_ni in range(ce_fi + 1, ce_end[0]) {
+                    match ce_n[ce_ni * 10] == 15 { true -> {
+                        let ce_call: Int = ce_n[ce_ni * 10 + 5];
+                        match ce_call >= 1 { true -> match ce_n[ce_call * 10] == 14 { true -> {
+                            ce_g[40] = ce_n[ce_call * 10 + 2]; ce_g[41] = ce_n[ce_call * 10 + 3];
+                            match tc_fn_effects(ce_g, ce_n, ce_s) == 1 { true -> { ce_found_io[0] = 1; }, false -> { } };
+                        }, false -> { } }, false -> { } };
+                    }, false -> { } };
+                };
+                match ce_found_io[0] == 1 { true -> {
+                    ce_g[905] = ce_fi; ce_g[906] = 2; ce_g[907] = 0; ce_g[908] = 0;
+                    do tc_error(ce_g, ce_n, ce_s);
+                }, false -> { } };
+            }, false -> { } };
+        }, false -> { } };
+    };
+}
+
+// Main type check entry point
+fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
+    tc_g[911] = 0;
+    do tc_check_effects(tc_g, tc_n, tc_s);
+    match tc_g[911] > 0 { true -> do exit(1), false -> { } };
+}
+
+
 // Main
 fn main() [IO] -> Unit {
-    let source: String = read_file(get_arg(1));
+    // Check for --json flag (length 6)
+    let arg1: String = get_arg(1);
+    let a1len: Int = string_length(arg1);
+    let source: String = match a1len == 6 { true -> read_file(get_arg(2)), false -> read_file(arg1) };
     let slen: Int = string_length(source);
     let gs: Array<Int> = Array(2048);
     let gb: Array<Int> = Array(262144);
-    let gt: Array<Int> = Array(131072);
-    let gn: Array<Int> = Array(230000);
+    let gt: Array<Int> = Array(200000);
+    let gn: Array<Int> = Array(300000);
+    gs[910] = match a1len == 6 { true -> 1, false -> 0 }; // --json flag
     for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
     gs[46] = 0 - 1; gs[121] = 0 - 1; gs[153] = 0 - 1; gs[256] = 0 - 1; gs[900] = 0;
     // Copy source + string table into gn[130000+] so parser can do name comparison
-    // gs[5] = end of string table (set by lex_all)
     for sci in range(0, gs[5]) { gn[130000 + sci] = gb[sci]; };
     do pp_parse(gs, gt, gn);
+    // Type check and effect verification
+    do tc_check(gs, gn, gb);
     do cg_emit(gs, gn, gb);
     do exit(0);
 }

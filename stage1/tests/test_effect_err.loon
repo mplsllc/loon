@@ -1,0 +1,11 @@
+module main;
+
+fn pure_fn() [] -> Int {
+    do print("this should be an error");
+    42
+}
+
+fn main() [IO] -> Unit {
+    do print(int_to_string(pure_fn()));
+    do exit(0);
+}
