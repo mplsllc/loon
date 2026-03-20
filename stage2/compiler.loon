@@ -372,6 +372,7 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
     do teat(pm2_g); let pm2_disc: Int = pe_parse(pm2_g, pm2_t, pm2_n);
     let pm2_mi: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_mi*10]=16; pm2_n[pm2_mi*10+8]=pm2_disc;
     do teat(pm2_g);
+    let pm2_sv26: Int = pm2_g[26]; let pm2_sv27: Int = pm2_g[27]; let pm2_sv28: Int = pm2_g[28];
     pm2_g[26] = 0-1; pm2_g[27] = 0-1; pm2_g[28] = 0;
     for _pm2a in range(0, 256) { match tcur(pm2_g, pm2_t) == 18 { true -> { }, false -> {
         let pm2_ai: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_ai*10]=17;
@@ -388,7 +389,9 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
         match tcur(pm2_g, pm2_t) == 42 { true -> { do teat(pm2_g); }, false -> { } };
     } }; };
     do teat(pm2_g);
-    pm2_n[pm2_mi*10+4]=pm2_g[28]; pm2_n[pm2_mi*10+5]=pm2_g[26]; pm2_mi
+    pm2_n[pm2_mi*10+4]=pm2_g[28]; pm2_n[pm2_mi*10+5]=pm2_g[26];
+    pm2_g[26]=pm2_sv26; pm2_g[27]=pm2_sv27; pm2_g[28]=pm2_sv28;
+    pm2_mi
 }
 // For
 fn pfor_parse(pfo_g: Array<Int>, pfo_t: Array<Int>, pfo_n: Array<Int>) [] -> Int {
@@ -681,27 +684,24 @@ fn cg_add_var(av_g: Array<Int>, av_n: Array<Int>, av_s: Array<Int>) [] -> Unit {
 // Recursive slot walker — iterates siblings, recurses into children
 fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Unit {
     let ws_ci: Array<Int> = Array(1); ws_ci[0] = ws_g[31];
-    for _ws in range(0, 65536) {
-        match ws_ci[0] >= 1 { true -> match ws_ci[0] < ws_g[12] { true -> {
-            ws_g[136] = ws_n[ws_ci[0] * 10]; // node type
-            // If NODE_LET — assign a slot
+    let ws_done: Array<Int> = Array(1); ws_done[0] = 0;
+    for _ws in range(0, ws_g[12]) {
+        match ws_done[0] == 0 { true -> match ws_ci[0] >= 1 { true -> match ws_ci[0] < ws_g[12] { true -> {
+            ws_g[136] = ws_n[ws_ci[0] * 10];
             match ws_g[136] == 4 { true -> {
                 ws_g[137] = ws_n[ws_ci[0] * 10 + 7];
                 match ws_g[137] == 2 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> match ws_g[137] == 4 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> { ws_g[33] = ws_g[33] + 8; } } };
                 ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
             }, false -> { } };
-            // If NODE_FOR — assign two slots
             match ws_g[136] == 18 { true -> {
                 ws_g[33] = ws_g[33] + 8;
                 ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
                 ws_g[33] = ws_g[33] + 8;
             }, false -> { } };
-            // Recurse into first_child (depth-first)
             ws_g[138] = ws_n[ws_ci[0] * 10 + 5];
             match ws_g[138] >= 1 { true -> match ws_g[138] < ws_g[12] { true -> { ws_g[31] = ws_g[138]; do cg_walk_slots(ws_g, ws_n, ws_s); }, false -> { } }, false -> { } };
-            // Move to next_sibling (iteration, not recursion)
             ws_ci[0] = ws_n[ws_ci[0] * 10 + 6];
-        }, false -> { ws_ci[0] = 0 - 1; } }, false -> { ws_ci[0] = 0 - 1; } };
+        }, false -> { ws_done[0] = 1; } }, false -> { ws_done[0] = 1; } }, false -> { } };
     };
 }
 
