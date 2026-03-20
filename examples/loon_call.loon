@@ -1,0 +1,48 @@
+// The first real Loon program.
+// A loon's call is one of the most distinctive sounds in nature.
+module loon;
+
+type Call {
+    Wail,
+    Tremolo,
+    Yodel,
+    Hoot,
+}
+
+fn describe(c: Call) [] -> String {
+    match c {
+        Wail ->    "Ooooo-AH-ooooo",
+        Tremolo -> "AH-ah-ah-ah-ah",
+        Yodel ->   "OOoo-AH-oo-AH",
+        Hoot ->    "oo..oo",
+    }
+}
+
+fn meaning(c: Call) [] -> String {
+    match c {
+        Wail ->    "I am here. Where are you?",
+        Tremolo -> "I am alarmed.",
+        Yodel ->   "This is my territory.",
+        Hoot ->    "All is well.",
+    }
+}
+
+fn main() [IO] -> Unit {
+    let calls: Array<Int> = Array(4);
+    calls[0] = 0;
+    calls[1] = 1;
+    calls[2] = 2;
+    calls[3] = 3;
+    for i in range(0, 4) {
+        let c: Call = match calls[i] {
+            0 -> Wail,
+            1 -> Tremolo,
+            2 -> Yodel,
+            _ -> Hoot,
+        };
+        do print(describe(c));
+        do print(meaning(c));
+        do print("---");
+    };
+    do exit(0);
+}
