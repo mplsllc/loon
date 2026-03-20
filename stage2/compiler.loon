@@ -194,45 +194,24 @@ fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
     pb_g[20] = 0 - 1; pb_g[21] = 0 - 1; pb_g[22] = 0;
     for _pbs in range(0, 65536) {
         match tcur(pb_g, pb_t) == 18 { true -> { }, false -> match tcur(pb_g, pb_t) == 44 { true -> { }, false -> {
-            match tcur(pb_g, pb_t) == 1 {
-                true -> {
-                    let pb_li: Int = pl_parse(pb_g, pb_t, pb_n);
-                    match pb_g[20] == 0 - 1 { true -> { pb_g[20] = pb_li; pb_g[21] = pb_li; }, false -> { pb_n[pb_g[21]*10+6] = pb_li; pb_g[21] = pb_li; } };
-                    pb_g[22] = pb_g[22] + 1;
-                },
-                false -> match tcur(pb_g, pb_t) == 13 {
-                    true -> match pb_t[(pb_g[13] + 1) * 5] == 21 {
-                        true -> match is_arr_set(pb_g, pb_t) {
-                            true -> {
-                                let pb_as: Int = pas_parse(pb_g, pb_t, pb_n);
-                                match pb_g[20] == 0 - 1 { true -> { pb_g[20] = pb_as; pb_g[21] = pb_as; }, false -> { pb_n[pb_g[21]*10+6] = pb_as; pb_g[21] = pb_as; } };
-                                pb_g[22] = pb_g[22] + 1;
-                            },
-                            false -> {
-                                let pb_ei: Int = pe_parse(pb_g, pb_t, pb_n);
-                                match tcur(pb_g, pb_t) == 41 {
-                                    true -> { do teat(pb_g); let pb_wi: Int = nalloc(pb_g, pb_n); pb_n[pb_wi*10]=5; pb_n[pb_wi*10+4]=1; pb_n[pb_wi*10+5]=pb_ei; match pb_g[20]==0-1 { true -> { pb_g[20]=pb_wi; pb_g[21]=pb_wi; }, false -> { pb_n[pb_g[21]*10+6]=pb_wi; pb_g[21]=pb_wi; } }; pb_g[22]=pb_g[22]+1; },
-                                    false -> { let pb_ri: Int = nalloc(pb_g, pb_n); pb_n[pb_ri*10]=6; pb_n[pb_ri*10+4]=1; pb_n[pb_ri*10+5]=pb_ei; match pb_g[20]==0-1 { true -> { pb_g[20]=pb_ri; pb_g[21]=pb_ri; }, false -> { pb_n[pb_g[21]*10+6]=pb_ri; pb_g[21]=pb_ri; } }; pb_g[22]=pb_g[22]+1; },
-                                };
-                            },
-                        },
-                        false -> {
-                            let pb_e2: Int = pe_parse(pb_g, pb_t, pb_n);
-                            match tcur(pb_g, pb_t) == 41 {
-                                true -> { do teat(pb_g); let pb_w2: Int = nalloc(pb_g, pb_n); pb_n[pb_w2*10]=5; pb_n[pb_w2*10+4]=1; pb_n[pb_w2*10+5]=pb_e2; match pb_g[20]==0-1 { true -> { pb_g[20]=pb_w2; pb_g[21]=pb_w2; }, false -> { pb_n[pb_g[21]*10+6]=pb_w2; pb_g[21]=pb_w2; } }; pb_g[22]=pb_g[22]+1; },
-                                false -> { let pb_r2: Int = nalloc(pb_g, pb_n); pb_n[pb_r2*10]=6; pb_n[pb_r2*10+4]=1; pb_n[pb_r2*10+5]=pb_e2; match pb_g[20]==0-1 { true -> { pb_g[20]=pb_r2; pb_g[21]=pb_r2; }, false -> { pb_n[pb_g[21]*10+6]=pb_r2; pb_g[21]=pb_r2; } }; pb_g[22]=pb_g[22]+1; },
-                            };
-                        },
-                    },
-                    false -> {
-                        let pb_e3: Int = pe_parse(pb_g, pb_t, pb_n);
-                        match tcur(pb_g, pb_t) == 41 {
-                            true -> { do teat(pb_g); let pb_w3: Int = nalloc(pb_g, pb_n); pb_n[pb_w3*10]=5; pb_n[pb_w3*10+4]=1; pb_n[pb_w3*10+5]=pb_e3; match pb_g[20]==0-1 { true -> { pb_g[20]=pb_w3; pb_g[21]=pb_w3; }, false -> { pb_n[pb_g[21]*10+6]=pb_w3; pb_g[21]=pb_w3; } }; pb_g[22]=pb_g[22]+1; },
-                            false -> { let pb_r3: Int = nalloc(pb_g, pb_n); pb_n[pb_r3*10]=6; pb_n[pb_r3*10+4]=1; pb_n[pb_r3*10+5]=pb_e3; match pb_g[20]==0-1 { true -> { pb_g[20]=pb_r3; pb_g[21]=pb_r3; }, false -> { pb_n[pb_g[21]*10+6]=pb_r3; pb_g[21]=pb_r3; } }; pb_g[22]=pb_g[22]+1; },
-                        };
-                    },
-                },
-            };
+            match tcur(pb_g, pb_t) == 1 { true -> {
+                pb_g[160]=pl_parse(pb_g, pb_t, pb_n);
+                match pb_g[20]==0-1 { true -> { pb_g[20]=pb_g[160]; pb_g[21]=pb_g[160]; }, false -> { pb_n[pb_g[21]*10+6]=pb_g[160]; pb_g[21]=pb_g[160]; } };
+                pb_g[22]=pb_g[22]+1;
+            }, false -> match tcur(pb_g, pb_t) == 13 { true -> match pb_t[(pb_g[13]+1)*5]==21 { true -> match is_arr_set(pb_g, pb_t) { true -> {
+                pb_g[160]=pas_parse(pb_g, pb_t, pb_n);
+                match pb_g[20]==0-1 { true -> { pb_g[20]=pb_g[160]; pb_g[21]=pb_g[160]; }, false -> { pb_n[pb_g[21]*10+6]=pb_g[160]; pb_g[21]=pb_g[160]; } };
+                pb_g[22]=pb_g[22]+1;
+            }, false -> {
+                pb_g[161]=pe_parse(pb_g, pb_t, pb_n);
+                do pb_wrap_stmt(pb_g, pb_t, pb_n);
+            } }, false -> {
+                pb_g[161]=pe_parse(pb_g, pb_t, pb_n);
+                do pb_wrap_stmt(pb_g, pb_t, pb_n);
+            } }, false -> {
+                pb_g[161]=pe_parse(pb_g, pb_t, pb_n);
+                do pb_wrap_stmt(pb_g, pb_t, pb_n);
+            } } };
         } } };
     };
     do teat(pb_g);
@@ -244,6 +223,19 @@ fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
     pb_bi
 }
 
+// Wrap expression as EXPR_STMT or RETURN_EXPR. g[161]=expr node. Checks for semicolon.
+fn pb_wrap_stmt(pw_g: Array<Int>, pw_t: Array<Int>, pw_n: Array<Int>) [] -> Unit {
+    match tcur(pw_g, pw_t) == 41 { true -> {
+        do teat(pw_g); pw_g[162]=nalloc(pw_g, pw_n); pw_n[pw_g[162]*10]=5; pw_n[pw_g[162]*10+4]=1; pw_n[pw_g[162]*10+5]=pw_g[161];
+        match pw_g[20]==0-1 { true -> { pw_g[20]=pw_g[162]; pw_g[21]=pw_g[162]; }, false -> { pw_n[pw_g[21]*10+6]=pw_g[162]; pw_g[21]=pw_g[162]; } };
+        pw_g[22]=pw_g[22]+1;
+    }, false -> {
+        pw_g[162]=nalloc(pw_g, pw_n); pw_n[pw_g[162]*10]=6; pw_n[pw_g[162]*10+4]=1; pw_n[pw_g[162]*10+5]=pw_g[161];
+        match pw_g[20]==0-1 { true -> { pw_g[20]=pw_g[162]; pw_g[21]=pw_g[162]; }, false -> { pw_n[pw_g[21]*10+6]=pw_g[162]; pw_g[21]=pw_g[162]; } };
+        pw_g[22]=pw_g[22]+1;
+    } };
+}
+
 // Let binding parser
 // Check if IDENT LBRACKET ... RBRACKET ASSIGN pattern
 fn is_arr_set(ia_g: Array<Int>, ia_t: Array<Int>) [] -> Bool {
@@ -251,9 +243,9 @@ fn is_arr_set(ia_g: Array<Int>, ia_t: Array<Int>) [] -> Bool {
     let ia_d: Array<Int> = Array(1); ia_d[0] = 1;
     for _ia in range(0, 256) {
         match ia_d[0] == 0 { true -> { }, false -> {
-            let ia_tt: Int = ia_t[ia_p[0] * 5];
-            match ia_tt == 21 { true -> { ia_d[0] = ia_d[0] + 1; }, false -> { } };
-            match ia_tt == 22 { true -> { ia_d[0] = ia_d[0] - 1; }, false -> { } };
+            ia_g[136] = ia_t[ia_p[0] * 5];
+            match ia_g[136] == 21 { true -> { ia_d[0] = ia_d[0] + 1; }, false -> { } };
+            match ia_g[136] == 22 { true -> { ia_d[0] = ia_d[0] - 1; }, false -> { } };
             ia_p[0] = ia_p[0] + 1;
         } };
     };
