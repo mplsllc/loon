@@ -787,7 +787,7 @@ fn cg_expr(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -> Unit {
     match ce_nt == 7 { true -> do cg_int(ce_g, ce_n, ce_s),
     false -> match ce_nt == 9 { true -> do cg_int(ce_g, ce_n, ce_s),
     false -> match ce_nt == 8 { true -> do cg_str(ce_g, ce_n, ce_s),
-    false -> match ce_nt == 11 { true -> do cg_binop(ce_g, ce_n, ce_s),
+    false -> match ce_nt == 16 { true -> do cg_match(ce_g, ce_n, ce_s),
     false -> do cg_expr2(ce_g, ce_n, ce_s) } } } }
 }
 
@@ -844,6 +844,48 @@ fn cg_str(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>) [IO] -> Unit {
     let cs_idx: Int = cs_n[cs_ni * 10 + 8]; // extra = string data label index
     do print_raw("    lea rax, [rel _s"); do print_raw(int_to_string(cs_idx)); do emit_line("]");
     do print_raw("    mov rdx, _s"); do print_raw(int_to_string(cs_idx)); do emit_line("_len");
+}
+
+// cg_match: emit comparison chain with unique labels
+fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
+    let cm_ni: Int = cm_g[31];
+    let cm_disc: Int = cm_n[cm_ni * 10 + 8]; // extra = discriminant node index
+    let cm_ac: Int = cm_n[cm_ni * 10 + 4]; // child_count = arm count
+    let cm_lbl: Int = cm_g[32]; cm_g[32] = cm_g[32] + 1;
+    // Evaluate discriminant
+    cm_g[31] = cm_disc; do cg_expr(cm_g, cm_n, cm_s);
+    do emit_line("    push rax"); // save discriminant
+    // Walk arms — each arm is NODE_MATCH_ARM (type 17)
+    let cm_ai: Array<Int> = Array(1);
+    cm_ai[0] = cm_n[cm_ni * 10 + 5]; // first_child = first arm
+    let cm_ct: Array<Int> = Array(1); cm_ct[0] = 0;
+    // First pass: emit comparisons and jumps
+    for _cma in range(0, cm_ac) {
+        cm_g[115] = cm_n[cm_ai[0] * 10 + 1]; // sub_type: 1=wildcard, 0=literal
+        match cm_g[115] == 1 { true -> { // wildcard
+            do print_raw("    jmp .Lm"); do print_raw(int_to_string(cm_lbl)); do print_raw("_a"); do emit_line(int_to_string(cm_ct[0]));
+        }, false -> { // literal: compare against extra value
+            cm_g[116] = cm_n[cm_ai[0] * 10 + 8]; // pattern value
+            do emit_line("    pop rax"); do emit_line("    push rax");
+            do print_raw("    cmp rax, "); do emit_line(int_to_string(cm_g[116]));
+            do print_raw("    je .Lm"); do print_raw(int_to_string(cm_lbl)); do print_raw("_a"); do emit_line(int_to_string(cm_ct[0]));
+        } };
+        cm_ct[0] = cm_ct[0] + 1;
+        cm_ai[0] = cm_n[cm_ai[0] * 10 + 6]; // next arm
+    };
+    // Second pass: emit arm bodies
+    cm_ai[0] = cm_n[cm_ni * 10 + 5];
+    cm_ct[0] = 0;
+    for _cmb in range(0, cm_ac) {
+        do print_raw(".Lm"); do print_raw(int_to_string(cm_lbl)); do print_raw("_a"); do print_raw(int_to_string(cm_ct[0])); do emit_line(":");
+        do emit_line("    pop rax"); // clean discriminant from stack
+        cm_g[31] = cm_n[cm_ai[0] * 10 + 5]; // arm body (first_child)
+        do cg_expr(cm_g, cm_n, cm_s);
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(cm_lbl)); do emit_line("_end");
+        cm_ct[0] = cm_ct[0] + 1;
+        cm_ai[0] = cm_n[cm_ai[0] * 10 + 6];
+    };
+    do print_raw(".Lm"); do print_raw(int_to_string(cm_lbl)); do emit_line("_end:");
 }
 
 // cg_binop: emit left, push, right, pop, operate
