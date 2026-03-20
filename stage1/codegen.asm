@@ -167,6 +167,7 @@ cg_str_lit_count resq 1    ; number of string literals emitted in .data
 ; Map: string literal node index → str_lit label number
 ; (we assign label numbers sequentially as we encounter STR_LIT nodes)
 cg_str_lit_map resb 65536  ; 16384 nodes * 4 bytes = node_index → label_number
+cg_fn_boundary resq 1     ; boundary: next FN_DECL node index (for slot walker)
 
 section .text
 
@@ -224,6 +225,27 @@ cg_ep_walk:
     movzx eax, byte [rbx]
     cmp eax, NODE_FN_DECL
     jne cg_ep_next
+
+    ; Find boundary: next FN_DECL node or node_count
+    push r12
+    push r13
+    mov r13, r12
+    inc r13
+.cg_find_boundary:
+    cmp r13, [rel node_count]
+    jge .cg_boundary_found
+    mov rax, r13
+    imul rax, NODE_SIZE
+    lea rcx, [rel nodes]
+    movzx eax, byte [rcx + rax]
+    cmp eax, NODE_FN_DECL
+    je .cg_boundary_found
+    inc r13
+    jmp .cg_find_boundary
+.cg_boundary_found:
+    mov [rel cg_fn_boundary], r13   ; store boundary globally
+    pop r13
+    pop r12
 
     ; Emit this function
     mov rdi, r12                    ; pass node index
@@ -340,6 +362,7 @@ cg_ef_params_done:
     cmp r13d, NO_CHILD
     je cg_ef_prepass_done
     mov edi, r13d
+    ; boundary already set in cg_fn_boundary by caller
     ; r14 still has current offset
     call cg_assign_let_slots        ; walks block, assigns offsets, updates r14
 
@@ -546,6 +569,8 @@ cg_assign_let_slots:
 cg_als_loop:
     cmp r12d, NO_CHILD
     je cg_als_done
+    cmp r12, [rel cg_fn_boundary] ; boundary check
+    jge cg_als_done
 
     mov eax, r12d
     imul eax, NODE_SIZE
@@ -610,6 +635,8 @@ cg_als_walk_expr:
     mov r12d, edi
     cmp r12d, NO_CHILD
     je cg_alw_done
+    cmp r12, [rel cg_fn_boundary] ; boundary check
+    jge cg_alw_done
 
     mov eax, r12d
     imul eax, NODE_SIZE
@@ -624,19 +651,9 @@ cg_als_walk_expr:
     cmp eax, NODE_BLOCK
     je cg_alw_block
 
-    ; For other expression nodes, walk first_child to find nested structures
-    ; But also walk next_sibling ONLY for nodes that are operands (BINOP children etc.)
-    ; Actually: walk both first_child and next_sibling for expression nodes.
-    ; Expression nodes' next_sibling links operands (left→right for BINOP,
-    ; arg→arg for CALL). These don't contain LET/FOR definitions, so walking
-    ; them is safe — we just won't find anything to assign.
+    ; Walk first_child only for expression nodes
+    ; (next_sibling handled by parent block/for/match iteration)
     mov edi, [rbx + 16]
-    call cg_als_walk_expr
-    ; Reload and walk next_sibling
-    mov eax, r12d
-    imul eax, NODE_SIZE
-    lea rbx, [rel nodes]
-    mov edi, [rbx + rax + 20]
     call cg_als_walk_expr
     jmp cg_alw_done
 
