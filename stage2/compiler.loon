@@ -638,10 +638,9 @@ fn cg_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [IO] -> Unit {
     };
     // Walk body for let bindings — assign their slots too
     let cf_body: Int = cf_n[cf_fi * 10 + 8];
-    cf_g[33] = cf_soff[0]; // pass current stack offset through g[33]
-    match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_scan_lets(cf_g, cf_n, cf_s); }, false -> { } };
-    match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_scan_fors(cf_g, cf_n, cf_s); }, false -> { } };
-    cf_soff[0] = cf_g[33]; // read back updated offset
+    cf_g[33] = cf_soff[0];
+    match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_walk_slots(cf_g, cf_n, cf_s); }, false -> { } };
+    cf_soff[0] = cf_g[33];
     // Calculate frame size (round up to 16-byte alignment)
     match cf_soff[0] % 16 == 0 { true -> { }, false -> { cf_soff[0] = cf_soff[0] + 16 - cf_soff[0] % 16; } };
     match cf_soff[0] == 0 { true -> { cf_soff[0] = 16; }, false -> { } };
@@ -674,43 +673,31 @@ fn cg_add_var(av_g: Array<Int>, av_n: Array<Int>, av_s: Array<Int>) [] -> Unit {
     av_g[50] = av_idx + 1;
 }
 
-// Scan block for LET bindings — assign stack slots
-fn cg_scan_lets(sl_g: Array<Int>, sl_n: Array<Int>, sl_s: Array<Int>) [] -> Unit {
-    let sl_bi: Int = sl_g[31];
-    let sl_cc: Int = sl_n[sl_bi * 10 + 4];
-    let sl_ci: Array<Int> = Array(1);
-    sl_ci[0] = sl_n[sl_bi * 10 + 5];
-    let sl_t: Array<Int> = Array(1);
-    for _sli in range(0, sl_cc) {
-        sl_t[0] = sl_n[sl_ci[0] * 10];
-        match sl_t[0] == 4 { true -> {
-            sl_t[0] = sl_n[sl_ci[0] * 10 + 7];
-            match sl_t[0] == 2 { true -> { sl_g[33] = sl_g[33] + 16; }, false -> match sl_t[0] == 4 { true -> { sl_g[33] = sl_g[33] + 16; }, false -> { sl_g[33] = sl_g[33] + 8; } } };
-            sl_g[34] = sl_ci[0]; sl_g[35] = sl_g[33]; do cg_add_var(sl_g, sl_n, sl_s);
-        }, false -> { } };
-        sl_ci[0] = sl_n[sl_ci[0] * 10 + 6];
-    };
-}
-
-// Scan for FOR loops — assign slot for loop var + end cache
-fn cg_scan_fors(sf_g: Array<Int>, sf_n: Array<Int>, sf_s: Array<Int>) [] -> Unit {
-    let sf_bi: Int = sf_g[31];
-    let sf_cc: Int = sf_n[sf_bi * 10 + 4];
-    let sf_ci: Array<Int> = Array(1);
-    sf_ci[0] = sf_n[sf_bi * 10 + 5];
-    let sf_t: Array<Int> = Array(1);
-    let sf_ch: Array<Int> = Array(1);
-    for _sfi in range(0, sf_cc) {
-        sf_t[0] = sf_n[sf_ci[0] * 10];
-        match sf_t[0] == 5 { true -> {
-            sf_ch[0] = sf_n[sf_ci[0] * 10 + 5];
-            match sf_n[sf_ch[0] * 10] == 18 { true -> {
-                sf_g[33] = sf_g[33] + 8;
-                sf_g[34] = sf_ch[0]; sf_g[35] = sf_g[33]; do cg_add_var(sf_g, sf_n, sf_s);
-                sf_g[33] = sf_g[33] + 8;
+// Recursive slot walker — finds ALL LET and FOR nodes in the tree
+// g[31]=node to walk, g[33]=current stack offset (updated)
+// Recursive slot walker — iterates siblings, recurses into children
+fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Unit {
+    let ws_ci: Array<Int> = Array(1); ws_ci[0] = ws_g[31];
+    for _ws in range(0, 65536) {
+        match ws_ci[0] >= 0 { true -> {
+            ws_g[136] = ws_n[ws_ci[0] * 10]; // node type
+            // If NODE_LET — assign a slot
+            match ws_g[136] == 4 { true -> {
+                ws_g[137] = ws_n[ws_ci[0] * 10 + 7];
+                match ws_g[137] == 2 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> match ws_g[137] == 4 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> { ws_g[33] = ws_g[33] + 8; } } };
+                ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
             }, false -> { } };
+            // If NODE_FOR — assign two slots
+            match ws_g[136] == 18 { true -> {
+                ws_g[33] = ws_g[33] + 8;
+                ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
+                ws_g[33] = ws_g[33] + 8;
+            }, false -> { } };
+            // Recurse into first_child (depth-first)
+            match ws_n[ws_ci[0] * 10 + 5] >= 0 { true -> { ws_g[31] = ws_n[ws_ci[0] * 10 + 5]; do cg_walk_slots(ws_g, ws_n, ws_s); }, false -> { } };
+            // Move to next_sibling (iteration, not recursion)
+            ws_ci[0] = ws_n[ws_ci[0] * 10 + 6];
         }, false -> { } };
-        sf_ci[0] = sf_n[sf_ci[0] * 10 + 6];
     };
 }
 
