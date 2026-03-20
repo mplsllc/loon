@@ -373,6 +373,96 @@ fn dump_ast(da_g: Array<Int>, da_n: Array<Int>) [IO] -> Unit {
     };
 }
 
+// ===================================================================
+// Codegen — emit NASM x86-64 assembly to stdout
+// ===================================================================
+
+// Helper: emit a line to stdout
+fn emit_line(el_s: String) [IO] -> Unit { do print_raw(el_s); do print(""); }
+
+// Emit scaffolding: .data, .bss, .text, _start
+fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
+    // .data section — string literals
+    do emit_line("section .data");
+    do emit_line("    _newline_byte db 10");
+    do emit_line("    _bump_pos  dq _bump_heap");
+    // Walk nodes for STR_LIT, emit each
+    cg_g[29] = 0; // string literal counter
+    for cg_si in range(0, cg_g[12]) {
+        match cg_n[cg_si * 10] == 8 {
+            true -> {
+                let cg_off: Int = cg_n[cg_si * 10 + 2];
+                let cg_len: Int = cg_n[cg_si * 10 + 3];
+                // Emit: _sN db "content"
+                do print_raw("    _s" + int_to_string(cg_g[29]) + "    db ");
+                do print_byte(34); // opening "
+                for cg_sj in range(0, cg_len) {
+                    do print_byte(cg_s[cg_off + cg_sj]);
+                };
+                do print_byte(34); // closing "
+                do emit_line("");
+                do emit_line("    _s" + int_to_string(cg_g[29]) + "_len equ " + int_to_string(cg_len));
+                cg_g[29] = cg_g[29] + 1;
+            },
+            false -> { },
+        };
+    };
+    do emit_line("");
+
+    // .bss section
+    do emit_line("section .bss");
+    do emit_line("    _bump_heap resb 16777216");
+    do emit_line("    _argc resq 1");
+    do emit_line("    _argv resq 1");
+    do emit_line("");
+
+    // .text section
+    do emit_line("section .text");
+    do emit_line("global _start");
+    do emit_line("");
+
+    // Emit each function — g[30] = current fn node index
+    for cg_fi in range(0, cg_g[12]) {
+        match cg_n[cg_fi * 10] == 1 {
+            true -> { cg_g[30] = cg_fi; do cg_fn(cg_g, cg_n, cg_s); },
+            false -> { },
+        };
+    };
+
+    // _start
+    do emit_line("_start:");
+    do emit_line("    mov rax, [rsp]");
+    do emit_line("    mov [_argc], rax");
+    do emit_line("    lea rax, [rsp+8]");
+    do emit_line("    mov [_argv], rax");
+    do emit_line("    and rsp, -16");
+    do emit_line("    call fn_main");
+    do emit_line("    xor rdi, rdi");
+    do emit_line("    mov rax, 60");
+    do emit_line("    syscall");
+}
+
+// Emit one function — M2.2a just emits prologue/epilogue
+fn cg_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [IO] -> Unit {
+    let cf_fi: Int = cf_g[30]; // current fn node index from g[30]
+    let cf_off: Int = cf_n[cf_fi * 10 + 2];
+    let cf_len: Int = cf_n[cf_fi * 10 + 3];
+    // Emit: fn_NAME:
+    do print_raw("fn_");
+    for cf_ci in range(0, cf_len) {
+        do print_byte(cf_s[cf_off + cf_ci]);
+    };
+    do emit_line(":");
+    do emit_line("    push rbp");
+    do emit_line("    mov rbp, rsp");
+    do emit_line("    sub rsp, 256");
+    // Body — M2.2a stub: just return
+    do emit_line("    mov rsp, rbp");
+    do emit_line("    pop rbp");
+    do emit_line("    ret");
+    do emit_line("");
+}
+
 // Main
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
@@ -385,6 +475,6 @@ fn main() [IO] -> Unit {
     gs[0] = slen;
     do lex_all(gs, gt, gb);
     do pp_parse(gs, gt, gn);
-    do dump_ast(gs, gn);
+    do cg_emit(gs, gn, gb);
     do exit(0);
 }

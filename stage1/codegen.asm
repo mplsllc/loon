@@ -1107,6 +1107,11 @@ cg_emit_runtime:
     mov rdx, cg_rt_read_file_len
     call cg_write
 
+    ; --- fn_print_byte: rdi=byte value, writes one byte to stdout ---
+    lea rsi, [rel cg_rt_print_byte]
+    mov rdx, cg_rt_print_byte_len
+    call cg_write
+
     ; --- fn_string_char_at: rdi=str_ptr, rsi=str_len, rdx=index, returns rax=byte ---
     lea rsi, [rel cg_rt_string_char_at]
     mov rdx, cg_rt_string_char_at_len
@@ -1273,6 +1278,19 @@ cg_rt_get_arg:
     db "    pop rbp", 10
     db "    ret", 10, 10
 cg_rt_get_arg_len equ $ - cg_rt_get_arg
+
+cg_rt_print_byte:
+    db "fn_print_byte:", 10
+    db "    ; print_byte(byte=rdi): write one byte to stdout", 10
+    db "    push rdi", 10
+    db "    mov rsi, rsp", 10       ; rsi = pointer to byte on stack
+    db "    mov rdx, 1", 10         ; len = 1
+    db "    mov rdi, 1", 10         ; stdout
+    db "    mov rax, 1", 10         ; write
+    db "    syscall", 10
+    db "    pop rdi", 10
+    db "    ret", 10, 10
+cg_rt_print_byte_len equ $ - cg_rt_print_byte
 
 cg_rt_string_char_at:
     db "fn_string_char_at:", 10

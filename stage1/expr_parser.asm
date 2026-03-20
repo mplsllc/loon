@@ -79,6 +79,7 @@
 %define BUILTIN_READ_FILE     7
 %define BUILTIN_EXIT          8
 %define BUILTIN_GET_ARG       9
+%define BUILTIN_PRINT_BYTE    10
 
 section .data
 expr_err_expect_expr: db "error: expected expression", 10
@@ -97,6 +98,7 @@ expr_bi_string_char_at: db "string_char_at"
 expr_bi_read_file:     db "read_file"
 expr_bi_exit:          db "exit"
 expr_bi_get_arg:       db "get_arg"
+expr_bi_print_byte:    db "print_byte"
 
 ; Builtin lookup table: pointer, length, id
 expr_builtin_table:
@@ -109,6 +111,7 @@ expr_builtin_table:
     dq expr_bi_read_file, 9, BUILTIN_READ_FILE
     dq expr_bi_exit, 4, BUILTIN_EXIT
     dq expr_bi_get_arg, 7, BUILTIN_GET_ARG
+    dq expr_bi_print_byte, 10, BUILTIN_PRINT_BYTE
 expr_builtin_table_end:
 %define BUILTIN_ENTRY_SIZE 24
 
