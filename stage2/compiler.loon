@@ -1143,10 +1143,12 @@ fn cg_aryset(ca_g: Array<Int>, ca_n: Array<Int>, ca_s: Array<Int>) [IO] -> Unit 
     ca_g[40] = ca_n[ca_g[170]*10+2]; ca_g[41] = ca_n[ca_g[170]*10+3];
     ca_g[171] = cg_find_var(ca_g, ca_s);
     do print_raw("    mov r10, qword [rbp-"); do print_raw(int_to_string(ca_g[171])); do emit_line("]");
+    do emit_line("    push r10"); // save array ptr (r10 clobbered by value eval)
     ca_g[31] = ca_n[ca_g[170]*10+5]; do cg_expr(ca_g, ca_n, ca_s);
-    do emit_line("    push rax");
+    do emit_line("    push rax"); // save index
     ca_g[31] = ca_n[ca_n[ca_g[170]*10+5]*10+6]; do cg_expr(ca_g, ca_n, ca_s);
-    do emit_line("    pop rcx");
+    do emit_line("    pop rcx"); // index
+    do emit_line("    pop r10"); // array ptr
     do emit_line("    mov qword [r10 + rcx*8], rax");
 }
 
