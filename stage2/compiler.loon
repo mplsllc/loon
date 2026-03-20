@@ -301,12 +301,11 @@ fn pe_parse(pe_g: Array<Int>, pe_t: Array<Int>, pe_n: Array<Int>) [] -> Int {
 // Level 1: ||
 fn por_parse(po_g: Array<Int>, po_t: Array<Int>, po_n: Array<Int>) [] -> Int {
     let po_l: Array<Int> = Array(1); po_l[0] = pand_parse(po_g, po_t, po_n);
-    for _po in range(0, 256) { match tcur(po_g, po_t) == 36 { true -> { do teat(po_g); let po_r: Int = pand_parse(po_g, po_t, po_n); po_l[0] = { po_g[18] = po_l[0]; po_g[19] = po_r; mkbin(po_g, po_n, 12) }; }, false -> { } }; }; po_l[0]
+    for _po in range(0, 256) { match tcur(po_g, po_t) == 36 { true -> { do teat(po_g); po_g[134] = pand_parse(po_g, po_t, po_n); po_g[18] = po_l[0]; po_g[19] = po_g[134]; po_l[0] = mkbin(po_g, po_n, 12); }, false -> { } }; }; po_l[0]
 }
-// Level 2: &&
 fn pand_parse(pa_g: Array<Int>, pa_t: Array<Int>, pa_n: Array<Int>) [] -> Int {
     let pa_l: Array<Int> = Array(1); pa_l[0] = pcmp_parse(pa_g, pa_t, pa_n);
-    for _pa in range(0, 256) { match tcur(pa_g, pa_t) == 35 { true -> { do teat(pa_g); let pa_r: Int = pcmp_parse(pa_g, pa_t, pa_n); pa_l[0] = { pa_g[18] = pa_l[0]; pa_g[19] = pa_r; mkbin(pa_g, pa_n, 11) }; }, false -> { } }; }; pa_l[0]
+    for _pa in range(0, 256) { match tcur(pa_g, pa_t) == 35 { true -> { do teat(pa_g); pa_g[135] = pcmp_parse(pa_g, pa_t, pa_n); pa_g[18] = pa_l[0]; pa_g[19] = pa_g[135]; pa_l[0] = mkbin(pa_g, pa_n, 11); }, false -> { } }; }; pa_l[0]
 }
 // Level 3: comparison (non-chainable)
 fn pcmp_parse(pc_g: Array<Int>, pc_t: Array<Int>, pc_n: Array<Int>) [] -> Int {
@@ -317,12 +316,12 @@ fn pcmp_parse(pc_g: Array<Int>, pc_t: Array<Int>, pc_n: Array<Int>) [] -> Int {
 // Level 4: + -
 fn padd_parse(pd_g: Array<Int>, pd_t: Array<Int>, pd_n: Array<Int>) [] -> Int {
     let pd_l: Array<Int> = Array(1); pd_l[0] = pmul_parse(pd_g, pd_t, pd_n);
-    for _pd in range(0, 256) { let pd_tt: Int = tcur(pd_g, pd_t); match pd_tt == 24 { true -> { do teat(pd_g); let pd_r: Int = pmul_parse(pd_g, pd_t, pd_n); pd_l[0] = { pd_g[18] = pd_l[0]; pd_g[19] = pd_r; mkbin(pd_g, pd_n, 0) }; }, false -> match pd_tt == 25 { true -> { do teat(pd_g); let pd_r: Int = pmul_parse(pd_g, pd_t, pd_n); pd_l[0] = { pd_g[18] = pd_l[0]; pd_g[19] = pd_r; mkbin(pd_g, pd_n, 1) }; }, false -> { } } }; }; pd_l[0]
+    for _pd in range(0, 256) { pd_g[130] = tcur(pd_g, pd_t); match pd_g[130] == 24 { true -> { do teat(pd_g); pd_g[131] = pmul_parse(pd_g, pd_t, pd_n); pd_g[18] = pd_l[0]; pd_g[19] = pd_g[131]; pd_l[0] = mkbin(pd_g, pd_n, 0); }, false -> match pd_g[130] == 25 { true -> { do teat(pd_g); pd_g[131] = pmul_parse(pd_g, pd_t, pd_n); pd_g[18] = pd_l[0]; pd_g[19] = pd_g[131]; pd_l[0] = mkbin(pd_g, pd_n, 1); }, false -> { } } }; }; pd_l[0]
 }
 // Level 5: * / %
 fn pmul_parse(pm_g: Array<Int>, pm_t: Array<Int>, pm_n: Array<Int>) [] -> Int {
     let pm_l: Array<Int> = Array(1); pm_l[0] = pun_parse(pm_g, pm_t, pm_n);
-    for _pm in range(0, 256) { let pm_tt: Int = tcur(pm_g, pm_t); match pm_tt == 26 { true -> { do teat(pm_g); let pm_r: Int = pun_parse(pm_g, pm_t, pm_n); pm_l[0] = { pm_g[18] = pm_l[0]; pm_g[19] = pm_r; mkbin(pm_g, pm_n, 2) }; }, false -> match pm_tt == 27 { true -> { do teat(pm_g); let pm_r: Int = pun_parse(pm_g, pm_t, pm_n); pm_l[0] = { pm_g[18] = pm_l[0]; pm_g[19] = pm_r; mkbin(pm_g, pm_n, 3) }; }, false -> match pm_tt == 28 { true -> { do teat(pm_g); let pm_r: Int = pun_parse(pm_g, pm_t, pm_n); pm_l[0] = { pm_g[18] = pm_l[0]; pm_g[19] = pm_r; mkbin(pm_g, pm_n, 4) }; }, false -> { } } } }; }; pm_l[0]
+    for _pm in range(0, 256) { pm_g[132] = tcur(pm_g, pm_t); match pm_g[132] == 26 { true -> { do teat(pm_g); pm_g[133] = pun_parse(pm_g, pm_t, pm_n); pm_g[18] = pm_l[0]; pm_g[19] = pm_g[133]; pm_l[0] = mkbin(pm_g, pm_n, 2); }, false -> match pm_g[132] == 27 { true -> { do teat(pm_g); pm_g[133] = pun_parse(pm_g, pm_t, pm_n); pm_g[18] = pm_l[0]; pm_g[19] = pm_g[133]; pm_l[0] = mkbin(pm_g, pm_n, 3); }, false -> match pm_g[132] == 28 { true -> { do teat(pm_g); pm_g[133] = pun_parse(pm_g, pm_t, pm_n); pm_g[18] = pm_l[0]; pm_g[19] = pm_g[133]; pm_l[0] = mkbin(pm_g, pm_n, 4); }, false -> { } } } }; }; pm_l[0]
 }
 // Level 6: unary ! - do
 fn pun_parse(pu_g: Array<Int>, pu_t: Array<Int>, pu_n: Array<Int>) [] -> Int {
@@ -786,9 +785,15 @@ fn cg_expr(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -> Unit {
     let ce_nt: Int = ce_n[ce_ni * 10];
     match ce_nt == 7 { true -> do cg_int(ce_g, ce_n, ce_s),
     false -> match ce_nt == 9 { true -> do cg_int(ce_g, ce_n, ce_s),
+    false -> match ce_nt == 11 { true -> do cg_binop(ce_g, ce_n, ce_s),
     false -> match ce_nt == 8 { true -> do cg_str(ce_g, ce_n, ce_s),
-    false -> match ce_nt == 16 { true -> do cg_match(ce_g, ce_n, ce_s),
-    false -> do cg_expr2(ce_g, ce_n, ce_s) } } } }
+    false -> do cg_expr3(ce_g, ce_n, ce_s) } } } }
+}
+
+// cg_expr3: handles match, for, block, then falls to expr2
+fn cg_expr3(e3_g: Array<Int>, e3_n: Array<Int>, e3_s: Array<Int>) [IO] -> Unit {
+    match e3_n[e3_g[31]*10] == 16 { true -> do cg_match(e3_g, e3_n, e3_s),
+    false -> do cg_expr2(e3_g, e3_n, e3_s) }
 }
 
 // cg_expr2: handles unary, do, call
