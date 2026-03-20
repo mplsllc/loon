@@ -1022,6 +1022,9 @@ cgx_fvo_loop:
     add rbx, rax
 
     movzx eax, byte [rbx]
+    ; Stop if we hit another function declaration — left current scope
+    cmp eax, NODE_FN_DECL
+    je cgx_fvo_not_found
     cmp eax, NODE_LET
     je cgx_fvo_check_name
     cmp eax, NODE_FOR
