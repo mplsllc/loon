@@ -507,19 +507,132 @@ fn cg_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [IO] -> Unit {
     let cf_fi: Int = cf_g[30];
     let cf_off: Int = cf_n[cf_fi * 10 + 2];
     let cf_len: Int = cf_n[cf_fi * 10 + 3];
+    // Reset variable table: g[50]=var_count, g[51..]=entries
+    cf_g[50] = 0;
+    // Assign slots for params
+    let cf_pc: Int = cf_n[cf_fi * 10 + 4]; // param_count (child_count of FN_DECL)
+    let cf_pi: Array<Int> = Array(1);
+    cf_pi[0] = cf_n[cf_fi * 10 + 5]; // first_child = first PARAM
+    let cf_soff: Array<Int> = Array(1); cf_soff[0] = 0;
+    // Register indices for AMD64 calling convention
+    // params use rdi,rsi,rdx,rcx,r8,r9 — 2 registers per param (16-byte convention)
+    let cf_ptype: Array<Int> = Array(1);
+    for _cfp in range(0, cf_pc) {
+        cf_ptype[0] = cf_n[cf_pi[0] * 10 + 7];
+        match cf_ptype[0] == 2 { true -> { cf_soff[0] = cf_soff[0] + 16; }, false -> match cf_ptype[0] == 4 { true -> { cf_soff[0] = cf_soff[0] + 16; }, false -> { cf_soff[0] = cf_soff[0] + 8; } } };
+        cf_g[34] = cf_pi[0]; cf_g[35] = cf_soff[0]; do cg_add_var(cf_g, cf_n, cf_s);
+        cf_pi[0] = cf_n[cf_pi[0] * 10 + 6];
+    };
+    // Walk body for let bindings — assign their slots too
+    let cf_body: Int = cf_n[cf_fi * 10 + 8];
+    cf_g[33] = cf_soff[0]; // pass current stack offset through g[33]
+    match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_scan_lets(cf_g, cf_n, cf_s); }, false -> { } };
+    match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_scan_fors(cf_g, cf_n, cf_s); }, false -> { } };
+    cf_soff[0] = cf_g[33]; // read back updated offset
+    // Calculate frame size (round up to 16-byte alignment)
+    match cf_soff[0] % 16 == 0 { true -> { }, false -> { cf_soff[0] = cf_soff[0] + 16 - cf_soff[0] % 16; } };
+    match cf_soff[0] == 0 { true -> { cf_soff[0] = 16; }, false -> { } };
+    // Emit function header
     do print_raw("fn_");
     do cg_name(cf_s, cf_off, cf_len);
     do emit_line(":");
     do emit_line("    push rbp");
     do emit_line("    mov rbp, rsp");
-    do emit_line("    sub rsp, 256");
-    // Emit body block
-    let cf_body: Int = cf_n[cf_fi * 10 + 8]; // extra = body node index
+    do print_raw("    sub rsp, "); do emit_line(int_to_string(cf_soff[0]));
+    // Store params from registers to stack
+    do cg_store_params(cf_g, cf_n, cf_s);
+    // Emit body
     match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_block(cf_g, cf_n, cf_s); }, false -> { } };
     do emit_line("    mov rsp, rbp");
     do emit_line("    pop rbp");
     do emit_line("    ret");
     do emit_line("");
+}
+
+// Add a variable to the table: g[50]=count, entries at g[51+i*4..]
+// g[34]=node_index, g[35]=stack_offset — set before calling
+fn cg_add_var(av_g: Array<Int>, av_n: Array<Int>, av_s: Array<Int>) [] -> Unit {
+    let av_idx: Int = av_g[50];
+    let av_base: Int = 51 + av_idx * 4;
+    av_g[av_base] = av_n[av_g[34] * 10 + 2];
+    av_g[av_base + 1] = av_n[av_g[34] * 10 + 3];
+    av_g[av_base + 2] = av_g[35];
+    av_g[av_base + 3] = av_n[av_g[34] * 10 + 7];
+    av_g[50] = av_idx + 1;
+}
+
+// Scan block for LET bindings — assign stack slots
+fn cg_scan_lets(sl_g: Array<Int>, sl_n: Array<Int>, sl_s: Array<Int>) [] -> Unit {
+    let sl_bi: Int = sl_g[31];
+    let sl_cc: Int = sl_n[sl_bi * 10 + 4];
+    let sl_ci: Array<Int> = Array(1);
+    sl_ci[0] = sl_n[sl_bi * 10 + 5];
+    let sl_t: Array<Int> = Array(1);
+    for _sli in range(0, sl_cc) {
+        sl_t[0] = sl_n[sl_ci[0] * 10];
+        match sl_t[0] == 4 { true -> {
+            sl_t[0] = sl_n[sl_ci[0] * 10 + 7];
+            match sl_t[0] == 2 { true -> { sl_g[33] = sl_g[33] + 16; }, false -> match sl_t[0] == 4 { true -> { sl_g[33] = sl_g[33] + 16; }, false -> { sl_g[33] = sl_g[33] + 8; } } };
+            sl_g[34] = sl_ci[0]; sl_g[35] = sl_g[33]; do cg_add_var(sl_g, sl_n, sl_s);
+        }, false -> { } };
+        sl_ci[0] = sl_n[sl_ci[0] * 10 + 6];
+    };
+}
+
+// Scan for FOR loops — assign slot for loop var + end cache
+fn cg_scan_fors(sf_g: Array<Int>, sf_n: Array<Int>, sf_s: Array<Int>) [] -> Unit {
+    let sf_bi: Int = sf_g[31];
+    let sf_cc: Int = sf_n[sf_bi * 10 + 4];
+    let sf_ci: Array<Int> = Array(1);
+    sf_ci[0] = sf_n[sf_bi * 10 + 5];
+    let sf_t: Array<Int> = Array(1);
+    let sf_ch: Array<Int> = Array(1);
+    for _sfi in range(0, sf_cc) {
+        sf_t[0] = sf_n[sf_ci[0] * 10];
+        match sf_t[0] == 5 { true -> {
+            sf_ch[0] = sf_n[sf_ci[0] * 10 + 5];
+            match sf_n[sf_ch[0] * 10] == 18 { true -> {
+                sf_g[33] = sf_g[33] + 8;
+                sf_g[34] = sf_ch[0]; sf_g[35] = sf_g[33]; do cg_add_var(sf_g, sf_n, sf_s);
+                sf_g[33] = sf_g[33] + 8;
+            }, false -> { } };
+        }, false -> { } };
+        sf_ci[0] = sf_n[sf_ci[0] * 10 + 6];
+    };
+}
+
+// Store params from ABI registers to stack slots
+fn cg_store_params(sp_g: Array<Int>, sp_n: Array<Int>, sp_s: Array<Int>) [IO] -> Unit {
+    let sp_fi: Int = sp_g[30];
+    let sp_pc: Int = sp_n[sp_fi * 10 + 4];
+    let sp_ri: Array<Int> = Array(1); sp_ri[0] = 0; // register index
+    let sp_pi: Array<Int> = Array(1);
+    sp_pi[0] = sp_n[sp_fi * 10 + 5];
+    let sp_pt: Array<Int> = Array(1);
+    let sp_vi: Array<Int> = Array(1);
+    for _spp in range(0, sp_pc) {
+        sp_pt[0] = sp_n[sp_pi[0] * 10 + 7];
+        sp_vi[0] = sp_g[51 + (_spp) * 4 + 2];
+        match sp_pt[0] == 2 { true -> {
+            do cg_store_reg(sp_ri[0], sp_vi[0]);
+            do cg_store_reg(sp_ri[0] + 1, sp_vi[0] - 8);
+            sp_ri[0] = sp_ri[0] + 2;
+        }, false -> match sp_pt[0] == 4 { true -> {
+            do cg_store_reg(sp_ri[0], sp_vi[0]);
+            do cg_store_reg(sp_ri[0] + 1, sp_vi[0] - 8);
+            sp_ri[0] = sp_ri[0] + 2;
+        }, false -> {
+            do cg_store_reg(sp_ri[0], sp_vi[0]);
+            sp_ri[0] = sp_ri[0] + 2;
+        } } };
+        sp_pi[0] = sp_n[sp_pi[0] * 10 + 6];
+    };
+}
+
+// Emit: mov qword [rbp-offset], <register>
+fn cg_store_reg(sr_ri: Int, sr_off: Int) [IO] -> Unit {
+    let sr_reg: String = match sr_ri == 0 { true -> "rdi", false -> match sr_ri == 1 { true -> "rsi", false -> match sr_ri == 2 { true -> "rdx", false -> match sr_ri == 3 { true -> "rcx", false -> match sr_ri == 4 { true -> "r8", false -> "r9" } } } } };
+    do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(sr_off)); do print_raw("], "); do emit_line(sr_reg);
 }
 
 // Emit a name from source buffer byte by byte
@@ -533,15 +646,15 @@ fn cg_block(cb_g: Array<Int>, cb_n: Array<Int>, cb_s: Array<Int>) [IO] -> Unit {
     let cb_cc: Int = cb_n[cb_bi * 10 + 4]; // child_count
     let cb_ci: Array<Int> = Array(1);
     cb_ci[0] = cb_n[cb_bi * 10 + 5]; // first_child
+    let cb_t: Array<Int> = Array(1);
     for _cbi in range(0, cb_cc) {
-        let cb_cur: Int = cb_ci[0];
-        let cb_nt: Int = cb_n[cb_cur * 10];
-        match cb_nt == 5 { true -> { cb_g[31] = cb_n[cb_cur * 10 + 5]; do cg_expr(cb_g, cb_n, cb_s); }, // EXPR_STMT
-        false -> match cb_nt == 6 { true -> { cb_g[31] = cb_n[cb_cur * 10 + 5]; do cg_expr(cb_g, cb_n, cb_s); }, // RETURN_EXPR
-        false -> match cb_nt == 4 { true -> { cb_g[31] = cb_cur; do cg_let(cb_g, cb_n, cb_s); }, // LET
-        false -> match cb_nt == 21 { true -> { cb_g[31] = cb_cur; do cg_aryset(cb_g, cb_n, cb_s); }, // ARRAY_SET
+        cb_t[0] = cb_n[cb_ci[0] * 10];
+        match cb_t[0] == 5 { true -> { cb_g[31] = cb_n[cb_ci[0] * 10 + 5]; do cg_expr(cb_g, cb_n, cb_s); },
+        false -> match cb_t[0] == 6 { true -> { cb_g[31] = cb_n[cb_ci[0] * 10 + 5]; do cg_expr(cb_g, cb_n, cb_s); },
+        false -> match cb_t[0] == 4 { true -> { cb_g[31] = cb_ci[0]; do cg_let(cb_g, cb_n, cb_s); },
+        false -> match cb_t[0] == 21 { true -> { cb_g[31] = cb_ci[0]; do cg_aryset(cb_g, cb_n, cb_s); },
         false -> { } } } } };
-        cb_ci[0] = cb_n[cb_cur * 10 + 6]; // next_sibling
+        cb_ci[0] = cb_n[cb_ci[0] * 10 + 6];
     };
 }
 
@@ -571,7 +684,25 @@ fn cg_expr2(ce2_g: Array<Int>, ce2_n: Array<Int>, ce2_s: Array<Int>) [IO] -> Uni
     }, false -> match ce2_nt == 15 { true -> {
         ce2_g[31] = ce2_n[ce2_ni * 10 + 5]; do cg_expr(ce2_g, ce2_n, ce2_s);
     }, false -> match ce2_nt == 14 { true -> do cg_call(ce2_g, ce2_n, ce2_s),
-    false -> { } } } } }
+    false -> match ce2_nt == 10 { true -> do cg_var(ce2_g, ce2_n, ce2_s), // IDENT_REF
+    false -> { } } } } } }
+}
+
+// cg_var: load variable from stack slot into rax
+fn cg_var(cv_g: Array<Int>, cv_n: Array<Int>, cv_s: Array<Int>) [IO] -> Unit {
+    let cv_ni: Int = cv_g[31];
+    cv_g[40] = cv_n[cv_ni * 10 + 2]; cv_g[41] = cv_n[cv_ni * 10 + 3];
+    let cv_off: Int = cg_find_var(cv_g, cv_s);
+    let cv_tp: Int = cg_find_var_type(cv_g, cv_s);
+    match cv_tp == 2 { true -> { // String: load ptr into rax, len into rdx
+        do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
+        do print_raw("    mov rdx, qword [rbp-"); do print_raw(int_to_string(cv_off - 8)); do emit_line("]");
+    }, false -> match cv_tp == 4 { true -> { // Array: load ptr into rax, len into rdx
+        do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
+        do print_raw("    mov rdx, qword [rbp-"); do print_raw(int_to_string(cv_off - 8)); do emit_line("]");
+    }, false -> { // Int/Bool: load into rax
+        do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
+    } } }
 }
 
 // cg_int: emit mov rax, <literal value>. Works for INT_LIT and BOOL_LIT.
@@ -626,7 +757,6 @@ fn cg_cmp(cc_op: Int) [IO] -> Unit {
 // cg_call: dispatch on builtin sub_type
 fn cg_call(cc_g: Array<Int>, cc_n: Array<Int>, cc_s: Array<Int>) [IO] -> Unit {
     let cc_ni: Int = cc_g[31];
-    // Detect builtins at codegen time using name in source buffer
     cc_g[40] = cc_n[cc_ni * 10 + 2]; cc_g[41] = cc_n[cc_ni * 10 + 3];
     let cc_sub: Int = chk_bi(cc_g, cc_s);
     match cc_sub == 8 { true -> { // BUILTIN_EXIT
@@ -635,16 +765,124 @@ fn cg_call(cc_g: Array<Int>, cc_n: Array<Int>, cc_s: Array<Int>) [IO] -> Unit {
         do emit_line("    mov rdi, rax");
         do emit_line("    mov rax, 60");
         do emit_line("    syscall");
-    }, false -> { // TODO: other builtins and user calls
-    } };
+    }, false -> match cc_sub == 0 { true -> { // User-defined function call
+        do cg_user_call(cc_g, cc_n, cc_s);
+    }, false -> { // Other builtins — TODO M2.2d
+        do emit_line("    ; TODO builtin");
+    } } };
 }
 
-// Stubs for M2.2c+
-fn cg_let(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
-    do emit_line("    ; TODO let binding");
+// User function call: evaluate args, push to stack, pop into registers, call
+fn cg_user_call(uc_g: Array<Int>, uc_n: Array<Int>, uc_s: Array<Int>) [IO] -> Unit {
+    let uc_ni: Int = uc_g[31];
+    let uc_ac: Int = uc_n[uc_ni * 10 + 4]; // arg count
+    // Evaluate each arg and push to stack (reverse order for correct register assignment)
+    let uc_ai: Array<Int> = Array(1);
+    uc_ai[0] = uc_n[uc_ni * 10 + 5]; // first arg
+    for _uca in range(0, uc_ac) {
+        uc_g[31] = uc_ai[0]; do cg_expr(uc_g, uc_n, uc_s);
+        do emit_line("    push rdx"); // push len (for String/Array)
+        do emit_line("    push rax"); // push ptr/value
+        uc_ai[0] = uc_n[uc_ai[0] * 10 + 6]; // next arg
+    };
+    // Pop args into registers (in reverse — last pushed = first popped)
+    // For N args: pop arg_N into highest regs first, then arg_1 into rdi/rsi
+    do cg_pop_args(uc_ac);
+    // Emit call
+    do print_raw("    call fn_");
+    let uc_no: Int = uc_n[uc_ni * 10 + 2]; let uc_nl: Int = uc_n[uc_ni * 10 + 3];
+    do cg_name(uc_s, uc_no, uc_nl);
+    do emit_line("");
 }
+
+// Pop N args from stack into ABI registers
+fn cg_pop_args(pa_n: Int) [IO] -> Unit {
+    // Args are on stack in forward order (arg1 on top, argN at bottom)
+    // Wait — we pushed arg1 first, so argN is on top. We need reverse.
+    // Actually: we walked first→last, pushing each. So arg1 is deepest, argN on top.
+    // Pop: argN → (r8,r9) or (rdx,rcx) etc. depending on position.
+    // For 16-byte convention: each arg takes 2 pops (rax, rdx)
+    // Pop in reverse: last arg first
+    // For 1 arg: pop rdi, pop rsi
+    // For 2 args: pop rdx, pop rcx, pop rdi, pop rsi
+    // For 3 args: pop r8, pop r9, pop rdx, pop rcx, pop rdi, pop rsi
+    match pa_n == 3 { true -> {
+        do emit_line("    pop r8"); do emit_line("    pop r9");
+        do emit_line("    pop rdx"); do emit_line("    pop rcx");
+        do emit_line("    pop rdi"); do emit_line("    pop rsi");
+    }, false -> match pa_n == 2 { true -> {
+        do emit_line("    pop rdx"); do emit_line("    pop rcx");
+        do emit_line("    pop rdi"); do emit_line("    pop rsi");
+    }, false -> match pa_n == 1 { true -> {
+        do emit_line("    pop rdi"); do emit_line("    pop rsi");
+    }, false -> { } } } };
+}
+
+// LET binding: evaluate initializer, store to stack slot
+fn cg_let(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
+    let cl_ni: Int = cl_g[31];
+    let cl_init: Int = cl_n[cl_ni * 10 + 5]; // first_child = initializer
+    // Evaluate initializer
+    cl_g[31] = cl_init; do cg_expr(cl_g, cl_n, cl_s);
+    // Find this variable's stack offset
+    cl_g[40] = cl_n[cl_ni * 10 + 2]; cl_g[41] = cl_n[cl_ni * 10 + 3];
+    let cl_off: Int = cg_find_var(cl_g, cl_s);
+    let cl_tp: Int = cg_find_var_type(cl_g, cl_s);
+    match cl_tp == 2 { true -> { // String: store ptr and len
+        do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off)); do emit_line("], rax");
+        do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off - 8)); do emit_line("], rdx");
+    }, false -> match cl_tp == 4 { true -> { // Array: store ptr and len
+        do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off)); do emit_line("], rax");
+        do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off - 8)); do emit_line("], rdx");
+    }, false -> { // Int/Bool: store single value
+        do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off)); do emit_line("], rax");
+    } } }
+}
+
+// Array set stub — M2.2f
 fn cg_aryset(ca_g: Array<Int>, ca_n: Array<Int>, ca_s: Array<Int>) [IO] -> Unit {
     do emit_line("    ; TODO array set");
+}
+
+// Find variable stack offset by name — g[40]=name_off, g[41]=name_len
+fn cg_find_var(fv_g: Array<Int>, fv_s: Array<Int>) [] -> Int {
+    let fv_o: Int = fv_g[40]; let fv_l: Int = fv_g[41];
+    let fv_res: Array<Int> = Array(1); fv_res[0] = 8;
+    let fv_b: Array<Int> = Array(1);
+    for fv_i in range(0, fv_g[50]) {
+        fv_b[0] = 51 + fv_i * 4;
+        match fv_g[fv_b[0] + 1] == fv_l { true -> {
+            fv_g[40] = fv_o; fv_g[41] = fv_g[fv_b[0]]; fv_g[42] = fv_l;
+            match cg_name_eq(fv_g, fv_s) { true -> { fv_res[0] = fv_g[fv_b[0] + 2]; }, false -> { } };
+            fv_g[40] = fv_o; fv_g[41] = fv_l;
+        }, false -> { } };
+    };
+    fv_res[0]
+}
+
+fn cg_find_var_type(ft_g: Array<Int>, ft_s: Array<Int>) [] -> Int {
+    let ft_o: Int = ft_g[40]; let ft_l: Int = ft_g[41];
+    let ft_res: Array<Int> = Array(1); ft_res[0] = 0;
+    let ft_b: Array<Int> = Array(1);
+    for ft_i in range(0, ft_g[50]) {
+        ft_b[0] = 51 + ft_i * 4;
+        match ft_g[ft_b[0] + 1] == ft_l { true -> {
+            ft_g[40] = ft_o; ft_g[41] = ft_g[ft_b[0]]; ft_g[42] = ft_l;
+            match cg_name_eq(ft_g, ft_s) { true -> { ft_res[0] = ft_g[ft_b[0] + 3]; }, false -> { } };
+            ft_g[40] = ft_o; ft_g[41] = ft_l;
+        }, false -> { } };
+    };
+    ft_res[0]
+}
+
+// Compare two names: s[g[40]..+g[42]] == s[g[41]..+g[42]]
+fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
+    let ne_a: Int = ne_g[40]; let ne_b: Int = ne_g[41]; let ne_l: Int = ne_g[42];
+    let ne_ok: Array<Int> = Array(1); ne_ok[0] = 1;
+    for ne_i in range(0, ne_l) {
+        match ne_s[ne_a + ne_i] == ne_s[ne_b + ne_i] { true -> { }, false -> { ne_ok[0] = 0; } };
+    };
+    match ne_ok[0] == 1 { true -> true, false -> false }
 }
 
 // Main
