@@ -273,7 +273,8 @@ fn tstroff(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 1] }
 fn tstrlen(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 2] }
 
 // Parse module + fn signatures (M2.1a)
-fn parse_program(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
+fn parse_program(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [IO] -> Unit {
+    do print("parse_program start");
     g[12] = 0; g[13] = 0;
     // module name ;
     let mt: Int = tcur(g, tk);
@@ -285,19 +286,52 @@ fn parse_program(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
     do teat(g); // skip module name IDENT
     do teat(g); // skip semicolon
 
-    // Parse fn declarations
-    for _fi in range(0, 256) {
-        match tcur(g, tk) == 44 {
-            true -> { },
-            false -> match tcur(g, tk) == 0 {
-                true -> do parse_fn(g, tk, nd),
-                false -> { do teat(g); }, // skip unexpected
-            },
-        };
-    };
+    // Test: call lex_all(g, tk, s) which also takes 3 arrays — does it crash?
+    // Can't call lex_all again (wrong arrays). Try a simple call.
+    do parse_fn(g, tk, nd);
+    do print("parse_fn done");
+    do exit(0);
 }
 
-fn parse_fn(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
+// Minimal parse_fn for debugging
+fn parse_fn(pg: Array<Int>, ptk: Array<Int>, pnd: Array<Int>) [] -> Unit {
+    do teat(pg); // skip KW_FN
+    let pfi: Int = nalloc(pg, pnd);
+    pnd[pfi * 10] = 1;
+    pnd[pfi * 10 + 2] = tstroff(pg, ptk);
+    pnd[pfi * 10 + 3] = tstrlen(pg, ptk);
+    do teat(pg); // skip fn name
+    // skip to matching RBRACE
+    do teat(pg); // LPAREN
+    for _xp in range(0, 32) {
+        match tcur(pg, ptk) == 20 { true -> { }, false -> { do teat(pg); } };
+    };
+    do teat(pg); // RPAREN
+    do teat(pg); // LBRACKET
+    for _xe in range(0, 16) {
+        match tcur(pg, ptk) == 22 { true -> { }, false -> { do teat(pg); } };
+    };
+    do teat(pg); // RBRACKET
+    do teat(pg); // ARROW
+    do teat(pg); // type
+    // skip body braces
+    do teat(pg); // LBRACE
+    let pdep: Array<Int> = Array(1);
+    pdep[0] = 1;
+    for _xb in range(0, 65536) {
+        match pdep[0] == 0 { true -> { }, false -> {
+            let pbt: Int = tcur(pg, ptk);
+            do teat(pg);
+            match pbt == 17 { true -> { pdep[0] = pdep[0] + 1; }, false -> { } };
+            match pbt == 18 { true -> { pdep[0] = pdep[0] - 1; }, false -> { } };
+        } };
+    };
+    let pbi: Int = nalloc(pg, pnd);
+    pnd[pbi * 10] = 3;
+    pnd[pfi * 10 + 8] = pbi;
+}
+
+fn parse_fn_DISABLED(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
     do teat(g); // skip KW_FN
     // Allocate FN_DECL node
     let fi: Int = nalloc(g, nd);
@@ -307,51 +341,41 @@ fn parse_fn(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
     do teat(g); // skip fn name
 
     // Parse params: LPAREN params RPAREN
+    // g[15]=pcount g[16]=first_param g[17]=last_param
     do teat(g); // skip LPAREN
-    let pcount: Array<Int> = Array(1);
-    pcount[0] = 0;
-    let first_p: Array<Int> = Array(1);
-    first_p[0] = 0 - 1;
-    let last_p: Array<Int> = Array(1);
-    last_p[0] = 0 - 1;
+    g[15] = 0;
+    g[16] = 0 - 1;
+    g[17] = 0 - 1;
 
     for _pi in range(0, 32) {
         match tcur(g, tk) == 20 {
             true -> { },
             false -> {
-                // Parse param: IDENT COLON type
                 let pi: Int = nalloc(g, nd);
                 nd[pi * 10] = 2;
                 nd[pi * 10 + 2] = tstroff(g, tk);
                 nd[pi * 10 + 3] = tstrlen(g, tk);
                 do teat(g); // param name
                 do teat(g); // colon
-                // type name
-                nd[pi * 10 + 7] = 5; // TYPE_UNKNOWN default
+                nd[pi * 10 + 7] = 5;
                 do teat(g); // type name
-                // skip generic <Type>
                 match tcur(g, tk) == 31 {
-                    true -> { do teat(g); do teat(g); do teat(g); }, // < Type >
+                    true -> { do teat(g); do teat(g); do teat(g); },
                     false -> { },
                 };
-                // Link param
-                match first_p[0] == 0 - 1 {
-                    true -> { first_p[0] = pi; last_p[0] = pi; },
-                    false -> { nd[last_p[0] * 10 + 6] = pi; last_p[0] = pi; },
+                match g[16] == 0 - 1 {
+                    true -> { g[16] = pi; g[17] = pi; },
+                    false -> { nd[g[17] * 10 + 6] = pi; g[17] = pi; },
                 };
-                pcount[0] = pcount[0] + 1;
-                // skip comma
-                match tcur(g, tk) == 42 {
-                    true -> { do teat(g); },
-                    false -> { },
-                };
+                g[15] = g[15] + 1;
+                match tcur(g, tk) == 42 { true -> { do teat(g); }, false -> { } };
             },
         };
     };
     do teat(g); // skip RPAREN
 
-    nd[fi * 10 + 4] = pcount[0]; // child_count = param count
-    nd[fi * 10 + 5] = first_p[0]; // first_child = first param
+    nd[fi * 10 + 4] = g[15]; // child_count
+    nd[fi * 10 + 5] = g[16]; // first_child
 
     // Parse effects: [ ... ]
     do teat(g); // skip LBRACKET
@@ -860,18 +884,29 @@ fn strsub(nd: Array<Int>, i: Int, s: Array<Int>) [] -> String {
 
 // ===== Main =====
 fn main() [IO] -> Unit {
+    do print("main start");
     let source: String = read_file(get_arg(1));
+    do print("read ok");
     let slen: Int = string_length(source);
+    do print("slen=" + int_to_string(slen));
+    do print("alloc gs");
     let gs: Array<Int> = Array(32);
+    do print("alloc gb");
     let gb: Array<Int> = Array(131072);
+    do print("alloc gt");
     let gt: Array<Int> = Array(65536);
+    do print("alloc gn");
     let gn: Array<Int> = Array(81920);
+    do print("alloc done");
     for ci in range(0, slen) {
         gb[ci] = string_char_at(source, ci);
     };
+    do print("copy done");
     gs[0] = slen;
     do lex_all(gs, gt, gb);
+    do print("lex done, tok=" + int_to_string(gs[4]));
     do parse_program(gs, gt, gn);
+    do print("parse done");
     do dump_ast(gs, gn, gb);
     do exit(0);
 }
