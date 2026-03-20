@@ -1,0 +1,43 @@
+tokens: 74
+nodes: 40
+funcs: 1
+  MODULE main
+  FN main params=0
+    BLOCK (body)
+    [3] type=14 sub=1 children=1 first=4 name=print
+    [4] type=8 sub=0 children=0 first=4294967295 name=Hello, Loon!
+    [5] type=15 sub=0 children=1 first=3
+    [6] type=5 sub=0 children=1 first=5
+    [7] type=14 sub=1 children=1 first=8 name=print
+    [8] type=14 sub=3 children=1 first=9 name=int_to_string
+    [9] type=7 sub=0 children=0 first=4294967295 name=0
+    [10] type=15 sub=0 children=1 first=7
+    [11] type=5 sub=0 children=1 first=10
+    [12] type=14 sub=1 children=1 first=13 name=print
+    [13] type=14 sub=3 children=1 first=14 name=int_to_string
+    [14] type=7 sub=0 children=0 first=4294967295 name=42
+    [15] type=15 sub=0 children=1 first=12
+    [16] type=5 sub=0 children=1 first=15
+    [17] type=14 sub=1 children=1 first=18 name=print
+    [18] type=14 sub=3 children=1 first=21 name=int_to_string
+    [19] type=7 sub=0 children=0 first=4294967295 name=0
+    [20] type=7 sub=0 children=0 first=4294967295 name=42
+    [21] type=11 sub=1 children=2 first=19
+    [22] type=15 sub=0 children=1 first=17
+    [23] type=5 sub=0 children=1 first=22
+    [24] type=14 sub=1 children=1 first=29 name=print
+    [25] type=8 sub=0 children=0 first=4294967295 name=hello
+    [26] type=8 sub=0 children=0 first=4294967295 name= 
+    [27] type=11 sub=0 children=2 first=25
+    [28] type=8 sub=0 children=0 first=4294967295 name=world
+    [29] type=11 sub=0 children=2 first=27
+    [30] type=15 sub=0 children=1 first=24
+    [31] type=5 sub=0 children=1 first=30
+    [32] type=14 sub=1 children=1 first=37 name=print
+    [33] type=8 sub=0 children=0 first=4294967295 name=length: 
+    [34] type=14 sub=3 children=1 first=35 name=int_to_string
+    [35] type=14 sub=4 children=1 first=36 name=string_length
+    [36] type=8 sub=0 children=0 first=4294967295 name=test
+    [37] type=11 sub=0 children=2 first=33
+    [38] type=15 sub=0 children=1 first=32
+    [39] type=5 sub=0 children=1 first=38

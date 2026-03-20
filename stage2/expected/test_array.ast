@@ -1,0 +1,33 @@
+tokens: 71
+nodes: 30
+funcs: 1
+  MODULE main
+  FN main params=0
+    BLOCK (body)
+    [3] type=4 sub=0 children=1 first=5 name=arr
+    [4] type=7 sub=0 children=0 first=4294967295 name=3
+    [5] type=19 sub=0 children=1 first=4
+    [6] type=21 sub=0 children=2 first=7 name=arr
+    [7] type=7 sub=0 children=0 first=4294967295 name=0
+    [8] type=7 sub=0 children=0 first=4294967295 name=10
+    [9] type=21 sub=0 children=2 first=10 name=arr
+    [10] type=7 sub=0 children=0 first=4294967295 name=1
+    [11] type=7 sub=0 children=0 first=4294967295 name=20
+    [12] type=21 sub=0 children=2 first=13 name=arr
+    [13] type=7 sub=0 children=0 first=4294967295 name=2
+    [14] type=7 sub=0 children=0 first=4294967295 name=30
+    [15] type=14 sub=1 children=1 first=16 name=print
+    [16] type=14 sub=3 children=1 first=27 name=int_to_string
+    [17] type=10 sub=0 children=0 first=4294967295 name=arr
+    [18] type=7 sub=0 children=0 first=4294967295 name=0
+    [19] type=20 sub=0 children=1 first=18 name=arr
+    [20] type=10 sub=0 children=0 first=4294967295 name=arr
+    [21] type=7 sub=0 children=0 first=4294967295 name=1
+    [22] type=20 sub=0 children=1 first=21 name=arr
+    [23] type=11 sub=0 children=2 first=19
+    [24] type=10 sub=0 children=0 first=4294967295 name=arr
+    [25] type=7 sub=0 children=0 first=4294967295 name=2
+    [26] type=20 sub=0 children=1 first=25 name=arr
+    [27] type=11 sub=0 children=2 first=23
+    [28] type=15 sub=0 children=1 first=15
+    [29] type=5 sub=0 children=1 first=28

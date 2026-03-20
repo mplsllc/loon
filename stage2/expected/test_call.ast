@@ -1,0 +1,22 @@
+tokens: 53
+nodes: 19
+funcs: 2
+  MODULE main
+  FN add params=2
+    PARAM a
+    PARAM b
+    BLOCK (body)
+    [5] type=10 sub=0 children=0 first=4294967295 name=a
+    [6] type=10 sub=0 children=0 first=4294967295 name=b
+    [7] type=11 sub=0 children=2 first=5
+    [8] type=6 sub=0 children=1 first=7
+  FN main params=0
+    BLOCK (body)
+    [11] type=4 sub=0 children=1 first=12 name=x
+    [12] type=14 sub=0 children=2 first=13 name=add
+    [13] type=7 sub=0 children=0 first=4294967295 name=10
+    [14] type=7 sub=0 children=0 first=4294967295 name=20
+    [15] type=14 sub=8 children=1 first=16 name=exit
+    [16] type=10 sub=0 children=0 first=4294967295 name=x
+    [17] type=15 sub=0 children=1 first=15
+    [18] type=5 sub=0 children=1 first=17

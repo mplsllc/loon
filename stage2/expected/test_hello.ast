@@ -1,0 +1,10 @@
+tokens: 21
+nodes: 7
+funcs: 1
+  MODULE main
+  FN main params=0
+    BLOCK (body)
+    [3] type=14 sub=1 children=1 first=4 name=print
+    [4] type=8 sub=0 children=0 first=4294967295 name=Hello, Loon!
+    [5] type=15 sub=0 children=1 first=3
+    [6] type=5 sub=0 children=1 first=5

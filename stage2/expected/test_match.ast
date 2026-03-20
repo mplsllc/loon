@@ -1,0 +1,55 @@
+tokens: 114
+nodes: 52
+funcs: 3
+  MODULE main
+  FN abs params=1
+    PARAM x
+    BLOCK (body)
+    [4] type=10 sub=0 children=0 first=4294967295 name=x
+    [5] type=7 sub=0 children=0 first=4294967295 name=0
+    [6] type=11 sub=10 children=2 first=4
+    [7] type=16 sub=0 children=2 first=8
+    [8] type=17 sub=0 children=1 first=9
+    [9] type=10 sub=0 children=0 first=4294967295 name=x
+    [10] type=17 sub=0 children=1 first=13
+    [11] type=7 sub=0 children=0 first=4294967295 name=0
+    [12] type=10 sub=0 children=0 first=4294967295 name=x
+    [13] type=11 sub=1 children=2 first=11
+    [14] type=6 sub=0 children=1 first=7
+  FN describe params=1
+    PARAM n
+    BLOCK (body)
+    [18] type=10 sub=0 children=0 first=4294967295 name=n
+    [19] type=16 sub=0 children=3 first=20
+    [20] type=17 sub=0 children=1 first=21
+    [21] type=8 sub=0 children=0 first=4294967295 name=zero
+    [22] type=17 sub=0 children=1 first=23
+    [23] type=8 sub=0 children=0 first=4294967295 name=one
+    [24] type=17 sub=1 children=1 first=25
+    [25] type=8 sub=0 children=0 first=4294967295 name=other
+    [26] type=6 sub=0 children=1 first=19
+  FN main params=0
+    BLOCK (body)
+    [29] type=14 sub=1 children=1 first=30 name=print
+    [30] type=14 sub=3 children=1 first=31 name=int_to_string
+    [31] type=14 sub=0 children=1 first=34 name=abs
+    [32] type=7 sub=0 children=0 first=4294967295 name=0
+    [33] type=7 sub=0 children=0 first=4294967295 name=42
+    [34] type=11 sub=1 children=2 first=32
+    [35] type=15 sub=0 children=1 first=29
+    [36] type=5 sub=0 children=1 first=35
+    [37] type=14 sub=1 children=1 first=38 name=print
+    [38] type=14 sub=0 children=1 first=39 name=describe
+    [39] type=7 sub=0 children=0 first=4294967295 name=0
+    [40] type=15 sub=0 children=1 first=37
+    [41] type=5 sub=0 children=1 first=40
+    [42] type=14 sub=1 children=1 first=43 name=print
+    [43] type=14 sub=0 children=1 first=44 name=describe
+    [44] type=7 sub=0 children=0 first=4294967295 name=1
+    [45] type=15 sub=0 children=1 first=42
+    [46] type=5 sub=0 children=1 first=45
+    [47] type=14 sub=1 children=1 first=48 name=print
+    [48] type=14 sub=0 children=1 first=49 name=describe
+    [49] type=7 sub=0 children=0 first=4294967295 name=99
+    [50] type=15 sub=0 children=1 first=47
+    [51] type=5 sub=0 children=1 first=50
