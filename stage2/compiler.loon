@@ -372,24 +372,445 @@ fn parse_fn(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
         false -> { },
     };
 
-    // Parse body: skip to matching RBRACE (M2.1a stub)
+    // Parse body block
+    let bi: Int = parse_block(g, tk, nd);
+    nd[fi * 10 + 8] = bi; // extra = body node index
+}
+
+// ===================================================================
+// Expression parser — precedence climbing
+// Each level calls the next higher. Returns node index.
+// ===================================================================
+
+// Block: { stmt* expr? }
+fn parse_block(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
     do teat(g); // skip LBRACE
     let bi: Int = nalloc(g, nd);
-    nd[bi * 10] = 3;
-    nd[fi * 10 + 8] = bi; // extra = body node index
-    let depth: Array<Int> = Array(1);
-    depth[0] = 1;
-    for _bi in range(0, 65536) {
-        match depth[0] == 0 {
+    nd[bi * 10] = 3; // NODE_BLOCK
+    let fc: Array<Int> = Array(1);
+    fc[0] = 0 - 1; // first child
+    let lc: Array<Int> = Array(1);
+    lc[0] = 0 - 1; // last child
+    let cc: Array<Int> = Array(1);
+    cc[0] = 0; // child count
+    for _si in range(0, 65536) {
+        match tcur(g, tk) == 18 { // RBRACE
             true -> { },
-            false -> {
-                let bt: Int = tcur(g, tk);
-                do teat(g);
-                match bt == 17 { true -> { depth[0] = depth[0] + 1; }, false -> { } };
-                match bt == 18 { true -> { depth[0] = depth[0] - 1; }, false -> { } };
+            false -> match tcur(g, tk) == 44 { // EOF
+                true -> { },
+                false -> {
+                    // Check for let
+                    match tcur(g, tk) == 1 { // KW_LET
+                        true -> {
+                            let li: Int = parse_let(g, tk, nd);
+                            do blink(nd, fc, lc, cc, li);
+                        },
+                        false -> match tcur(g, tk) == 13 { // IDENT — check for array_set
+                            true -> match tk[(g[13] + 1) * 5] == 21 { // next is LBRACKET
+                                true -> match is_array_set(g, tk) {
+                                    true -> {
+                                        let ai: Int = parse_arr_set(g, tk, nd);
+                                        do blink(nd, fc, lc, cc, ai);
+                                    },
+                                    false -> {
+                                        // Expression (possibly return expr)
+                                        let ei: Int = parse_expr(g, tk, nd);
+                                        let wi: Int = wrap_expr(g, tk, nd, ei);
+                                        do blink(nd, fc, lc, cc, wi);
+                                    },
+                                },
+                                false -> {
+                                    let ei: Int = parse_expr(g, tk, nd);
+                                    let wi: Int = wrap_expr(g, tk, nd, ei);
+                                    do blink(nd, fc, lc, cc, wi);
+                                },
+                            },
+                            false -> {
+                                let ei: Int = parse_expr(g, tk, nd);
+                                let wi: Int = wrap_expr(g, tk, nd, ei);
+                                do blink(nd, fc, lc, cc, wi);
+                            },
+                        },
+                    };
+                },
             },
         };
     };
+    do teat(g); // skip RBRACE
+    nd[bi * 10 + 4] = cc[0];
+    nd[bi * 10 + 5] = fc[0];
+    bi
+}
+
+// Check if IDENT LBRACKET ... RBRACKET ASSIGN pattern
+fn is_array_set(g: Array<Int>, tk: Array<Int>) [] -> Bool {
+    let pv: Array<Int> = Array(1);
+    pv[0] = g[13] + 2;
+    let dep: Array<Int> = Array(1);
+    dep[0] = 1;
+    for _x in range(0, 256) {
+        match dep[0] == 0 { true -> { }, false -> {
+            let tt: Int = tk[pv[0] * 5];
+            match tt == 21 { true -> { dep[0] = dep[0] + 1; }, false -> { } };
+            match tt == 22 { true -> { dep[0] = dep[0] - 1; }, false -> { } };
+            pv[0] = pv[0] + 1;
+        } };
+    };
+    match tk[pv[0] * 5] == 23 { true -> true, false -> false }
+}
+
+// Wrap expression as EXPR_STMT or RETURN_EXPR based on following token
+fn wrap_expr(g: Array<Int>, tk: Array<Int>, nd: Array<Int>, ei: Int) [] -> Int {
+    match tcur(g, tk) == 41 { // SEMICOLON
+        true -> {
+            do teat(g);
+            let wi: Int = nalloc(g, nd);
+            nd[wi * 10] = 5; // NODE_EXPR_STMT
+            nd[wi * 10 + 4] = 1;
+            nd[wi * 10 + 5] = ei;
+            wi
+        },
+        false -> {
+            // No semicolon — return expression
+            let wi: Int = nalloc(g, nd);
+            nd[wi * 10] = 6; // NODE_RETURN_EXPR
+            nd[wi * 10 + 4] = 1;
+            nd[wi * 10 + 5] = ei;
+            wi
+        },
+    }
+}
+
+// Link child into block's sibling chain
+fn blink(nd: Array<Int>, fc: Array<Int>, lc: Array<Int>, cc: Array<Int>, ni: Int) [] -> Unit {
+    match fc[0] == 0 - 1 {
+        true -> { fc[0] = ni; lc[0] = ni; },
+        false -> { nd[lc[0] * 10 + 6] = ni; lc[0] = ni; },
+    };
+    cc[0] = cc[0] + 1;
+}
+
+// Let binding: let IDENT [: type] = expr ;
+fn parse_let(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    do teat(g); // skip KW_LET
+    let li: Int = nalloc(g, nd);
+    nd[li * 10] = 4; // NODE_LET
+    nd[li * 10 + 2] = tstroff(g, tk);
+    nd[li * 10 + 3] = tstrlen(g, tk);
+    do teat(g); // skip var name
+    // Optional type annotation
+    match tcur(g, tk) == 40 { // COLON
+        true -> { do teat(g); do teat(g); // skip : type
+            match tcur(g, tk) == 31 { true -> { do teat(g); do teat(g); do teat(g); }, false -> { } }; // <Type>
+        },
+        false -> { },
+    };
+    do teat(g); // skip ASSIGN (=)
+    let vi: Int = parse_expr(g, tk, nd);
+    nd[li * 10 + 4] = 1;
+    nd[li * 10 + 5] = vi;
+    do teat(g); // skip SEMICOLON
+    li
+}
+
+// Array set: IDENT [ expr ] = expr ;
+fn parse_arr_set(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let ai: Int = nalloc(g, nd);
+    nd[ai * 10] = 21; // NODE_ARR_SET
+    nd[ai * 10 + 2] = tstroff(g, tk);
+    nd[ai * 10 + 3] = tstrlen(g, tk);
+    do teat(g); // skip IDENT
+    do teat(g); // skip LBRACKET
+    let idx: Int = parse_expr(g, tk, nd);
+    do teat(g); // skip RBRACKET
+    do teat(g); // skip ASSIGN
+    let val: Int = parse_expr(g, tk, nd);
+    do teat(g); // skip SEMICOLON
+    nd[ai * 10 + 4] = 2;
+    nd[ai * 10 + 5] = idx;
+    nd[idx * 10 + 6] = val; // idx.next_sibling = val
+    ai
+}
+
+// Expression entry point
+fn parse_expr(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let t: Int = tcur(g, tk);
+    match t == 3 { true -> parse_match(g, tk, nd), // KW_MATCH
+    false -> match t == 4 { true -> parse_for(g, tk, nd), // KW_FOR
+    false -> parse_or(g, tk, nd) } }
+}
+
+// Level 1: ||
+fn parse_or(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let left: Array<Int> = Array(1);
+    left[0] = parse_and(g, tk, nd);
+    for _oi in range(0, 256) {
+        match tcur(g, tk) == 36 { // TOK_OR
+            true -> { do teat(g); let ri: Int = parse_and(g, tk, nd); left[0] = mkbin(g, nd, 12, left[0], ri); },
+            false -> { },
+        };
+    };
+    left[0]
+}
+
+// Level 2: &&
+fn parse_and(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let left: Array<Int> = Array(1);
+    left[0] = parse_cmp(g, tk, nd);
+    for _ai in range(0, 256) {
+        match tcur(g, tk) == 35 { // TOK_AND
+            true -> { do teat(g); let ri: Int = parse_cmp(g, tk, nd); left[0] = mkbin(g, nd, 11, left[0], ri); },
+            false -> { },
+        };
+    };
+    left[0]
+}
+
+// Level 3: == != < > <= >= (non-chainable)
+fn parse_cmp(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let left: Int = parse_add(g, tk, nd);
+    let t: Int = tcur(g, tk);
+    match t >= 29 { // TOK_EQ=29 through TOK_GTE=34
+        true -> match t <= 34 {
+            true -> {
+                do teat(g);
+                let ri: Int = parse_add(g, tk, nd);
+                // Map token to BINOP sub_type: EQ=29→5, NEQ=30→6, etc.
+                mkbin(g, nd, t - 29 + 5, left, ri)
+            },
+            false -> left,
+        },
+        false -> left,
+    }
+}
+
+// Level 4: + -
+fn parse_add(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let left: Array<Int> = Array(1);
+    left[0] = parse_mul(g, tk, nd);
+    for _di in range(0, 256) {
+        let t: Int = tcur(g, tk);
+        match t == 24 { // TOK_PLUS
+            true -> { do teat(g); let ri: Int = parse_mul(g, tk, nd); left[0] = mkbin(g, nd, 0, left[0], ri); },
+            false -> match t == 25 { // TOK_MINUS
+                true -> { do teat(g); let ri: Int = parse_mul(g, tk, nd); left[0] = mkbin(g, nd, 1, left[0], ri); },
+                false -> { },
+            },
+        };
+    };
+    left[0]
+}
+
+// Level 5: * / %
+fn parse_mul(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let left: Array<Int> = Array(1);
+    left[0] = parse_unary(g, tk, nd);
+    for _mi in range(0, 256) {
+        let t: Int = tcur(g, tk);
+        match t == 26 { // TOK_STAR
+            true -> { do teat(g); let ri: Int = parse_unary(g, tk, nd); left[0] = mkbin(g, nd, 2, left[0], ri); },
+            false -> match t == 27 { // TOK_SLASH
+                true -> { do teat(g); let ri: Int = parse_unary(g, tk, nd); left[0] = mkbin(g, nd, 3, left[0], ri); },
+                false -> match t == 28 { // TOK_PERCENT
+                    true -> { do teat(g); let ri: Int = parse_unary(g, tk, nd); left[0] = mkbin(g, nd, 4, left[0], ri); },
+                    false -> { },
+                },
+            },
+        };
+    };
+    left[0]
+}
+
+// Level 6: ! - (unary) do
+fn parse_unary(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let t: Int = tcur(g, tk);
+    match t == 37 { // TOK_NOT
+        true -> { do teat(g); let ci: Int = parse_unary(g, tk, nd); let ni: Int = nalloc(g, nd); nd[ni*10]=12; nd[ni*10+4]=1; nd[ni*10+5]=ci; ni },
+        false -> match t == 25 { // TOK_MINUS (unary neg)
+            true -> { do teat(g); let ci: Int = parse_unary(g, tk, nd); let ni: Int = nalloc(g, nd); nd[ni*10]=13; nd[ni*10+4]=1; nd[ni*10+5]=ci; ni },
+            false -> match t == 6 { // KW_DO
+                true -> { do teat(g); let ci: Int = parse_postfix(g, tk, nd); let ni: Int = nalloc(g, nd); nd[ni*10]=15; nd[ni*10+4]=1; nd[ni*10+5]=ci; ni },
+                false -> parse_postfix(g, tk, nd),
+            },
+        },
+    }
+}
+
+// Level 7: f() arr[i]
+fn parse_postfix(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let base: Array<Int> = Array(1);
+    base[0] = parse_primary(g, tk, nd);
+    for _pi in range(0, 256) {
+        match tcur(g, tk) == 21 { // LBRACKET — array get
+            true -> {
+                do teat(g); // skip [
+                let idx: Int = parse_expr(g, tk, nd);
+                do teat(g); // skip ]
+                let ni: Int = nalloc(g, nd);
+                nd[ni * 10] = 20; // NODE_ARR_GET
+                // Copy name from base (if it's an IDENT)
+                nd[ni * 10 + 2] = nd[base[0] * 10 + 2];
+                nd[ni * 10 + 3] = nd[base[0] * 10 + 3];
+                nd[ni * 10 + 4] = 1;
+                nd[ni * 10 + 5] = idx;
+                base[0] = ni;
+            },
+            false -> { }, // no more postfix
+        };
+    };
+    base[0]
+}
+
+// Primary expressions
+fn parse_primary(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let t: Int = tcur(g, tk);
+    match t == 14 { // LIT_INT
+        true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=7; nd[ni*10+2]=tstroff(g,tk); nd[ni*10+3]=tstrlen(g,tk); do teat(g); ni },
+        false -> match t == 16 { // LIT_STRING
+            true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=8; nd[ni*10+2]=tstroff(g,tk); nd[ni*10+3]=tstrlen(g,tk); do teat(g); ni },
+            false -> match t == 11 { // KW_TRUE
+                true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=9; nd[ni*10+8]=1; do teat(g); ni },
+                false -> match t == 12 { // KW_FALSE
+                    true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=9; nd[ni*10+8]=0; do teat(g); ni },
+                    false -> match t == 19 { // LPAREN
+                        true -> { do teat(g); let ei: Int = parse_expr(g, tk, nd); do teat(g); ei }, // skip )
+                        false -> match t == 17 { // LBRACE
+                            true -> parse_block(g, tk, nd),
+                            false -> parse_ident_call(g, tk, nd),
+                        },
+                    },
+                },
+            },
+        },
+    }
+}
+
+// IDENT — variable ref, function call, or Array(n)
+fn parse_ident_call(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    let soff: Int = tstroff(g, tk);
+    let slen: Int = tstrlen(g, tk);
+    do teat(g); // skip IDENT
+    match tcur(g, tk) == 19 { // LPAREN — function call
+        true -> {
+            do teat(g); // skip (
+            let ci: Int = nalloc(g, nd);
+            nd[ci * 10] = 14; // NODE_CALL
+            nd[ci * 10 + 2] = soff;
+            nd[ci * 10 + 3] = slen;
+            // Parse args
+            let afc: Array<Int> = Array(1);
+            afc[0] = 0 - 1;
+            let alc: Array<Int> = Array(1);
+            alc[0] = 0 - 1;
+            let acc: Array<Int> = Array(1);
+            acc[0] = 0;
+            for _ai in range(0, 32) {
+                match tcur(g, tk) == 20 { // RPAREN
+                    true -> { },
+                    false -> {
+                        let argi: Int = parse_expr(g, tk, nd);
+                        do blink(nd, afc, alc, acc, argi);
+                        match tcur(g, tk) == 42 { true -> { do teat(g); }, false -> { } }; // comma
+                    },
+                };
+            };
+            do teat(g); // skip )
+            nd[ci * 10 + 4] = acc[0];
+            nd[ci * 10 + 5] = afc[0];
+            ci
+        },
+        false -> {
+            // Simple variable reference
+            let ni: Int = nalloc(g, nd);
+            nd[ni * 10] = 10; // NODE_IDENT
+            nd[ni * 10 + 2] = soff;
+            nd[ni * 10 + 3] = slen;
+            ni
+        },
+    }
+}
+
+// Match expression
+fn parse_match(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    do teat(g); // skip KW_MATCH
+    let disc: Int = parse_expr(g, tk, nd);
+    let mi: Int = nalloc(g, nd);
+    nd[mi * 10] = 16; // NODE_MATCH
+    nd[mi * 10 + 8] = disc; // extra = discriminant
+    do teat(g); // skip LBRACE
+    let afc: Array<Int> = Array(1);
+    afc[0] = 0 - 1;
+    let alc: Array<Int> = Array(1);
+    alc[0] = 0 - 1;
+    let acc: Array<Int> = Array(1);
+    acc[0] = 0;
+    for _ai in range(0, 256) {
+        match tcur(g, tk) == 18 { // RBRACE
+            true -> { },
+            false -> {
+                let armi: Int = nalloc(g, nd);
+                nd[armi * 10] = 17; // NODE_ARM
+                // Pattern
+                let pt: Int = tcur(g, tk);
+                match pt == 11 { true -> { nd[armi*10+8] = 1; do teat(g); }, // true
+                false -> match pt == 12 { true -> { nd[armi*10+8] = 0; do teat(g); }, // false
+                false -> match pt == 14 { true -> { nd[armi*10+8] = parse_int_val(g, tk); do teat(g); }, // int literal
+                false -> match pt == 13 { true -> { nd[armi*10+1] = 1; do teat(g); }, // wildcard _
+                false -> { do teat(g); } } } } };
+                do teat(g); // skip ARROW (->)
+                let body: Int = parse_expr(g, tk, nd);
+                nd[armi * 10 + 4] = 1;
+                nd[armi * 10 + 5] = body;
+                do blink(nd, afc, alc, acc, armi);
+                match tcur(g, tk) == 42 { true -> { do teat(g); }, false -> { } }; // comma
+            },
+        };
+    };
+    do teat(g); // skip RBRACE
+    nd[mi * 10 + 4] = acc[0];
+    nd[mi * 10 + 5] = afc[0];
+    mi
+}
+
+// For expression
+fn parse_for(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
+    do teat(g); // skip KW_FOR
+    let fi: Int = nalloc(g, nd);
+    nd[fi * 10] = 18; // NODE_FOR
+    nd[fi * 10 + 2] = tstroff(g, tk); // loop var name
+    nd[fi * 10 + 3] = tstrlen(g, tk);
+    do teat(g); // skip loop var IDENT
+    do teat(g); // skip KW_IN
+    do teat(g); // skip "range" IDENT
+    do teat(g); // skip LPAREN
+    let start: Int = parse_expr(g, tk, nd);
+    do teat(g); // skip COMMA
+    let endi: Int = parse_expr(g, tk, nd);
+    do teat(g); // skip RPAREN
+    let body: Int = parse_block(g, tk, nd);
+    nd[fi * 10 + 4] = 3; // 3 children: start, end, body
+    nd[fi * 10 + 5] = start;
+    nd[start * 10 + 6] = endi;
+    nd[endi * 10 + 6] = body;
+    fi
+}
+
+// Parse integer literal value from token
+fn parse_int_val(g: Array<Int>, tk: Array<Int>) [] -> Int {
+    // Read digits from string table — but we need the source buffer
+    // For now just return 0 (pattern value will be checked at codegen)
+    0
+}
+
+// Make a BINOP node
+fn mkbin(g: Array<Int>, nd: Array<Int>, op: Int, li: Int, ri: Int) [] -> Int {
+    let ni: Int = nalloc(g, nd);
+    nd[ni * 10] = 11; // NODE_BINOP
+    nd[ni * 10 + 1] = op;
+    nd[ni * 10 + 4] = 2;
+    nd[ni * 10 + 5] = li;
+    nd[li * 10 + 6] = ri; // left.next_sibling = right
+    ni
 }
 
 // AST dump for --dump-ast comparison
