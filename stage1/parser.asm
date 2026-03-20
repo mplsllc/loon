@@ -82,6 +82,9 @@ section .data
 par_err_expect_module: db "error: expected 'module' at start of program", 10
 par_err_expect_module_len equ $ - par_err_expect_module
 par_err_expect_ident: db "error: expected identifier", 10
+par_dbg_pos: db "debug: tok_pos="
+par_dbg_pos_len equ $ - par_dbg_pos
+par_newline: db 10
 par_err_expect_ident_len equ $ - par_err_expect_ident
 par_err_expect_semi: db "error: expected ';'", 10
 par_err_expect_semi_len equ $ - par_err_expect_semi
@@ -1066,7 +1069,31 @@ par_die_expect_lbrace:
     jmp par_die_print
 
 par_die_expect_fn:
-    lea rsi, [rel par_err_expect_ident]  ; reuse "expected identifier" for now
+    ; Print token position for debugging
+    push rax
+    mov rdi, STDERR
+    lea rsi, [rel par_dbg_pos]
+    mov rdx, par_dbg_pos_len
+    mov rax, 1
+    syscall
+    ; Print tok_pos value
+    mov rax, [rel tok_pos]
+    ; Convert to decimal in par_itoa_buf
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    ; rdx = length from par_itoa
+    mov rax, 1
+    syscall
+    ; Print newline
+    mov rdi, STDERR
+    lea rsi, [rel par_newline]
+    mov rdx, 1
+    mov rax, 1
+    syscall
+    pop rax
+    lea rsi, [rel par_err_expect_ident]
     mov rdx, par_err_expect_ident_len
     mov rdi, STDERR
     jmp par_die_print

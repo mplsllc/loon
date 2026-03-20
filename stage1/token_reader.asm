@@ -22,7 +22,7 @@
 
 %define MAX_TOKENS 26214
 %define TOKEN_SIZE 20
-%define MAX_STRINGS 131072
+%define MAX_STRINGS 262144
 %define STDIN 0
 %define STDERR 2
 %define SYS_READ 0

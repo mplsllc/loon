@@ -382,7 +382,7 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
         let pm2_pt: Int = tcur(pm2_g, pm2_t);
         match pm2_pt == 11 { true -> { pm2_n[pm2_ai*10+8]=1; do teat(pm2_g); },
         false -> match pm2_pt == 12 { true -> { pm2_n[pm2_ai*10+8]=0; do teat(pm2_g); },
-        false -> match pm2_pt == 14 { true -> { do teat(pm2_g); },
+        false -> match pm2_pt == 14 { true -> { pm2_n[pm2_ai*10+2]=tsoff(pm2_g,pm2_t); pm2_n[pm2_ai*10+3]=tslen(pm2_g,pm2_t); do teat(pm2_g); },
         false -> { pm2_n[pm2_ai*10+1]=1; do teat(pm2_g); } } } };
         do teat(pm2_g);
         let pm2_body: Int = pe_parse(pm2_g, pm2_t, pm2_n);
@@ -846,46 +846,37 @@ fn cg_str(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>) [IO] -> Unit {
     do print_raw("    mov rdx, _s"); do print_raw(int_to_string(cs_idx)); do emit_line("_len");
 }
 
-// cg_match: emit comparison chain with unique labels
+// g[115..120]: 115=match_node 116=arm_count 117=label_id 118=arm_iter 119=arm_idx 120=pass(0=cmp,1=body)
 fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
-    let cm_ni: Int = cm_g[31];
-    let cm_disc: Int = cm_n[cm_ni * 10 + 8]; // extra = discriminant node index
-    let cm_ac: Int = cm_n[cm_ni * 10 + 4]; // child_count = arm count
-    let cm_lbl: Int = cm_g[32]; cm_g[32] = cm_g[32] + 1;
-    // Evaluate discriminant
-    cm_g[31] = cm_disc; do cg_expr(cm_g, cm_n, cm_s);
-    do emit_line("    push rax"); // save discriminant
-    // Walk arms — each arm is NODE_MATCH_ARM (type 17)
-    let cm_ai: Array<Int> = Array(1);
-    cm_ai[0] = cm_n[cm_ni * 10 + 5]; // first_child = first arm
-    let cm_ct: Array<Int> = Array(1); cm_ct[0] = 0;
-    // First pass: emit comparisons and jumps
-    for _cma in range(0, cm_ac) {
-        cm_g[115] = cm_n[cm_ai[0] * 10 + 1]; // sub_type: 1=wildcard, 0=literal
-        match cm_g[115] == 1 { true -> { // wildcard
-            do print_raw("    jmp .Lm"); do print_raw(int_to_string(cm_lbl)); do print_raw("_a"); do emit_line(int_to_string(cm_ct[0]));
-        }, false -> { // literal: compare against extra value
-            cm_g[116] = cm_n[cm_ai[0] * 10 + 8]; // pattern value
-            do emit_line("    pop rax"); do emit_line("    push rax");
-            do print_raw("    cmp rax, "); do emit_line(int_to_string(cm_g[116]));
-            do print_raw("    je .Lm"); do print_raw(int_to_string(cm_lbl)); do print_raw("_a"); do emit_line(int_to_string(cm_ct[0]));
-        } };
-        cm_ct[0] = cm_ct[0] + 1;
-        cm_ai[0] = cm_n[cm_ai[0] * 10 + 6]; // next arm
+    cm_g[115]=cm_g[31]; cm_g[116]=cm_n[cm_g[115]*10+4]; cm_g[117]=cm_g[32]; cm_g[32]=cm_g[32]+1;
+    cm_g[31]=cm_n[cm_g[115]*10+8]; do cg_expr(cm_g, cm_n, cm_s);
+    do emit_line("    mov r15, rax");
+    cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=0;
+    do cg_mpass(cm_g, cm_n, cm_s);
+    cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=1;
+    do cg_mpass(cm_g, cm_n, cm_s);
+    do print_raw(".Lm"); do print_raw(int_to_string(cm_g[117])); do emit_line("_end:");
+}
+fn cg_mpass(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
+    for _mp in range(0, mp_g[116]) {
+        match mp_g[120]==0 { true -> do cg_marm_c(mp_g, mp_n, mp_s), false -> do cg_marm_b(mp_g, mp_n, mp_s) };
+        mp_g[119]=mp_g[119]+1; mp_g[118]=mp_n[mp_g[118]*10+6];
     };
-    // Second pass: emit arm bodies
-    cm_ai[0] = cm_n[cm_ni * 10 + 5];
-    cm_ct[0] = 0;
-    for _cmb in range(0, cm_ac) {
-        do print_raw(".Lm"); do print_raw(int_to_string(cm_lbl)); do print_raw("_a"); do print_raw(int_to_string(cm_ct[0])); do emit_line(":");
-        do emit_line("    pop rax"); // clean discriminant from stack
-        cm_g[31] = cm_n[cm_ai[0] * 10 + 5]; // arm body (first_child)
-        do cg_expr(cm_g, cm_n, cm_s);
-        do print_raw("    jmp .Lm"); do print_raw(int_to_string(cm_lbl)); do emit_line("_end");
-        cm_ct[0] = cm_ct[0] + 1;
-        cm_ai[0] = cm_n[cm_ai[0] * 10 + 6];
-    };
-    do print_raw(".Lm"); do print_raw(int_to_string(cm_lbl)); do emit_line("_end:");
+}
+fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit {
+    match ac_n[ac_g[118]*10+1]==1 { true -> {
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+    }, false -> {
+        ac_g[40]=ac_n[ac_g[118]*10+2]; ac_g[41]=ac_n[ac_g[118]*10+3];
+        match ac_g[41] > 0 { true -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(str2int(ac_g, ac_s))); },
+        false -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[118]*10+8])); } };
+        do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+    } };
+}
+fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
+    do print_raw(".Lm"); do print_raw(int_to_string(ab_g[117])); do print_raw("_a"); do print_raw(int_to_string(ab_g[119])); do emit_line(":");
+    ab_g[31]=ab_n[ab_g[118]*10+5]; do cg_expr(ab_g, ab_n, ab_s);
+    do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[117])); do emit_line("_end");
 }
 
 // cg_binop: emit left, push, right, pop, operate

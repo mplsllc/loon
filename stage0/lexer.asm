@@ -23,7 +23,7 @@
 %define STDOUT 1
 %define STDERR 2
 
-%define BUF_SIZE 65536      ; 64KB input buffer — read entire file at once
+%define BUF_SIZE 1048576    ; 1MB input buffer — read entire file at once
 %define OUT_SIZE 8192       ; 8KB output buffer
 
 section .bss

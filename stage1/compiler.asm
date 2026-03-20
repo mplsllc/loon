@@ -15,7 +15,7 @@
 section .bss
     tokens      resb 524288         ; 512KB — token array (20 bytes each, ~26K max)
     nodes       resb 1048576        ; 1MB — AST node array (32 bytes each, ~32K max)
-    strings     resb 131072         ; 128KB — string table
+    strings     resb 262144         ; 256KB — string table
     bump_heap   resb 1048576        ; 1MB — runtime bump allocator
 
     ; Function table — populated by parser first pass for forward calls

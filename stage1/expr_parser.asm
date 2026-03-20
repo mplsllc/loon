@@ -83,6 +83,10 @@
 
 section .data
 expr_err_expect_expr: db "error: expected expression", 10
+expr_dbg_pos: db "debug: tok_pos="
+expr_dbg_pos_len equ $ - expr_dbg_pos
+expr_dbg_type: db " type="
+expr_dbg_type_len equ $ - expr_dbg_type
 expr_err_expect_expr_len equ $ - expr_err_expect_expr
 expr_err_expect_rparen: db "error: expected ')' in expression", 10
 expr_err_expect_rparen_len equ $ - expr_err_expect_rparen
@@ -1600,6 +1604,42 @@ expr_lb_not_found:
 ; Error handlers
 ; ============================================================
 expr_die_expect_expr:
+    ; Print tok_pos for debugging
+    push rax
+    mov rdi, STDERR
+    lea rsi, [rel expr_dbg_pos]
+    mov rdx, expr_dbg_pos_len
+    mov rax, SYS_WRITE
+    syscall
+    mov rax, [rel tok_pos]
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rax, SYS_WRITE
+    syscall
+    ; Print the token type at that position
+    mov rdi, STDERR
+    lea rsi, [rel expr_dbg_type]
+    mov rdx, expr_dbg_type_len
+    mov rax, SYS_WRITE
+    syscall
+    mov rax, [rel tok_pos]
+    imul rax, TOKEN_SIZE
+    lea rsi, [rel tokens]
+    movzx eax, byte [rsi + rax]
+    lea rdi, [rel par_itoa_buf]
+    call par_itoa
+    mov rdi, STDERR
+    lea rsi, [rel par_itoa_buf]
+    mov rax, SYS_WRITE
+    syscall
+    mov rdi, STDERR
+    lea rsi, [rel par_newline]
+    mov rdx, 1
+    mov rax, SYS_WRITE
+    syscall
+    pop rax
     mov rdi, STDERR
     lea rsi, [rel expr_err_expect_expr]
     mov rdx, expr_err_expect_expr_len
