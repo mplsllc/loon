@@ -472,6 +472,7 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     // .bss section
     do emit_line("section .bss");
     do emit_line("    _bump_heap resb 16777216");
+    do emit_line("    _big_stack resb 8388608");
     do emit_line("    _argc resq 1");
     do emit_line("    _argv resq 1");
     do emit_line("");
@@ -495,6 +496,8 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do emit_line("    mov [_argc], rax");
     do emit_line("    lea rax, [rsp+8]");
     do emit_line("    mov [_argv], rax");
+    // Switch to a larger stack (8MB dedicated area)
+    do emit_line("    lea rsp, [_big_stack + 8388608]");
     do emit_line("    and rsp, -16");
     do emit_line("    call fn_main");
     do emit_line("    xor rdi, rdi");

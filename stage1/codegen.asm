@@ -43,7 +43,8 @@ cg_start_code:
     db "    mov [_argc], rax", 10
     db "    lea rax, [rsp+8]", 10           ; pointer to argv array
     db "    mov [_argv], rax", 10
-    db "    and rsp, -16", 10               ; align AFTER saving argv
+    db "    lea rsp, [_big_stack + 8388608]", 10  ; switch to 8MB stack
+    db "    and rsp, -16", 10               ; align
     db "    call fn_main", 10
     db "    xor rdi, rdi", 10
     db "    mov rax, 60", 10
@@ -133,6 +134,10 @@ cg_bump_pos_decl:   db "    _bump_pos  dq _bump_heap", 10
 cg_bump_pos_len     equ $ - cg_bump_pos_decl
 cg_newline_byte:    db "    _newline_byte db 10", 10
 cg_newline_byte_len equ $ - cg_newline_byte
+
+; Big stack for deep recursion in compiled programs
+cg_big_stack_decl: db "    _big_stack resb 8388608", 10
+cg_big_stack_len   equ $ - cg_big_stack_decl
 
 ; Argv globals in compiled output
 cg_argv_decl:
@@ -1056,6 +1061,9 @@ cg_emit_bss_section:
     call cg_write
     lea rsi, [rel cg_bump_heap_decl]
     mov rdx, cg_bump_heap_len
+    call cg_write
+    lea rsi, [rel cg_big_stack_decl]
+    mov rdx, cg_big_stack_len
     call cg_write
     lea rsi, [rel cg_argv_decl]
     mov rdx, cg_argv_decl_len
