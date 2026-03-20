@@ -79,50 +79,23 @@ fn str2int(si_g: Array<Int>, si_s: Array<Int>) [] -> Int {
 // ===== Builtin detection =====
 // Check if name at g[40]=offset, g[41]=length matches a builtin.
 // Returns: builtin sub_type (0=none, 1=print, ..., 9=get_arg, 10=print_byte)
+// Builtin detection: uses g[40]=offset, g[41]=length. Returns builtin ID.
 fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
-    let bi_o: Int = bi_g[40]; let bi_l: Int = bi_g[41];
-    match bi_l == 4 { true -> match bi_s[bi_o]==101 { true -> match bi_s[bi_o+1]==120 { true -> match bi_s[bi_o+2]==105 { true -> match bi_s[bi_o+3]==116 { true -> 8, false -> 0 }, false -> 0 }, false -> 0 }, false -> 0 }, // exit
-    false -> match bi_l == 5 { true -> match bi_s[bi_o]==112 { true -> match bi_s[bi_o+1]==114 { true -> match bi_s[bi_o+2]==105 { true -> match bi_s[bi_o+3]==110 { true -> match bi_s[bi_o+4]==116 { true -> 1, false -> 0 }, false -> 0 }, false -> 0 }, false -> 0 }, false -> 0 }, // print
-    false -> match bi_l == 9 { true -> do chk_bi2(bi_g, bi_s),
-    false -> match bi_l == 13 { true -> do chk_bi3(bi_g, bi_s),
-    false -> match bi_l == 7 { true -> do chk_bi4(bi_g, bi_s),
-    false -> match bi_l == 14 { true -> do chk_bi5(bi_g, bi_s),
-    false -> match bi_l == 10 { true -> do chk_bi6(bi_g, bi_s),
-    false -> 0 } } } } } } }
+    bi_g[136]=bi_g[41]; bi_g[137]=bi_s[bi_g[40]];
+    match bi_g[136] == 4 { true -> match bi_g[137]==101 { true -> 8, false -> 0 },
+    false -> match bi_g[136] == 5 { true -> match bi_g[137]==112 { true -> 1, false -> 0 },
+    false -> do chk_bi2(bi_g, bi_s) } }
 }
-
 fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
-    let b2_o: Int = b2_g[40];
-    match b2_s[b2_o]==112 { true -> match b2_s[b2_o+5]==95 { true -> 2, false -> 0 }, // print_raw or print_byte — check further
-    false -> match b2_s[b2_o]==114 { true -> 7, // read_file
-    false -> 0 } }
+    match b2_g[136]==9 { true -> match b2_g[137]==112 { true -> 2, false -> match b2_g[137]==114 { true -> 7, false -> 0 } },
+    false -> match b2_g[136]==7 { true -> match b2_g[137]==103 { true -> 9, false -> 0 },
+    false -> do chk_bi3(b2_g, b2_s) } }
 }
-
 fn chk_bi3(b3_g: Array<Int>, b3_s: Array<Int>) [] -> Int {
-    let b3_o: Int = b3_g[40];
-    match b3_s[b3_o]==105 { true -> 3, // int_to_string
-    false -> match b3_s[b3_o]==115 { true -> match b3_s[b3_o+7]==101 { true -> 5, // string_equals
-    false -> match b3_s[b3_o+7]==104 { true -> 6, // string_char_at (13 chars)
-    false -> 4 } }, // string_length
-    false -> 0 } }
-}
-
-fn chk_bi4(b4_g: Array<Int>, b4_s: Array<Int>) [] -> Int {
-    let b4_o: Int = b4_g[40];
-    match b4_s[b4_o]==103 { true -> 9, // get_arg
-    false -> 0 }
-}
-
-fn chk_bi5(b5_g: Array<Int>, b5_s: Array<Int>) [] -> Int {
-    let b5_o: Int = b5_g[40];
-    match b5_s[b5_o]==115 { true -> 6, // string_char_at (14 chars)
-    false -> 0 }
-}
-
-fn chk_bi6(b6_g: Array<Int>, b6_s: Array<Int>) [] -> Int {
-    let b6_o: Int = b6_g[40];
-    match b6_s[b6_o]==112 { true -> 10, // print_byte
-    false -> 0 }
+    match b3_g[136]==13 { true -> match b3_g[137]==105 { true -> 3, false -> match b3_g[137]==115 { true -> match b3_s[b3_g[40]+7]==104 { true -> 6, false -> 4 }, false -> 0 } },
+    false -> match b3_g[136]==14 { true -> match b3_g[137]==115 { true -> 6, false -> 0 },
+    false -> match b3_g[136]==10 { true -> match b3_g[137]==112 { true -> 10, false -> 0 },
+    false -> 0 } } }
 }
 
 // ===== Parser =====
@@ -1057,29 +1030,24 @@ fn cg_call2(c2_g: Array<Int>, c2_n: Array<Int>, c2_s: Array<Int>) [IO] -> Unit {
 
 // cg_call3: remaining builtins
 fn cg_call3(c3_g: Array<Int>, c3_n: Array<Int>, c3_s: Array<Int>) [IO] -> Unit {
-    let c3_ni: Int = c3_g[31];
-    let c3_sub: Int = c3_g[36];
-    match c3_sub == 2 { true -> { // print_raw(String) — write without newline
-        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
-        do emit_line("    mov rsi, rax");
-        do emit_line("    mov rdi, 1");
-        do emit_line("    mov rax, 1");
-        do emit_line("    syscall");
-    }, false -> match c3_sub == 9 { true -> { // get_arg(Int) — call runtime
-        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
-        do emit_line("    mov rdi, rax");
-        do emit_line("    call _rt_get_arg");
-    }, false -> match c3_sub == 7 { true -> { // read_file(String) — call runtime
-        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
-        do emit_line("    mov rdi, rax");
-        do emit_line("    mov rsi, rdx");
-        do emit_line("    call _rt_read_file");
-    }, false -> match c3_sub == 4 { true -> { // string_length(String) — return len
-        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
-        do emit_line("    mov rax, rdx"); // len is in rdx, move to rax
-    }, false -> { } } } } };
+    c3_g[139] = c3_g[31]; c3_g[140] = c3_g[36];
+    match c3_g[140] == 2 { true -> { c3_g[31]=c3_n[c3_g[139]*10+5]; do cg_expr(c3_g, c3_n, c3_s); do emit_line("    mov rsi, rax"); do emit_line("    mov rdi, 1"); do emit_line("    mov rax, 1"); do emit_line("    syscall"); },
+    false -> match c3_g[140] == 9 { true -> { c3_g[31]=c3_n[c3_g[139]*10+5]; do cg_expr(c3_g, c3_n, c3_s); do emit_line("    mov rdi, rax"); do emit_line("    call _rt_get_arg"); },
+    false -> match c3_g[140] == 7 { true -> { c3_g[31]=c3_n[c3_g[139]*10+5]; do cg_expr(c3_g, c3_n, c3_s); do emit_line("    mov rdi, rax"); do emit_line("    mov rsi, rdx"); do emit_line("    call _rt_read_file"); },
+    false -> do cg_call4(c3_g, c3_n, c3_s) } } };
+}
+fn cg_call4(c4_g: Array<Int>, c4_n: Array<Int>, c4_s: Array<Int>) [IO] -> Unit {
+    match c4_g[140] == 4 { true -> { c4_g[31]=c4_n[c4_g[139]*10+5]; do cg_expr(c4_g, c4_n, c4_s); do emit_line("    mov rax, rdx"); }, false -> { } };
+    match c4_g[140] == 6 { true -> do cg_bi_char(c4_g, c4_n, c4_s), false -> { } };
+    match c4_g[140] == 10 { true -> { c4_g[31]=c4_n[c4_g[139]*10+5]; do cg_expr(c4_g, c4_n, c4_s); do emit_line("    mov rdi, rax"); do emit_line("    call _rt_print_byte"); }, false -> { } };
 }
 
+fn cg_bi_char(bc_g: Array<Int>, bc_n: Array<Int>, bc_s: Array<Int>) [IO] -> Unit {
+    bc_g[31]=bc_n[bc_g[139]*10+5]; do cg_expr(bc_g, bc_n, bc_s);
+    do emit_line("    push rax");
+    bc_g[31]=bc_n[bc_n[bc_g[139]*10+5]*10+6]; do cg_expr(bc_g, bc_n, bc_s);
+    do emit_line("    pop rdi"); do emit_line("    movzx rax, byte [rdi + rax]");
+}
 fn cg_user_call(uc_g: Array<Int>, uc_n: Array<Int>, uc_s: Array<Int>) [IO] -> Unit {
     let uc_ni: Int = uc_g[31];
     let uc_ac: Int = uc_n[uc_ni * 10 + 4]; // arg count
