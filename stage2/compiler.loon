@@ -65,6 +65,66 @@ fn blink(_n: Array<Int>, _fc: Array<Int>, _lc: Array<Int>, _cc: Array<Int>) [] -
     0 - 1 // placeholder — need different approach
 }
 
+// ===== String-to-int conversion =====
+// Reads digits from source buffer at g[40]=offset, g[41]=length
+fn str2int(si_g: Array<Int>, si_s: Array<Int>) [] -> Int {
+    let si_o: Int = si_g[40]; let si_l: Int = si_g[41];
+    let si_v: Array<Int> = Array(1); si_v[0] = 0;
+    for si_i in range(0, si_l) {
+        si_v[0] = si_v[0] * 10 + si_s[si_o + si_i] - 48;
+    };
+    si_v[0]
+}
+
+// ===== Builtin detection =====
+// Check if name at g[40]=offset, g[41]=length matches a builtin.
+// Returns: builtin sub_type (0=none, 1=print, ..., 9=get_arg, 10=print_byte)
+fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
+    let bi_o: Int = bi_g[40]; let bi_l: Int = bi_g[41];
+    match bi_l == 4 { true -> match bi_s[bi_o]==101 { true -> match bi_s[bi_o+1]==120 { true -> match bi_s[bi_o+2]==105 { true -> match bi_s[bi_o+3]==116 { true -> 8, false -> 0 }, false -> 0 }, false -> 0 }, false -> 0 }, // exit
+    false -> match bi_l == 5 { true -> match bi_s[bi_o]==112 { true -> match bi_s[bi_o+1]==114 { true -> match bi_s[bi_o+2]==105 { true -> match bi_s[bi_o+3]==110 { true -> match bi_s[bi_o+4]==116 { true -> 1, false -> 0 }, false -> 0 }, false -> 0 }, false -> 0 }, false -> 0 }, // print
+    false -> match bi_l == 9 { true -> do chk_bi2(bi_g, bi_s),
+    false -> match bi_l == 13 { true -> do chk_bi3(bi_g, bi_s),
+    false -> match bi_l == 7 { true -> do chk_bi4(bi_g, bi_s),
+    false -> match bi_l == 14 { true -> do chk_bi5(bi_g, bi_s),
+    false -> match bi_l == 10 { true -> do chk_bi6(bi_g, bi_s),
+    false -> 0 } } } } } } }
+}
+
+fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
+    let b2_o: Int = b2_g[40];
+    match b2_s[b2_o]==112 { true -> match b2_s[b2_o+5]==95 { true -> 2, false -> 0 }, // print_raw or print_byte — check further
+    false -> match b2_s[b2_o]==114 { true -> 7, // read_file
+    false -> 0 } }
+}
+
+fn chk_bi3(b3_g: Array<Int>, b3_s: Array<Int>) [] -> Int {
+    let b3_o: Int = b3_g[40];
+    match b3_s[b3_o]==105 { true -> 3, // int_to_string
+    false -> match b3_s[b3_o]==115 { true -> match b3_s[b3_o+7]==101 { true -> 5, // string_equals
+    false -> match b3_s[b3_o+7]==104 { true -> 6, // string_char_at (13 chars)
+    false -> 4 } }, // string_length
+    false -> 0 } }
+}
+
+fn chk_bi4(b4_g: Array<Int>, b4_s: Array<Int>) [] -> Int {
+    let b4_o: Int = b4_g[40];
+    match b4_s[b4_o]==103 { true -> 9, // get_arg
+    false -> 0 }
+}
+
+fn chk_bi5(b5_g: Array<Int>, b5_s: Array<Int>) [] -> Int {
+    let b5_o: Int = b5_g[40];
+    match b5_s[b5_o]==115 { true -> 6, // string_char_at (14 chars)
+    false -> 0 }
+}
+
+fn chk_bi6(b6_g: Array<Int>, b6_s: Array<Int>) [] -> Int {
+    let b6_o: Int = b6_g[40];
+    match b6_s[b6_o]==112 { true -> 10, // print_byte
+    false -> 0 }
+}
+
 // ===== Parser =====
 // All parser functions use prefixed param names to avoid Stage 1 scoping bug #12
 
@@ -442,25 +502,149 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do emit_line("    syscall");
 }
 
-// Emit one function — M2.2a just emits prologue/epilogue
+// Emit one function
 fn cg_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [IO] -> Unit {
-    let cf_fi: Int = cf_g[30]; // current fn node index from g[30]
+    let cf_fi: Int = cf_g[30];
     let cf_off: Int = cf_n[cf_fi * 10 + 2];
     let cf_len: Int = cf_n[cf_fi * 10 + 3];
-    // Emit: fn_NAME:
     do print_raw("fn_");
-    for cf_ci in range(0, cf_len) {
-        do print_byte(cf_s[cf_off + cf_ci]);
-    };
+    do cg_name(cf_s, cf_off, cf_len);
     do emit_line(":");
     do emit_line("    push rbp");
     do emit_line("    mov rbp, rsp");
     do emit_line("    sub rsp, 256");
-    // Body — M2.2a stub: just return
+    // Emit body block
+    let cf_body: Int = cf_n[cf_fi * 10 + 8]; // extra = body node index
+    match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_block(cf_g, cf_n, cf_s); }, false -> { } };
     do emit_line("    mov rsp, rbp");
     do emit_line("    pop rbp");
     do emit_line("    ret");
     do emit_line("");
+}
+
+// Emit a name from source buffer byte by byte
+fn cg_name(cn_s: Array<Int>, cn_off: Int, cn_len: Int) [IO] -> Unit {
+    for cn_i in range(0, cn_len) { do print_byte(cn_s[cn_off + cn_i]); };
+}
+
+// Emit a block's children — g[31] = block node index (set before call)
+fn cg_block(cb_g: Array<Int>, cb_n: Array<Int>, cb_s: Array<Int>) [IO] -> Unit {
+    let cb_bi: Int = cb_g[31];
+    let cb_cc: Int = cb_n[cb_bi * 10 + 4]; // child_count
+    let cb_ci: Array<Int> = Array(1);
+    cb_ci[0] = cb_n[cb_bi * 10 + 5]; // first_child
+    for _cbi in range(0, cb_cc) {
+        let cb_cur: Int = cb_ci[0];
+        let cb_nt: Int = cb_n[cb_cur * 10];
+        match cb_nt == 5 { true -> { cb_g[31] = cb_n[cb_cur * 10 + 5]; do cg_expr(cb_g, cb_n, cb_s); }, // EXPR_STMT
+        false -> match cb_nt == 6 { true -> { cb_g[31] = cb_n[cb_cur * 10 + 5]; do cg_expr(cb_g, cb_n, cb_s); }, // RETURN_EXPR
+        false -> match cb_nt == 4 { true -> { cb_g[31] = cb_cur; do cg_let(cb_g, cb_n, cb_s); }, // LET
+        false -> match cb_nt == 21 { true -> { cb_g[31] = cb_cur; do cg_aryset(cb_g, cb_n, cb_s); }, // ARRAY_SET
+        false -> { } } } } };
+        cb_ci[0] = cb_n[cb_cur * 10 + 6]; // next_sibling
+    };
+}
+
+// ===================================================================
+// Expression codegen — emit instructions that leave result in rax
+// g[31] = current expression node index
+// ===================================================================
+
+// cg_expr: dispatch on node type. Two halves to keep match nesting <= 4.
+fn cg_expr(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -> Unit {
+    let ce_ni: Int = ce_g[31];
+    let ce_nt: Int = ce_n[ce_ni * 10];
+    match ce_nt == 7 { true -> do cg_int(ce_g, ce_n, ce_s),
+    false -> match ce_nt == 9 { true -> do cg_int(ce_g, ce_n, ce_s),
+    false -> match ce_nt == 11 { true -> do cg_binop(ce_g, ce_n, ce_s),
+    false -> do cg_expr2(ce_g, ce_n, ce_s) } } }
+}
+
+// cg_expr2: handles unary, do, call
+fn cg_expr2(ce2_g: Array<Int>, ce2_n: Array<Int>, ce2_s: Array<Int>) [IO] -> Unit {
+    let ce2_ni: Int = ce2_g[31];
+    let ce2_nt: Int = ce2_n[ce2_ni * 10];
+    match ce2_nt == 13 { true -> {
+        ce2_g[31] = ce2_n[ce2_ni * 10 + 5]; do cg_expr(ce2_g, ce2_n, ce2_s); do emit_line("    neg rax");
+    }, false -> match ce2_nt == 12 { true -> {
+        ce2_g[31] = ce2_n[ce2_ni * 10 + 5]; do cg_expr(ce2_g, ce2_n, ce2_s); do emit_line("    xor rax, 1");
+    }, false -> match ce2_nt == 15 { true -> {
+        ce2_g[31] = ce2_n[ce2_ni * 10 + 5]; do cg_expr(ce2_g, ce2_n, ce2_s);
+    }, false -> match ce2_nt == 14 { true -> do cg_call(ce2_g, ce2_n, ce2_s),
+    false -> { } } } } }
+}
+
+// cg_int: emit mov rax, <literal value>. Works for INT_LIT and BOOL_LIT.
+fn cg_int(ci_g: Array<Int>, ci_n: Array<Int>, ci_s: Array<Int>) [IO] -> Unit {
+    let ci_ni: Int = ci_g[31];
+    let ci_nt: Int = ci_n[ci_ni * 10];
+    match ci_nt == 9 { true -> { // BOOL_LIT: extra has 0 or 1
+        do print_raw("    mov rax, ");
+        do emit_line(int_to_string(ci_n[ci_ni * 10 + 8]));
+    }, false -> { // INT_LIT: parse from source buffer
+        ci_g[40] = ci_n[ci_ni * 10 + 2]; ci_g[41] = ci_n[ci_ni * 10 + 3];
+        let ci_val: Int = str2int(ci_g, ci_s);
+        do print_raw("    mov rax, ");
+        do emit_line(int_to_string(ci_val));
+    } }
+}
+
+// cg_binop: emit left, push, right, pop, operate
+fn cg_binop(bo_g: Array<Int>, bo_n: Array<Int>, bo_s: Array<Int>) [IO] -> Unit {
+    let bo_ni: Int = bo_g[31];
+    let bo_left: Int = bo_n[bo_ni * 10 + 5];
+    let bo_right: Int = bo_n[bo_left * 10 + 6];
+    let bo_op: Int = bo_n[bo_ni * 10 + 1];
+    bo_g[31] = bo_left; do cg_expr(bo_g, bo_n, bo_s);
+    do emit_line("    push rax");
+    bo_g[31] = bo_right; do cg_expr(bo_g, bo_n, bo_s);
+    do emit_line("    mov rcx, rax");
+    do emit_line("    pop rax");
+    match bo_op == 0 { true -> do emit_line("    add rax, rcx"),
+    false -> match bo_op == 1 { true -> do emit_line("    sub rax, rcx"),
+    false -> match bo_op == 2 { true -> do emit_line("    imul rax, rcx"),
+    false -> match bo_op == 3 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); },
+    false -> match bo_op == 4 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); do emit_line("    mov rax, rdx"); },
+    false -> match bo_op >= 5 { true -> match bo_op <= 10 { true -> do cg_cmp(bo_op), false -> { } },
+    false -> match bo_op == 11 { true -> { do emit_line("    and rax, rcx"); do emit_line("    movzx rax, al"); }, // AND (both 0/1, AND works)
+    false -> match bo_op == 12 { true -> { do emit_line("    or rax, rcx"); do emit_line("    movzx rax, al"); }, // OR
+    false -> { } } } } } } } } };
+}
+
+fn cg_cmp(cc_op: Int) [IO] -> Unit {
+    do emit_line("    cmp rax, rcx");
+    match cc_op == 5 { true -> do emit_line("    sete al"),
+    false -> match cc_op == 6 { true -> do emit_line("    setne al"),
+    false -> match cc_op == 7 { true -> do emit_line("    setl al"),
+    false -> match cc_op == 8 { true -> do emit_line("    setg al"),
+    false -> match cc_op == 9 { true -> do emit_line("    setle al"),
+    false -> match cc_op == 10 { true -> do emit_line("    setge al"),
+    false -> { } } } } } } };
+    do emit_line("    movzx rax, al");
+}
+
+// cg_call: dispatch on builtin sub_type
+fn cg_call(cc_g: Array<Int>, cc_n: Array<Int>, cc_s: Array<Int>) [IO] -> Unit {
+    let cc_ni: Int = cc_g[31];
+    // Detect builtins at codegen time using name in source buffer
+    cc_g[40] = cc_n[cc_ni * 10 + 2]; cc_g[41] = cc_n[cc_ni * 10 + 3];
+    let cc_sub: Int = chk_bi(cc_g, cc_s);
+    match cc_sub == 8 { true -> { // BUILTIN_EXIT
+        cc_g[31] = cc_n[cc_ni * 10 + 5];
+        do cg_expr(cc_g, cc_n, cc_s);
+        do emit_line("    mov rdi, rax");
+        do emit_line("    mov rax, 60");
+        do emit_line("    syscall");
+    }, false -> { // TODO: other builtins and user calls
+    } };
+}
+
+// Stubs for M2.2c+
+fn cg_let(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
+    do emit_line("    ; TODO let binding");
+}
+fn cg_aryset(ca_g: Array<Int>, ca_n: Array<Int>, ca_s: Array<Int>) [IO] -> Unit {
+    do emit_line("    ; TODO array set");
 }
 
 // Main
