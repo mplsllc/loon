@@ -102,6 +102,11 @@ cg_as_store_full:
     db "    pop rcx", 10
     db "    mov qword [r10 + rcx*8], rax", 10
 cg_as_store_full_len equ $ - cg_as_store_full
+cg_as_store_idx_ptr:
+    db "    pop rcx", 10
+    db "    pop r10", 10
+    db "    mov qword [r10 + rcx*8], rax", 10
+cg_as_store_idx_ptr_len equ $ - cg_as_store_idx_ptr
 
 ; Section headers
 cg_section_data:    db "section .data", 10
@@ -891,6 +896,12 @@ cg_eb_array_set:
 
     pop rbx                         ; restore ARRAY_SET node
 
+    ; Save r10 (array ptr) BEFORE evaluating index expression
+    ; (index expr like g[5] clobbers r10 via ARRAY_GET)
+    lea rsi, [rel cg_as_push_r10]
+    mov rdx, cg_as_push_r10_len
+    call cg_write
+
     ; Evaluate index expression
     mov edi, [rbx + 16]            ; first_child = index
     push rbx
@@ -899,12 +910,6 @@ cg_eb_array_set:
     ; Push index
     lea rsi, [rel cgm_push_rax]
     mov rdx, cgm_push_rax_len
-    call cg_write
-
-    ; Save r10 (array ptr) before evaluating value expression
-    ; (value expr may contain ARRAY_GET that clobbers r10)
-    lea rsi, [rel cg_as_push_r10]
-    mov rdx, cg_as_push_r10_len
     call cg_write
 
     ; Get second child (value) — sibling of index
@@ -917,11 +922,10 @@ cg_eb_array_set:
     call cgx_emit_expr              ; value in rax
     pop rbx
 
-    ; Emit: pop r10 (restore array ptr)
-    ; Emit: pop rcx (index)
-    ; Emit: mov [r10 + rcx*8], rax
-    lea rsi, [rel cg_as_store_full]
-    mov rdx, cg_as_store_full_len
+    ; Stack state: [top] index_value, target_ptr [bottom]
+    ; Emit: pop rcx (index); pop r10 (target ptr); mov [r10+rcx*8], rax
+    lea rsi, [rel cg_as_store_idx_ptr]
+    mov rdx, cg_as_store_idx_ptr_len
     call cg_write
 
     jmp cg_eb_next
