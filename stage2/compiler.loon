@@ -228,23 +228,229 @@ fn tname(t: Int) [] -> String {
     }
 }
 
+// ===================================================================
+// Parser state (extends g[] beyond lexer state):
+// g[12] = node_count
+// g[13] = tok_pos (parser read position into token array)
+// g[14] = func_count
+// ===================================================================
+
+// Node array: nd[i*10+0]=type [+1]=subtype [+2]=str_off [+3]=str_len
+//             [+4]=child_count [+5]=first_child [+6]=next_sibling
+//             [+7]=type_info [+8]=extra [+9]=reserved
+// Max 8192 nodes (81920 ints)
+
+// Node type constants: see ast-format.md
+// 0=MODULE 1=FN 2=PARAM 3=BLOCK 4=LET 5=EXPR_STMT 6=RET_EXPR
+// 7=INT_LIT 8=STR_LIT 9=BOOL_LIT 10=IDENT 11=BINOP 12=NOT 13=NEG
+// 14=CALL 15=DO 16=MATCH 17=ARM 18=FOR 19=ARR_NEW 20=ARR_GET 21=ARR_SET
+// NONE = -1 (0 - 1 in Loon-0)
+
+// Parser: allocate a node, return its index
+fn nalloc(g: Array<Int>, nd: Array<Int>) [] -> Int {
+    let idx: Int = g[12];
+    let b: Int = idx * 10;
+    nd[b] = 0; nd[b+1] = 0; nd[b+2] = 0; nd[b+3] = 0; nd[b+4] = 0;
+    nd[b+5] = 0 - 1; nd[b+6] = 0 - 1; nd[b+7] = 0; nd[b+8] = 0; nd[b+9] = 0;
+    g[12] = g[12] + 1;
+    idx
+}
+
+// Node field accessors
+fn ntype(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10] }
+fn nset(nd: Array<Int>, i: Int, v: Int) [] -> Unit { nd[i * 10] = v; }
+fn nsub(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 1] }
+fn nchild(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 5] }
+fn nsib(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 6] }
+fn nextra(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 8] }
+
+// Token access
+fn tcur(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5] }
+fn teat(g: Array<Int>) [] -> Unit { g[13] = g[13] + 1; }
+fn tline(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 3] }
+fn tcol(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 4] }
+fn tstroff(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 1] }
+fn tstrlen(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 2] }
+
+// Parse module + fn signatures (M2.1a)
+fn parse_program(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
+    g[12] = 0; g[13] = 0;
+    // module name ;
+    let mt: Int = tcur(g, tk);
+    match mt == 7 { true -> { do teat(g); }, false -> { } }; // KW_MODULE = 7
+    let mi: Int = nalloc(g, nd);
+    nd[mi * 10] = 0;
+    nd[mi * 10 + 2] = tstroff(g, tk);
+    nd[mi * 10 + 3] = tstrlen(g, tk);
+    do teat(g); // skip module name IDENT
+    do teat(g); // skip semicolon
+
+    // Parse fn declarations
+    for _fi in range(0, 256) {
+        match tcur(g, tk) == 44 {
+            true -> { },
+            false -> match tcur(g, tk) == 0 {
+                true -> do parse_fn(g, tk, nd),
+                false -> { do teat(g); }, // skip unexpected
+            },
+        };
+    };
+}
+
+fn parse_fn(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
+    do teat(g); // skip KW_FN
+    // Allocate FN_DECL node
+    let fi: Int = nalloc(g, nd);
+    nd[fi * 10] = 1;
+    nd[fi * 10 + 2] = tstroff(g, tk); // fn name
+    nd[fi * 10 + 3] = tstrlen(g, tk);
+    do teat(g); // skip fn name
+
+    // Parse params: LPAREN params RPAREN
+    do teat(g); // skip LPAREN
+    let pcount: Array<Int> = Array(1);
+    pcount[0] = 0;
+    let first_p: Array<Int> = Array(1);
+    first_p[0] = 0 - 1;
+    let last_p: Array<Int> = Array(1);
+    last_p[0] = 0 - 1;
+
+    for _pi in range(0, 32) {
+        match tcur(g, tk) == 20 {
+            true -> { },
+            false -> {
+                // Parse param: IDENT COLON type
+                let pi: Int = nalloc(g, nd);
+                nd[pi * 10] = 2;
+                nd[pi * 10 + 2] = tstroff(g, tk);
+                nd[pi * 10 + 3] = tstrlen(g, tk);
+                do teat(g); // param name
+                do teat(g); // colon
+                // type name
+                nd[pi * 10 + 7] = 5; // TYPE_UNKNOWN default
+                do teat(g); // type name
+                // skip generic <Type>
+                match tcur(g, tk) == 31 {
+                    true -> { do teat(g); do teat(g); do teat(g); }, // < Type >
+                    false -> { },
+                };
+                // Link param
+                match first_p[0] == 0 - 1 {
+                    true -> { first_p[0] = pi; last_p[0] = pi; },
+                    false -> { nd[last_p[0] * 10 + 6] = pi; last_p[0] = pi; },
+                };
+                pcount[0] = pcount[0] + 1;
+                // skip comma
+                match tcur(g, tk) == 42 {
+                    true -> { do teat(g); },
+                    false -> { },
+                };
+            },
+        };
+    };
+    do teat(g); // skip RPAREN
+
+    nd[fi * 10 + 4] = pcount[0]; // child_count = param count
+    nd[fi * 10 + 5] = first_p[0]; // first_child = first param
+
+    // Parse effects: [ ... ]
+    do teat(g); // skip LBRACKET
+    for _ei in range(0, 16) {
+        match tcur(g, tk) == 22 {
+            true -> { },
+            false -> { do teat(g); },
+        };
+    };
+    do teat(g); // skip RBRACKET
+
+    // Parse return type: -> type
+    do teat(g); // skip ARROW
+    do teat(g); // skip type name
+    // skip generic
+    match tcur(g, tk) == 31 {
+        true -> { do teat(g); do teat(g); do teat(g); },
+        false -> { },
+    };
+
+    // Parse body: skip to matching RBRACE (M2.1a stub)
+    do teat(g); // skip LBRACE
+    let bi: Int = nalloc(g, nd);
+    nd[bi * 10] = 3;
+    nd[fi * 10 + 8] = bi; // extra = body node index
+    let depth: Array<Int> = Array(1);
+    depth[0] = 1;
+    for _bi in range(0, 65536) {
+        match depth[0] == 0 {
+            true -> { },
+            false -> {
+                let bt: Int = tcur(g, tk);
+                do teat(g);
+                match bt == 17 { true -> { depth[0] = depth[0] + 1; }, false -> { } };
+                match bt == 18 { true -> { depth[0] = depth[0] - 1; }, false -> { } };
+            },
+        };
+    };
+}
+
+// AST dump for --dump-ast comparison
+fn dump_ast(g: Array<Int>, nd: Array<Int>, s: Array<Int>) [IO] -> Unit {
+    do print("tokens: " + int_to_string(g[4]));
+    do print("nodes: " + int_to_string(g[12]));
+    // Count functions
+    let fc: Array<Int> = Array(1);
+    fc[0] = 0;
+    for di in range(0, g[12]) {
+        match ntype(nd, di) == 1 { true -> { fc[0] = fc[0] + 1; }, false -> { } };
+    };
+    do print("funcs: " + int_to_string(fc[0]));
+    // Print nodes
+    for di2 in range(0, g[12]) {
+        let nt: Int = ntype(nd, di2);
+        match nt == 0 {
+            true -> do print("  MODULE " + strsub(nd, di2, s)),
+            false -> match nt == 1 {
+                true -> do print("  FN " + strsub(nd, di2, s) + " params=" + int_to_string(nd[di2 * 10 + 4])),
+                false -> match nt == 2 {
+                    true -> do print("    PARAM " + strsub(nd, di2, s)),
+                    false -> match nt == 3 {
+                        true -> do print("    BLOCK (body)"),
+                        false -> { },
+                    },
+                },
+            },
+        };
+    };
+}
+
+// Extract string from source buffer using node's str_off/str_len
+fn strsub(nd: Array<Int>, i: Int, s: Array<Int>) [] -> String {
+    let off: Int = nd[i * 10 + 2];
+    let xlen: Int = nd[i * 10 + 3];
+    // Build string by concatenating int_to_string of each char... no, that's wrong.
+    // We need to build a String from bytes. Loon-0 doesn't have char→string.
+    // Workaround: the string table bytes in s[] can't be directly converted to String.
+    // For the dump, just print the offset and length for now.
+    // Actually: we already stored the bytes in s[off..off+len] during lexing.
+    // The read_file returned a String. We can use string_char_at on the ORIGINAL
+    // source string... but we don't have it here.
+    // For M2.1a: print offset:length instead of the actual name.
+    int_to_string(off) + ":" + int_to_string(xlen)
+}
+
 // ===== Main =====
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(16);
+    let gs: Array<Int> = Array(32);
     let gb: Array<Int> = Array(131072);
     let gt: Array<Int> = Array(65536);
+    let gn: Array<Int> = Array(81920);
     for ci in range(0, slen) {
         gb[ci] = string_char_at(source, ci);
     };
     gs[0] = slen;
-    gs[0] = slen;
     do lex_all(gs, gt, gb);
-    // Print tokens
-    for ti in range(0, gs[4]) {
-        let b: Int = ti * 5;
-        do print(tname(gt[b]) + " " + int_to_string(gt[b + 3]) + ":" + int_to_string(gt[b + 4]));
-    };
+    do parse_program(gs, gt, gn);
+    do dump_ast(gs, gn, gb);
     do exit(0);
 }
