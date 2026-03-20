@@ -307,8 +307,6 @@ fn main() [IO] -> Unit {
         gsb[ci] = string_char_at(source, ci);
     };
     gst[0] = slen;
-    do print("slen=" + int_to_string(slen));
-    do print("gst0=" + int_to_string(gst[0]));
 
     // Lex
     do lex_all(gst, gtk, gsb, gtab);

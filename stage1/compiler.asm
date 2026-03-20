@@ -31,6 +31,8 @@ section .bss
     bump_pos        resq 1          ; write position in bump heap
     label_counter   resq 1          ; codegen: unique label IDs
     dump_ast_flag   resq 1          ; 1 if --dump-ast was passed
+    cur_fn_index    resq 1          ; codegen: current FN_DECL node index
+    cur_fn_body     resq 1          ; codegen: current body BLOCK node index
 
 section .data
     ; --dump-ast flag string for argv comparison

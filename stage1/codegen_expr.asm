@@ -118,7 +118,16 @@ cgx_emit_expr:
     cmp eax, NODE_ARRAY_GET
     je cgx_array_get_expr
 
-    ; Unknown node type — emit nothing (will be handled in later milestones)
+    cmp eax, NODE_BLOCK
+    je cgx_block_expr
+
+    ; Unknown node type — emit nothing
+    jmp cgx_done
+
+cgx_block_expr:
+    ; Emit block as expression — delegate to cg_emit_block
+    mov edi, r13d                   ; node index
+    call cg_emit_block
     jmp cgx_done
 
 cgx_int_lit:
@@ -946,11 +955,63 @@ cgx_find_var_offset:
     push r10
 
     ; edi = name string_ref (offset), esi = name string_len
-    ; We need to compare actual bytes, not offsets
+    ; Function-scoped: only search PARAMs of current fn and
+    ; LET/FOR nodes at or after cur_fn_body index
     mov r9d, edi                    ; r9 = target name offset
     mov r10d, esi                   ; r10 = target name length
 
-    xor ecx, ecx                   ; search forward (names must be unique per spec)
+    ; First search PARAMs: walk fn_decl's child chain
+    mov rax, [rel cur_fn_index]
+    imul rax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    mov ecx, [rbx + 16]            ; first_child = first PARAM
+cgx_fvo_param_loop:
+    cmp ecx, NO_CHILD
+    je cgx_fvo_params_done
+    mov eax, ecx
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    movzx eax, byte [rbx]
+    cmp eax, NODE_PARAM
+    jne cgx_fvo_param_next
+    ; Check name match for this param
+    mov eax, [rbx + 8]
+    cmp eax, r10d
+    jne cgx_fvo_param_next
+    ; Compare bytes
+    push rcx
+    mov eax, [rbx + 4]
+    lea rdx, [rel strings]
+    lea r8, [rdx + rax]
+    mov eax, r9d
+    lea rdx, [rel strings]
+    lea rdx, [rdx + rax]
+    xor eax, eax
+cgx_fvo_pcmp:
+    cmp eax, r10d
+    jge cgx_fvo_pmatch
+    movzx edi, byte [r8 + rax]
+    cmp dil, byte [rdx + rax]
+    jne cgx_fvo_pnomatch
+    inc eax
+    jmp cgx_fvo_pcmp
+cgx_fvo_pmatch:
+    pop rcx
+    jmp cgx_fvo_match              ; found it — return
+cgx_fvo_pnomatch:
+    pop rcx
+cgx_fvo_param_next:
+    mov eax, ecx
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    mov ecx, [rbx + rax + 20]      ; next_sibling
+    jmp cgx_fvo_param_loop
+
+cgx_fvo_params_done:
+    ; Then search LET/FOR nodes at or after cur_fn_body
+    mov ecx, [rel cur_fn_body]
 cgx_fvo_loop:
     cmp ecx, [rel node_count]
     jge cgx_fvo_not_found
@@ -960,16 +1021,14 @@ cgx_fvo_loop:
     lea rbx, [rel nodes]
     add rbx, rax
 
-    movzx eax, byte [rbx]          ; node_type
-    cmp eax, NODE_PARAM
-    je cgx_fvo_check
+    movzx eax, byte [rbx]
     cmp eax, NODE_LET
-    je cgx_fvo_check
+    je cgx_fvo_check_name
     cmp eax, NODE_FOR
-    je cgx_fvo_check
+    je cgx_fvo_check_name
     jmp cgx_fvo_next
 
-cgx_fvo_check:
+cgx_fvo_check_name:
     ; Compare string lengths first
     mov eax, [rbx + 8]             ; candidate name_len
     cmp eax, r10d

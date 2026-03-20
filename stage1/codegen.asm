@@ -258,6 +258,7 @@ cg_emit_fn:
     sub rsp, 8                     ; local: current stack offset
 
     ; Get fn_decl node pointer
+    mov [rel cur_fn_index], rdi    ; store current function index
     mov rax, rdi
     imul rax, NODE_SIZE
     lea rbx, [rel nodes]
@@ -324,6 +325,8 @@ cg_ef_param_next:
 cg_ef_params_done:
     ; Walk body block to find LET bindings and assign slots
     mov r13d, [r12 + 28]           ; extra = body block node index
+    mov eax, r13d
+    mov [rel cur_fn_body], rax     ; store for scoped var lookup
     cmp r13d, NO_CHILD
     je cg_ef_prepass_done
     mov edi, r13d
