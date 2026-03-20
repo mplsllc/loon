@@ -42,7 +42,7 @@ fn kwtype(kg: Array<Int>, ks: Array<Int>) [] -> Int { match kg[10] { 2 -> kw2(kg
 fn lex_word(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; for _id in range(0, 256) { match xend(lg) { true -> { }, false -> match is_alnum(xpeek(lg, ls)) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } } }; }; lg[10] = lg[5] - lg[9]; let lkt: Int = kwtype(lg, ls); match lkt >= 0 { true -> do xemit(lg, lt, lkt), false -> do xemitv(lg, lt, 13) }; }
 fn lex_num(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; let lisf: Array<Int> = Array(1); lisf[0] = 0; for _ni in range(0, 256) { match xend(lg) { true -> { }, false -> { let lnc: Int = xpeek(lg, ls); match is_digit(lnc) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> match lnc == 46 { true -> match lisf[0] == 0 { true -> { lisf[0] = 1; ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } }, false -> { } } }; } }; }; lg[10] = lg[5] - lg[9]; match lisf[0] { 0 -> do xemitv(lg, lt, 14), _ -> do xemitv(lg, lt, 15) }; }
 fn lex_str(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let _lq: Int = xadv(lg, ls); lg[9] = lg[5]; for _si in range(0, 65536) { match xend(lg) { true -> { }, false -> { let lsc: Int = xpeek(lg, ls); match lsc == 34 { true -> { }, false -> match lsc == 92 { true -> { let _lbs: Int = xadv(lg, ls); match xend(lg) { true -> { }, false -> { let lec: Int = xadv(lg, ls); match lec { 110 -> { ls[lg[5]] = 10; lg[5] = lg[5] + 1; }, 116 -> { ls[lg[5]] = 9; lg[5] = lg[5] + 1; }, 92 -> { ls[lg[5]] = 92; lg[5] = lg[5] + 1; }, 34 -> { ls[lg[5]] = 34; lg[5] = lg[5] + 1; }, _ -> { ls[lg[5]] = lec; lg[5] = lg[5] + 1; } }; } }; }, false -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; } } }; } }; }; lg[10] = lg[5] - lg[9]; match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 34 { true -> { let _lcq: Int = xadv(lg, ls); }, false -> { } } }; do xemitv(lg, lt, 16); }
-fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let lc: Int = xadv(lg, ls); match lc { 123 -> do xemit(lg, lt, 17), 125 -> do xemit(lg, lt, 18), 40 -> do xemit(lg, lt, 19), 41 -> do xemit(lg, lt, 20), 91 -> do xemit(lg, lt, 21), 93 -> do xemit(lg, lt, 22), 43 -> do xemit(lg, lt, 24), 42 -> do xemit(lg, lt, 26), 37 -> do xemit(lg, lt, 28), 58 -> do xemit(lg, lt, 40), 59 -> do xemit(lg, lt, 41), 44 -> do xemit(lg, lt, 42), 46 -> do xemit(lg, lt, 43), 45 -> match xend(lg) { true -> do xemit(lg, lt, 25), false -> match xpeek(lg, ls) == 62 { true -> { let _lgt: Int = xadv(lg, ls); do xemit(lg, lt, 38); }, false -> do xemit(lg, lt, 25) } }, 61 -> match xend(lg) { true -> do xemit(lg, lt, 23), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 29); }, false -> do xemit(lg, lt, 23) } }, 33 -> match xend(lg) { true -> do xemit(lg, lt, 37), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 30); }, false -> do xemit(lg, lt, 37) } }, 60 -> match xend(lg) { true -> do xemit(lg, lt, 31), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 33); }, false -> do xemit(lg, lt, 31) } }, 62 -> match xend(lg) { true -> do xemit(lg, lt, 32), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 34); }, false -> do xemit(lg, lt, 32) } }, 38 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 38 { true -> { let _la: Int = xadv(lg, ls); do xemit(lg, lt, 35); }, false -> { } } }, 124 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 124 { true -> { let _lo: Int = xadv(lg, ls); do xemit(lg, lt, 36); }, false -> match xpeek(lg, ls) == 62 { true -> { let _lp: Int = xadv(lg, ls); do xemit(lg, lt, 39); }, false -> { } } } }, _ -> { do print("error: unexpected char"); do exit(1); } }; }
+fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let lc: Int = xadv(lg, ls); match lc { 123 -> do xemit(lg, lt, 17), 125 -> do xemit(lg, lt, 18), 40 -> do xemit(lg, lt, 19), 41 -> do xemit(lg, lt, 20), 91 -> do xemit(lg, lt, 21), 93 -> do xemit(lg, lt, 22), 43 -> do xemit(lg, lt, 24), 42 -> do xemit(lg, lt, 26), 47 -> do xemit(lg, lt, 27), 37 -> do xemit(lg, lt, 28), 58 -> do xemit(lg, lt, 40), 59 -> do xemit(lg, lt, 41), 44 -> do xemit(lg, lt, 42), 46 -> do xemit(lg, lt, 43), 45 -> match xend(lg) { true -> do xemit(lg, lt, 25), false -> match xpeek(lg, ls) == 62 { true -> { let _lgt: Int = xadv(lg, ls); do xemit(lg, lt, 38); }, false -> do xemit(lg, lt, 25) } }, 61 -> match xend(lg) { true -> do xemit(lg, lt, 23), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 29); }, false -> do xemit(lg, lt, 23) } }, 33 -> match xend(lg) { true -> do xemit(lg, lt, 37), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 30); }, false -> do xemit(lg, lt, 37) } }, 60 -> match xend(lg) { true -> do xemit(lg, lt, 31), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 33); }, false -> do xemit(lg, lt, 31) } }, 62 -> match xend(lg) { true -> do xemit(lg, lt, 32), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 34); }, false -> do xemit(lg, lt, 32) } }, 38 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 38 { true -> { let _la: Int = xadv(lg, ls); do xemit(lg, lt, 35); }, false -> { } } }, 124 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 124 { true -> { let _lo: Int = xadv(lg, ls); do xemit(lg, lt, 36); }, false -> match xpeek(lg, ls) == 62 { true -> { let _lp: Int = xadv(lg, ls); do xemit(lg, lt, 39); }, false -> { } } } }, _ -> { do print("error: unexpected char"); do exit(1); } }; }
 fn lex_dispatch(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[7] = lg[2]; lg[8] = lg[3]; let lc: Int = xpeek(lg, ls); match lc == 47 { true -> match lg[1] + 1 < lg[0] { true -> match ls[lg[1] + 1] == 47 { true -> { let _ls1: Int = xadv(lg, ls); let _ls2: Int = xadv(lg, ls); lg[6] = 1; }, false -> do lex_sym(lg, lt, ls) }, false -> do lex_sym(lg, lt, ls) }, false -> match lc == 34 { true -> do lex_str(lg, lt, ls), false -> match is_alpha(lc) { true -> do lex_word(lg, lt, ls), false -> match is_digit(lc) { true -> do lex_num(lg, lt, ls), false -> do lex_sym(lg, lt, ls) } } } }; }
 fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = lg[0]; lg[6] = 0; for _li in range(0, 1048576) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
 
@@ -112,9 +112,93 @@ fn pp_parse(pp_g: Array<Int>, pp_t: Array<Int>, pp_n: Array<Int>) [] -> Unit {
     for _ppf in range(0, 256) {
         match tcur(pp_g, pp_t) == 44 { true -> { }, false -> match tcur(pp_g, pp_t) == 0 {
             true -> do pf_parse(pp_g, pp_t, pp_n),
-            false -> { do teat(pp_g); },
+            false -> match tcur(pp_g, pp_t) == 2 {
+                true -> do pt_parse(pp_g, pp_t, pp_n),
+                false -> { do teat(pp_g); },
+            },
         } };
     };
+}
+
+// Type declaration parser: type Name { Variant(...), ... }
+fn pt_parse(pt_g: Array<Int>, pt_t: Array<Int>, pt_n: Array<Int>) [] -> Unit {
+    do teat(pt_g); // KW_TYPE
+    let pt_ti: Int = nalloc(pt_g, pt_n);
+    pt_n[pt_ti * 10] = 22; // NODE_TYPE_DECL
+    pt_n[pt_ti * 10 + 2] = tsoff(pt_g, pt_t);
+    pt_n[pt_ti * 10 + 3] = tslen(pt_g, pt_t);
+    // Register type in type table: gs[1024 + type_index * 64]
+    let pt_idx: Int = pt_g[900];
+    let pt_base: Int = 1024 + pt_idx * 64;
+    pt_g[pt_base] = tsoff(pt_g, pt_t);
+    pt_g[pt_base + 1] = tslen(pt_g, pt_t);
+    pt_n[pt_ti * 10 + 8] = pt_idx; // extra = type table index
+    do teat(pt_g); // eat type name
+    do teat(pt_g); // eat LBRACE
+    // Parse variants
+    let pt_vc: Array<Int> = Array(1); pt_vc[0] = 0;
+    let pt_fv: Array<Int> = Array(1); pt_fv[0] = 0 - 1;
+    let pt_lv: Array<Int> = Array(1); pt_lv[0] = 0 - 1;
+    for _ptv in range(0, 64) { match tcur(pt_g, pt_t) == 18 { true -> { }, false -> {
+        let pt_vi: Int = nalloc(pt_g, pt_n);
+        pt_n[pt_vi * 10] = 23; // NODE_VARIANT
+        pt_n[pt_vi * 10 + 2] = tsoff(pt_g, pt_t);
+        pt_n[pt_vi * 10 + 3] = tslen(pt_g, pt_t);
+        pt_n[pt_vi * 10 + 1] = pt_vc[0]; // sub_type = tag
+        pt_n[pt_vi * 10 + 8] = pt_idx; // extra = parent type index
+        // Register variant in type table
+        let pt_vb: Int = pt_base + 3 + pt_vc[0] * 3;
+        pt_g[pt_vb] = tsoff(pt_g, pt_t);
+        pt_g[pt_vb + 1] = tslen(pt_g, pt_t);
+        do teat(pt_g); // eat variant name
+        // Parse optional fields: (name: Type, ...)
+        let pt_fc: Array<Int> = Array(1); pt_fc[0] = 0;
+        match tcur(pt_g, pt_t) == 19 { true -> {
+            do teat(pt_g); // eat LPAREN
+            for _ptf in range(0, 32) { match tcur(pt_g, pt_t) == 20 { true -> { }, false -> {
+                do teat(pt_g); // eat field name
+                do teat(pt_g); // eat COLON
+                do teat(pt_g); // eat type name
+                match tcur(pt_g, pt_t) == 31 { true -> { do teat(pt_g); do teat(pt_g); do teat(pt_g); }, false -> { } }; // eat <Type> if present
+                pt_fc[0] = pt_fc[0] + 1;
+                match tcur(pt_g, pt_t) == 42 { true -> { do teat(pt_g); }, false -> { } };
+            } }; };
+            do teat(pt_g); // eat RPAREN
+        }, false -> { } };
+        pt_n[pt_vi * 10 + 4] = pt_fc[0]; // child_count = field count
+        pt_g[pt_vb + 2] = pt_fc[0]; // field count in type table
+        // Link variants as siblings
+        match pt_fv[0] == 0 - 1 { true -> { pt_fv[0] = pt_vi; pt_lv[0] = pt_vi; }, false -> { pt_n[pt_lv[0] * 10 + 6] = pt_vi; pt_lv[0] = pt_vi; } };
+        pt_vc[0] = pt_vc[0] + 1;
+        match tcur(pt_g, pt_t) == 42 { true -> { do teat(pt_g); }, false -> { } };
+    } }; };
+    do teat(pt_g); // eat RBRACE
+    pt_n[pt_ti * 10 + 4] = pt_vc[0]; // child_count = variant count
+    pt_n[pt_ti * 10 + 5] = pt_fv[0]; // first_child = first variant
+    pt_g[pt_base + 2] = pt_vc[0]; // variant count in type table
+    pt_g[900] = pt_idx + 1;
+}
+
+// Check if name at g[40]/g[41] matches a known variant. Returns type_index*256+tag or -1
+// Source bytes are at n[130000+offset] (copied there before parsing)
+fn chk_vari(cv_g: Array<Int>, cv_n: Array<Int>) [] -> Int {
+    let cv_res: Array<Int> = Array(1); cv_res[0] = 0 - 1;
+    for cv_ti in range(0, cv_g[900]) {
+        let cv_base: Int = 1024 + cv_ti * 64;
+        let cv_vc: Int = cv_g[cv_base + 2];
+        for cv_vi in range(0, cv_vc) {
+            let cv_vb: Int = cv_base + 3 + cv_vi * 3;
+            match cv_g[cv_vb + 1] == cv_g[41] { true -> {
+                // Length matches — compare characters via gn[130000+offset]
+                cv_g[136] = 1;
+                for cv_ci in range(0, cv_g[41]) {
+                    match cv_n[130000 + cv_g[cv_vb] + cv_ci] == cv_n[130000 + cv_g[40] + cv_ci] { true -> { }, false -> { cv_g[136] = 0; } };
+                };
+                match cv_g[136] == 1 { true -> { cv_res[0] = cv_ti * 256 + cv_vi; }, false -> { } };
+            }, false -> { } };
+        };
+    };
+    cv_res[0]
 }
 
 fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
@@ -134,9 +218,9 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
             pf_n[pf_pi * 10 + 2] = tsoff(pf_g, pf_t);
             pf_n[pf_pi * 10 + 3] = tslen(pf_g, pf_t);
             do teat(pf_g); do teat(pf_g); // eat name, colon
-            pf_g[136] = pf_t[pf_g[13] * 5 + 2]; // string length of type name
+            pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1]; // type name len and offset
             do teat(pf_g); // eat type name
-            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> 0 }; } };
+            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }; } };
             match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
             pf_g[15] = pf_g[15] + 1;
             match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); }, false -> { } };
@@ -316,11 +400,41 @@ fn ppri_parse(pr_g: Array<Int>, pr_t: Array<Int>, pr_n: Array<Int>) [] -> Int {
     false -> match pr_tt == 17 { true -> pb_parse(pr_g, pr_t, pr_n),
     false -> pic_parse(pr_g, pr_t, pr_n) } } } } } }
 }
+// Convert a CALL node to VARIANT_CONSTRUCT if name matches a variant
+fn pic_to_vari(pv_g: Array<Int>, pv_n: Array<Int>, pv_ci: Int) [] -> Unit {
+    pv_g[40]=pv_n[pv_ci*10+2]; pv_g[41]=pv_n[pv_ci*10+3];
+    let pv_vr: Int = chk_vari(pv_g, pv_n);
+    match pv_vr >= 0 { true -> {
+        pv_n[pv_ci*10]=24; // NODE_VARIANT_CONSTRUCT
+        pv_n[pv_ci*10+1]=pv_vr - (pv_vr / 256) * 256; // sub_type = tag
+        pv_n[pv_ci*10+8]=pv_vr / 256; // extra = type index
+    }, false -> { } };
+}
+
+// Zero-field variant constructor (uppercase ident, no parens)
+fn pic_zero_vari(pz_g: Array<Int>, pz_n: Array<Int>) [] -> Int {
+    let pz_so: Int = pz_g[47]; let pz_sl: Int = pz_g[48];
+    pz_g[40]=pz_so; pz_g[41]=pz_sl;
+    let pz_vr: Int = chk_vari(pz_g, pz_n);
+    match pz_vr >= 0 { true -> {
+        let pz_vi: Int = nalloc(pz_g, pz_n);
+        pz_n[pz_vi*10]=24; pz_n[pz_vi*10+2]=pz_so; pz_n[pz_vi*10+3]=pz_sl;
+        pz_n[pz_vi*10+1]=pz_vr - (pz_vr / 256) * 256;
+        pz_n[pz_vi*10+4]=0; pz_n[pz_vi*10+8]=pz_vr / 256;
+        pz_vi
+    }, false -> {
+        let pz_ni: Int = nalloc(pz_g, pz_n); pz_n[pz_ni*10]=10; pz_n[pz_ni*10+2]=pz_so; pz_n[pz_ni*10+3]=pz_sl; pz_ni
+    } }
+}
+
 // Ident or call
 fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [] -> Int {
     let pi_so: Int = tsoff(pi_g, pi_t); let pi_sl: Int = tslen(pi_g, pi_t);
     do teat(pi_g);
     pi_g[47]=pi_so; pi_g[48]=pi_sl;
+    // Check if uppercase (variant constructor)
+    let pi_fc: Int = pi_n[130000 + pi_so];
+    let pi_upper: Int = match pi_fc >= 65 { true -> match pi_fc <= 90 { true -> 1, false -> 0 }, false -> 0 };
     match tcur(pi_g, pi_t) == 19 { true -> {
         do teat(pi_g);
         let pi_ci: Int = nalloc(pi_g, pi_n); pi_n[pi_ci*10]=14; pi_n[pi_ci*10+2]=pi_so; pi_n[pi_ci*10+3]=pi_sl;
@@ -335,11 +449,51 @@ fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [] -> Int {
         do teat(pi_g);
         pi_n[pi_ci*10+4]=pi_g[25]; pi_n[pi_ci*10+5]=pi_g[23];
         pi_g[23]=pi_g[112]; pi_g[24]=pi_g[113]; pi_g[25]=pi_g[114];
+        match pi_upper == 1 { true -> do pic_to_vari(pi_g, pi_n, pi_ci), false -> { } };
         pi_ci
     }, false -> {
-        let pi_ni: Int = nalloc(pi_g, pi_n); pi_n[pi_ni*10]=10; pi_n[pi_ni*10+2]=pi_so; pi_n[pi_ni*10+3]=pi_sl; pi_ni
+        match pi_upper == 1 { true -> pic_zero_vari(pi_g, pi_n),
+        false -> { let pi_ni: Int = nalloc(pi_g, pi_n); pi_n[pi_ni*10]=10; pi_n[pi_ni*10+2]=pi_so; pi_n[pi_ni*10+3]=pi_sl; pi_ni } }
     } }
 }
+// ADT match arm helper: VariantName or VariantName(binding, ...) -> expr
+fn pm_adt_arm(pa_g: Array<Int>, pa_t: Array<Int>, pa_n: Array<Int>) [] -> Unit {
+    let pa_ai: Int = nalloc(pa_g, pa_n); pa_n[pa_ai*10]=25;
+    pa_n[pa_ai*10+2]=tsoff(pa_g,pa_t); pa_n[pa_ai*10+3]=tslen(pa_g,pa_t);
+    pa_g[40]=tsoff(pa_g,pa_t); pa_g[41]=tslen(pa_g,pa_t);
+    let pa_vr: Int = chk_vari(pa_g, pa_n);
+    pa_n[pa_ai*10+1] = match pa_vr >= 0 { true -> pa_vr - (pa_vr / 256) * 256, false -> 0 };
+    pa_n[pa_ai*10+7] = match pa_vr >= 0 { true -> pa_vr / 256, false -> 0 };
+    let pa_fct: Int = match pa_vr >= 0 { true -> pa_g[1024 + (pa_vr / 256) * 64 + 3 + (pa_vr - (pa_vr / 256) * 256) * 3 + 2], false -> 0 };
+    pa_n[pa_ai*10+8] = pa_fct;
+    do teat(pa_g);
+    let pa_bfc: Array<Int> = Array(1); pa_bfc[0] = 0 - 1;
+    let pa_blc: Array<Int> = Array(1); pa_blc[0] = 0 - 1;
+    let pa_bc: Array<Int> = Array(1); pa_bc[0] = 0;
+    match tcur(pa_g, pa_t) == 19 { true -> {
+        do teat(pa_g);
+        for _pab in range(0, 16) { match tcur(pa_g, pa_t) == 20 { true -> { }, false -> {
+            let pa_bi: Int = nalloc(pa_g, pa_n);
+            pa_n[pa_bi*10]=2; pa_n[pa_bi*10+2]=tsoff(pa_g,pa_t); pa_n[pa_bi*10+3]=tslen(pa_g,pa_t);
+            do teat(pa_g);
+            match pa_bfc[0] == 0 - 1 { true -> { pa_bfc[0] = pa_bi; pa_blc[0] = pa_bi; }, false -> { pa_n[pa_blc[0]*10+6] = pa_bi; pa_blc[0] = pa_bi; } };
+            pa_bc[0] = pa_bc[0] + 1;
+            match tcur(pa_g, pa_t) == 42 { true -> { do teat(pa_g); }, false -> { } };
+        } }; };
+        do teat(pa_g);
+    }, false -> { } };
+    do teat(pa_g);
+    let pa_body: Int = pe_parse(pa_g, pa_t, pa_n);
+    match pa_bfc[0] == 0 - 1 { true -> {
+        pa_n[pa_ai*10+4] = 1; pa_n[pa_ai*10+5] = pa_body;
+    }, false -> {
+        pa_n[pa_blc[0]*10+6] = pa_body;
+        pa_n[pa_ai*10+4] = pa_bc[0] + 1; pa_n[pa_ai*10+5] = pa_bfc[0];
+    } };
+    match pa_g[26] == 0-1 { true -> { pa_g[26] = pa_ai; pa_g[27] = pa_ai; }, false -> { pa_n[pa_g[27]*10+6] = pa_ai; pa_g[27] = pa_ai; } };
+    pa_g[28] = pa_g[28] + 1;
+}
+
 // Match
 fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
     do teat(pm2_g); let pm2_disc: Int = pe_parse(pm2_g, pm2_t, pm2_n);
@@ -348,24 +502,90 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
     let pm2_sv26: Int = pm2_g[26]; let pm2_sv27: Int = pm2_g[27]; let pm2_sv28: Int = pm2_g[28];
     pm2_g[26] = 0-1; pm2_g[27] = 0-1; pm2_g[28] = 0;
     for _pm2a in range(0, 256) { match tcur(pm2_g, pm2_t) == 18 { true -> { }, false -> {
-        let pm2_ai: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_ai*10]=17;
         let pm2_pt: Int = tcur(pm2_g, pm2_t);
-        match pm2_pt == 11 { true -> { pm2_n[pm2_ai*10+8]=1; do teat(pm2_g); },
-        false -> match pm2_pt == 12 { true -> { pm2_n[pm2_ai*10+8]=0; do teat(pm2_g); },
-        false -> match pm2_pt == 14 { true -> { pm2_n[pm2_ai*10+2]=tsoff(pm2_g,pm2_t); pm2_n[pm2_ai*10+3]=tslen(pm2_g,pm2_t); do teat(pm2_g); },
-        false -> { pm2_n[pm2_ai*10+1]=1; do teat(pm2_g); } } } };
-        do teat(pm2_g);
-        let pm2_body: Int = pe_parse(pm2_g, pm2_t, pm2_n);
-        pm2_n[pm2_ai*10+4]=1; pm2_n[pm2_ai*10+5]=pm2_body;
-        match pm2_g[26] == 0-1 { true -> { pm2_g[26] = pm2_ai; pm2_g[27] = pm2_ai; }, false -> { pm2_n[pm2_g[27]*10+6] = pm2_ai; pm2_g[27] = pm2_ai; } };
-        pm2_g[28] = pm2_g[28] + 1;
+        // Check if pattern is an uppercase IDENT (ADT variant)
+        let pm2_is_adt: Array<Int> = Array(1); pm2_is_adt[0] = 0;
+        match pm2_pt == 13 { true -> {
+            let pm2_pfc: Int = pm2_n[130000 + tsoff(pm2_g, pm2_t)];
+            match pm2_pfc >= 65 { true -> match pm2_pfc <= 90 { true -> { pm2_is_adt[0] = 1; }, false -> { } }, false -> { } };
+        }, false -> { } };
+        match pm2_is_adt[0] == 1 { true -> {
+            do pm_adt_arm(pm2_g, pm2_t, pm2_n);
+        }, false -> {
+            // Original match arm: true/false/int/wildcard
+            let pm2_ai: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_ai*10]=17;
+            match pm2_pt == 11 { true -> { pm2_n[pm2_ai*10+8]=1; do teat(pm2_g); },
+            false -> match pm2_pt == 12 { true -> { pm2_n[pm2_ai*10+8]=0; do teat(pm2_g); },
+            false -> match pm2_pt == 14 { true -> { pm2_n[pm2_ai*10+2]=tsoff(pm2_g,pm2_t); pm2_n[pm2_ai*10+3]=tslen(pm2_g,pm2_t); do teat(pm2_g); },
+            false -> { pm2_n[pm2_ai*10+1]=1; do teat(pm2_g); } } } };
+            do teat(pm2_g);
+            let pm2_body: Int = pe_parse(pm2_g, pm2_t, pm2_n);
+            pm2_n[pm2_ai*10+4]=1; pm2_n[pm2_ai*10+5]=pm2_body;
+            match pm2_g[26] == 0-1 { true -> { pm2_g[26] = pm2_ai; pm2_g[27] = pm2_ai; }, false -> { pm2_n[pm2_g[27]*10+6] = pm2_ai; pm2_g[27] = pm2_ai; } };
+            pm2_g[28] = pm2_g[28] + 1;
+        } };
         match tcur(pm2_g, pm2_t) == 42 { true -> { do teat(pm2_g); }, false -> { } };
     } }; };
     do teat(pm2_g);
     pm2_n[pm2_mi*10+4]=pm2_g[28]; pm2_n[pm2_mi*10+5]=pm2_g[26];
+    // Exhaustive match check for ADT arms
+    do chk_exhaust(pm2_g, pm2_n);
     pm2_g[26]=pm2_sv26; pm2_g[27]=pm2_sv27; pm2_g[28]=pm2_sv28;
     pm2_mi
 }
+
+// Exhaustive match check — called after parsing match arms
+// Uses g[26]=first arm, g[28]=arm count. Checks if ADT arms cover all variants.
+fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [] -> Unit {
+    // Check if any arm is ADT (type 25)
+    let ce_has_adt: Array<Int> = Array(1); ce_has_adt[0] = 0;
+    let ce_has_wild: Array<Int> = Array(1); ce_has_wild[0] = 0;
+    let ce_type_idx: Array<Int> = Array(1); ce_type_idx[0] = 0;
+    let ce_cur: Array<Int> = Array(1); ce_cur[0] = ce_g[26];
+    for _cea in range(0, ce_g[28]) {
+        match ce_cur[0] >= 0 { true -> {
+            match ce_n[ce_cur[0]*10] == 25 { true -> { ce_has_adt[0] = 1; ce_type_idx[0] = ce_n[ce_cur[0]*10+7]; }, false -> { } };
+            match ce_n[ce_cur[0]*10] == 17 { true -> match ce_n[ce_cur[0]*10+1] == 1 { true -> { ce_has_wild[0] = 1; }, false -> { } }, false -> { } };
+            ce_cur[0] = ce_n[ce_cur[0]*10+6];
+        }, false -> { } };
+    };
+    // If has ADT arms and no wildcard, check coverage
+    match ce_has_adt[0] == 1 { true -> match ce_has_wild[0] == 0 { true -> {
+        let ce_vc: Int = ce_g[1024 + ce_type_idx[0] * 64 + 2]; // variant count
+        // Count unique tags seen
+        let ce_seen: Array<Int> = Array(64);
+        ce_cur[0] = ce_g[26];
+        for _ceb in range(0, ce_g[28]) {
+            match ce_cur[0] >= 0 { true -> {
+                match ce_n[ce_cur[0]*10] == 25 { true -> { ce_seen[ce_n[ce_cur[0]*10+1]] = 1; }, false -> { } };
+                ce_cur[0] = ce_n[ce_cur[0]*10+6];
+            }, false -> { } };
+        };
+        let ce_covered: Array<Int> = Array(1); ce_covered[0] = 0;
+        for ce_vi in range(0, ce_vc) { ce_covered[0] = ce_covered[0] + ce_seen[ce_vi]; };
+        match ce_covered[0] == ce_vc { true -> { }, false -> {
+            do print("error: non-exhaustive match");
+            do exit(1);
+        } };
+    }, false -> { } }, false -> { } };
+}
+
+// Check if name at g[40]/g[41] matches a known type name. Returns type_index or -1.
+fn chk_vari_type(ct_g: Array<Int>, ct_n: Array<Int>) [] -> Int {
+    let ct_res: Array<Int> = Array(1); ct_res[0] = 0 - 1;
+    for ct_ti in range(0, ct_g[900]) {
+        let ct_base: Int = 1024 + ct_ti * 64;
+        match ct_g[ct_base + 1] == ct_g[41] { true -> {
+            ct_g[136] = 1;
+            for ct_ci in range(0, ct_g[41]) {
+                match ct_n[130000 + ct_g[ct_base] + ct_ci] == ct_n[130000 + ct_g[40] + ct_ci] { true -> { }, false -> { ct_g[136] = 0; } };
+            };
+            match ct_g[136] == 1 { true -> { ct_res[0] = ct_ti; }, false -> { } };
+        }, false -> { } };
+    };
+    ct_res[0]
+}
+
 // For
 fn pfor_parse(pfo_g: Array<Int>, pfo_t: Array<Int>, pfo_n: Array<Int>) [] -> Int {
     do teat(pfo_g);
@@ -673,6 +893,18 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                     ws_g[34] = ws_g[136]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
                     ws_g[33] = ws_g[33] + 8;
                 }, false -> { } };
+                // ADT match arm bindings: allocate 8 bytes per binding PARAM
+                match ws_g[137] == 25 { true -> {
+                    let ws_bfc: Int = ws_n[ws_g[136] * 10 + 8]; // field count
+                    let ws_bci: Array<Int> = Array(1); ws_bci[0] = ws_n[ws_g[136] * 10 + 5]; // first child
+                    for _wsb in range(0, ws_bfc) {
+                        match ws_bci[0] >= 1 { true -> {
+                            ws_g[33] = ws_g[33] + 8;
+                            ws_n[ws_bci[0] * 10 + 7] = ws_g[33]; // store offset in PARAM's type_info field
+                            ws_bci[0] = ws_n[ws_bci[0] * 10 + 6]; // next sibling
+                        }, false -> { } };
+                    };
+                }, false -> { } };
                 // Push next_sibling (processed second = breadth after depth)
                 ws_g[138] = ws_n[ws_g[136] * 10 + 6];
                 match ws_g[138] >= 1 { true -> match ws_g[220] < 700 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
@@ -765,7 +997,8 @@ fn cg_expr3(e3_g: Array<Int>, e3_n: Array<Int>, e3_s: Array<Int>) [IO] -> Unit {
     false -> match e3_g[140] == 18 { true -> do cg_for(e3_g, e3_n, e3_s),
     false -> match e3_g[140] == 19 { true -> do cg_arynew(e3_g, e3_n, e3_s),
     false -> match e3_g[140] == 20 { true -> do cg_aryget(e3_g, e3_n, e3_s),
-    false -> do cg_expr2(e3_g, e3_n, e3_s) } } } } }
+    false -> match e3_g[140] == 24 { true -> do cg_variant_new(e3_g, e3_n, e3_s),
+    false -> do cg_expr2(e3_g, e3_n, e3_s) } } } } } }
 }
 
 // cg_expr2: handles unary, do, call
@@ -825,14 +1058,19 @@ fn cg_str(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>) [IO] -> Unit {
 
 // g[115..120]: 115=match_node 116=arm_count 117=label_id 118=arm_iter 119=arm_idx 120=pass(0=cmp,1=body)
 fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
-    cm_g[115]=cm_g[31]; cm_g[116]=cm_n[cm_g[115]*10+4]; cm_g[117]=cm_g[32]; cm_g[32]=cm_g[32]+1;
-    cm_g[31]=cm_n[cm_g[115]*10+8]; do cg_expr(cm_g, cm_n, cm_s);
-    do emit_line("    mov r15, rax");
-    cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=0;
-    do cg_mpass(cm_g, cm_n, cm_s);
-    cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=1;
-    do cg_mpass(cm_g, cm_n, cm_s);
-    do print_raw(".Lm"); do print_raw(int_to_string(cm_g[117])); do emit_line("_end:");
+    // Check if first arm is ADT (type 25)
+    let cm_first_arm: Int = cm_n[cm_g[31]*10+5];
+    match cm_n[cm_first_arm*10] == 25 { true -> do cg_match_adt(cm_g, cm_n, cm_s),
+    false -> {
+        cm_g[115]=cm_g[31]; cm_g[116]=cm_n[cm_g[115]*10+4]; cm_g[117]=cm_g[32]; cm_g[32]=cm_g[32]+1;
+        cm_g[31]=cm_n[cm_g[115]*10+8]; do cg_expr(cm_g, cm_n, cm_s);
+        do emit_line("    mov r15, rax");
+        cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=0;
+        do cg_mpass(cm_g, cm_n, cm_s);
+        cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=1;
+        do cg_mpass(cm_g, cm_n, cm_s);
+        do print_raw(".Lm"); do print_raw(int_to_string(cm_g[117])); do emit_line("_end:");
+    } };
 }
 fn cg_mpass(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
     for _mp in range(0, mp_g[116]) {
@@ -860,6 +1098,101 @@ fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit 
     ab_g[115]=ab_g[ab_g[122]]; ab_g[116]=ab_g[ab_g[122]+1]; ab_g[117]=ab_g[ab_g[122]+2];
     ab_g[118]=ab_g[ab_g[122]+3]; ab_g[119]=ab_g[ab_g[122]+4]; ab_g[120]=ab_g[ab_g[122]+5];
     ab_g[121]=ab_g[121]-1;
+    do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[117])); do emit_line("_end");
+}
+
+// Variant constructor: Circle(5) → bump-allocate [tag, field0, field1, ...]
+fn cg_variant_new(vn_g: Array<Int>, vn_n: Array<Int>, vn_s: Array<Int>) [IO] -> Unit {
+    let vn_ni: Int = vn_g[31];
+    let vn_tag: Int = vn_n[vn_ni * 10 + 1]; // sub_type = tag
+    let vn_ac: Int = vn_n[vn_ni * 10 + 4]; // arg count
+    // Allocate (1 + arg_count) * 8 bytes
+    do print_raw("    mov r10, [_bump_pos]"); do emit_line("");
+    do print_raw("    add qword [_bump_pos], "); do emit_line(int_to_string((1 + vn_ac) * 8));
+    // Store tag at [r10]
+    do print_raw("    mov qword [r10], "); do emit_line(int_to_string(vn_tag));
+    // Evaluate and store each field
+    let vn_ci: Array<Int> = Array(1); vn_ci[0] = vn_n[vn_ni * 10 + 5]; // first child
+    for vn_fi in range(0, vn_ac) {
+        do emit_line("    push r10");
+        vn_g[31] = vn_ci[0]; do cg_expr(vn_g, vn_n, vn_s);
+        do emit_line("    pop r10");
+        do print_raw("    mov qword [r10 + "); do print_raw(int_to_string((vn_fi + 1) * 8)); do emit_line("], rax");
+        vn_ci[0] = vn_n[vn_ci[0] * 10 + 6]; // next sibling
+    };
+    // Return pointer
+    do emit_line("    mov rax, r10");
+}
+
+// ADT match: evaluate discriminant, load tag, dispatch by variant
+fn cg_match_adt(ma_g: Array<Int>, ma_n: Array<Int>, ma_s: Array<Int>) [IO] -> Unit {
+    ma_g[115]=ma_g[31]; ma_g[116]=ma_n[ma_g[115]*10+4]; ma_g[117]=ma_g[32]; ma_g[32]=ma_g[32]+1;
+    // Evaluate discriminant → rax = ADT pointer
+    ma_g[31]=ma_n[ma_g[115]*10+8]; do cg_expr(ma_g, ma_n, ma_s);
+    // Save ADT pointer and load tag
+    do emit_line("    push rax");
+    do emit_line("    mov r15, [rax]");
+    // Comparison pass
+    ma_g[118]=ma_n[ma_g[115]*10+5]; ma_g[119]=0; ma_g[120]=0;
+    do cg_mpass_adt(ma_g, ma_n, ma_s);
+    // Body pass
+    ma_g[118]=ma_n[ma_g[115]*10+5]; ma_g[119]=0; ma_g[120]=1;
+    do cg_mpass_adt(ma_g, ma_n, ma_s);
+    // End label + cleanup
+    do print_raw(".Lm"); do print_raw(int_to_string(ma_g[117])); do emit_line("_end:");
+    do emit_line("    add rsp, 8"); // discard saved ADT pointer
+}
+
+fn cg_mpass_adt(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
+    for _mp in range(0, mp_g[116]) {
+        match mp_g[120]==0 { true -> do cg_marm_adt_c(mp_g, mp_n, mp_s), false -> do cg_marm_adt_b(mp_g, mp_n, mp_s) };
+        mp_g[119]=mp_g[119]+1; mp_g[118]=mp_n[mp_g[118]*10+6];
+    };
+}
+
+// ADT match arm comparison: cmp r15, TAG / je .label (or jmp for wildcard)
+fn cg_marm_adt_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit {
+    match ac_n[ac_g[118]*10] == 17 { true -> {
+        // Wildcard arm (NODE_MATCH_ARM with sub_type=1)
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+    }, false -> {
+        // ADT arm (NODE_MATCH_ARM_ADT)
+        do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[118]*10+1])); // tag
+        do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+    } };
+}
+
+// ADT match arm body: extract fields, register bindings, evaluate body
+fn cg_marm_adt_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
+    do print_raw(".Lm"); do print_raw(int_to_string(ab_g[117])); do print_raw("_a"); do print_raw(int_to_string(ab_g[119])); do emit_line(":");
+    // Save match state (depth-indexed)
+    ab_g[121]=ab_g[121]+1; ab_g[122]=200+ab_g[121]*6;
+    ab_g[ab_g[122]]=ab_g[115]; ab_g[ab_g[122]+1]=ab_g[116]; ab_g[ab_g[122]+2]=ab_g[117];
+    ab_g[ab_g[122]+3]=ab_g[118]; ab_g[ab_g[122]+4]=ab_g[119]; ab_g[ab_g[122]+5]=ab_g[120];
+    // Get field count and first child
+    let ab_fc: Int = ab_n[ab_g[118]*10+8]; // extra = field count
+    let ab_ci: Array<Int> = Array(1); ab_ci[0] = ab_n[ab_g[118]*10+5]; // first child
+    // Extract fields: load ADT pointer from stack, read fields, store to binding stack slots
+    let ab_sv50: Int = ab_g[50]; // save var count before adding bindings
+    for ab_fi in range(0, ab_fc) {
+        // ab_ci[0] is a NODE_PARAM with the binding name
+        do print_raw("    mov r14, [rsp]"); do emit_line(""); // reload ADT pointer
+        do print_raw("    mov rax, [r14 + "); do print_raw(int_to_string((ab_fi + 1) * 8)); do emit_line("]");
+        // Register binding as variable and store to its stack slot
+        ab_g[34] = ab_ci[0]; ab_g[35] = ab_n[ab_ci[0]*10+7]; // node_index, stack_offset (from slot walker)
+        do cg_add_var(ab_g, ab_n, ab_s);
+        do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(ab_g[35])); do emit_line("], rax");
+        ab_ci[0] = ab_n[ab_ci[0]*10+6]; // next sibling → next binding or body
+    };
+    // ab_ci[0] is now the body expression
+    ab_g[31] = ab_ci[0]; do cg_expr(ab_g, ab_n, ab_s);
+    // Restore match state
+    ab_g[122]=200+ab_g[121]*6;
+    ab_g[115]=ab_g[ab_g[122]]; ab_g[116]=ab_g[ab_g[122]+1]; ab_g[117]=ab_g[ab_g[122]+2];
+    ab_g[118]=ab_g[ab_g[122]+3]; ab_g[119]=ab_g[ab_g[122]+4]; ab_g[120]=ab_g[ab_g[122]+5];
+    ab_g[121]=ab_g[121]-1;
+    // Restore var count (remove bindings from scope)
+    ab_g[50] = ab_sv50;
     do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[117])); do emit_line("_end");
 }
 
@@ -1179,14 +1512,17 @@ fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(1024);
-    let gb: Array<Int> = Array(131072);
+    let gs: Array<Int> = Array(2048);
+    let gb: Array<Int> = Array(262144);
     let gt: Array<Int> = Array(131072);
-    let gn: Array<Int> = Array(163840);
+    let gn: Array<Int> = Array(230000);
     for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
-    gs[46] = 0 - 1; gs[121] = 0 - 1; gs[153] = 0 - 1; gs[256] = 0 - 1;
+    gs[46] = 0 - 1; gs[121] = 0 - 1; gs[153] = 0 - 1; gs[256] = 0 - 1; gs[900] = 0;
+    // Copy source + string table into gn[130000+] so parser can do name comparison
+    // gs[5] = end of string table (set by lex_all)
+    for sci in range(0, gs[5]) { gn[130000 + sci] = gb[sci]; };
     do pp_parse(gs, gt, gn);
     do cg_emit(gs, gn, gb);
     do exit(0);

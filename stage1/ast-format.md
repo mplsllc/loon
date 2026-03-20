@@ -103,7 +103,16 @@ Max tokens: 262144 / 20 = **13107**.
 | 20 | NODE_ARRAY_GET | Array index read. `string_ref` = array variable name. First child = index expression. |
 | 21 | NODE_ARRAY_SET | Array index write (statement). `string_ref` = array variable name. First child = index expression. Second child = value expression. |
 
-Total: 22 node types (0-21).
+### ADT Node Types (M2.4+)
+
+| Value | Name | Description |
+|-------|------|-------------|
+| 22 | NODE_TYPE_DECL | Type declaration. `string_ref` = type name. `child_count` = variant count. `first_child` = first VARIANT node (sibling chain). `extra` = type table index. |
+| 23 | NODE_VARIANT | Variant definition within a type. `string_ref` = variant name. `sub_type` = tag (0, 1, 2...). `child_count` = field count. `extra` = parent type table index. |
+| 24 | NODE_VARIANT_CONSTRUCT | Variant constructor expression (e.g. `Circle(5)`). `string_ref` = variant name. `sub_type` = tag. `child_count` = arg count. `first_child` = first arg expression. `extra` = type table index. |
+| 25 | NODE_MATCH_ARM_ADT | ADT destructuring match arm (e.g. `Circle(r) -> expr`). `string_ref` = variant name. `sub_type` = tag. `child_count` = binding_count + 1. `first_child` = first binding PARAM (sibling chain → body expr last). `extra` = field count. `type_info` = type table index. |
+
+Total: 26 node types (0-25).
 
 ## 4. BINOP Sub-type Enum
 

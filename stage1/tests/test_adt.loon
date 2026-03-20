@@ -1,0 +1,25 @@
+module main;
+
+type Shape {
+    Circle(radius: Int),
+    Rectangle(width: Int, height: Int),
+    Point,
+}
+
+fn describe(s: Shape) [] -> Int {
+    match s {
+        Circle(r) -> r * r,
+        Rectangle(w, h) -> w * h,
+        Point -> 0,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let c: Shape = Circle(5);
+    let r: Shape = Rectangle(3, 4);
+    let p: Shape = Point;
+    do print(int_to_string(describe(c)));
+    do print(int_to_string(describe(r)));
+    do print(int_to_string(describe(p)));
+    do exit(describe(c));
+}

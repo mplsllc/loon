@@ -254,6 +254,10 @@ A type body is either a list of named fields (product type / struct) or a list o
 
 The parser distinguishes them: if the body starts with `IDENT ":"` it's a field list (product type). If it starts with an uppercase `IDENT` optionally followed by `(`, it's a variant list (sum type).
 
+#### Naming Convention
+
+Type names and variant constructors begin with an uppercase letter (A-Z). Function names, variable names, and module names begin with a lowercase letter or underscore. This is enforced by the parser — an uppercase identifier in expression position is always a variant constructor, never a function call.
+
 ### 4.8 Let Binding
 
 ```
