@@ -160,10 +160,10 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
             pf_n[pf_pi * 10] = 2;
             pf_n[pf_pi * 10 + 2] = tsoff(pf_g, pf_t);
             pf_n[pf_pi * 10 + 3] = tslen(pf_g, pf_t);
-            do teat(pf_g); do teat(pf_g);
-            pf_n[pf_pi * 10 + 7] = 5;
-            do teat(pf_g);
-            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); }, false -> { } };
+            do teat(pf_g); do teat(pf_g); // eat name, colon
+            pf_g[136] = pf_t[pf_g[13] * 5 + 2]; // string length of type name
+            do teat(pf_g); // eat type name
+            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> 0 }; } };
             match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
             pf_g[15] = pf_g[15] + 1;
             match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); }, false -> { } };
@@ -278,7 +278,7 @@ fn pl_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [] -> Int {
     pl_n[pl_li * 10 + 2] = tsoff(pl_g, pl_t);
     pl_n[pl_li * 10 + 3] = tslen(pl_g, pl_t);
     do teat(pl_g);
-    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); do teat(pl_g); match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); }, false -> { } }; }, false -> { } };
+    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; do teat(pl_g); match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> 0 }; } }; }, false -> { } };
     do teat(pl_g);
     let pl_vi: Int = pe_parse(pl_g, pl_t, pl_n);
     pl_n[pl_li * 10 + 4] = 1; pl_n[pl_li * 10 + 5] = pl_vi;
@@ -698,7 +698,7 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                 ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
                 ws_g[33] = ws_g[33] + 8;
             }, false -> { } };
-            ws_g[138] = ws_n[ws_ci[0] * 10 + 5];
+                        ws_g[138] = ws_n[ws_ci[0] * 10 + 5];
             match ws_g[138] >= 1 { true -> match ws_g[138] < ws_g[12] { true -> { ws_g[31] = ws_g[138]; do cg_walk_slots(ws_g, ws_n, ws_s); }, false -> { } }, false -> { } };
             ws_ci[0] = ws_n[ws_ci[0] * 10 + 6];
         }, false -> { ws_done[0] = 1; } }, false -> { ws_done[0] = 1; } }, false -> { } };
