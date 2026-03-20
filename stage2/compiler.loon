@@ -462,6 +462,7 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
                 do print_byte(34); // closing "
                 do emit_line("");
                 do emit_line("    _s" + int_to_string(cg_g[29]) + "_len equ " + int_to_string(cg_len));
+                cg_n[cg_si * 10 + 8] = cg_g[29]; // store string index in extra
                 cg_g[29] = cg_g[29] + 1;
             },
             false -> { },
@@ -500,6 +501,119 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do emit_line("    xor rdi, rdi");
     do emit_line("    mov rax, 60");
     do emit_line("    syscall");
+    // Runtime builtins
+    do cg_rt_itoa(cg_g, cg_n, cg_s);
+    do cg_rt_concat(cg_g, cg_n, cg_s);
+    do cg_rt_getarg(cg_g, cg_n, cg_s);
+    do cg_rt_readfile(cg_g, cg_n, cg_s);
+    do cg_rt_print_byte(cg_g, cg_n, cg_s);
+}
+
+// ===== Runtime function emitters =====
+
+// int_to_string: rdi=int → rax=ptr, rdx=len
+fn cg_rt_itoa(ri_g: Array<Int>, ri_n: Array<Int>, ri_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_int_to_string:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp"); do emit_line("    sub rsp, 32");
+    do emit_line("    mov rax, rdi");
+    do emit_line("    mov r8, [_bump_pos]"); // buffer start
+    do emit_line("    mov r9, r8");          // write position
+    do emit_line("    cmp rax, 0"); do emit_line("    jge .itoa_pos");
+    do emit_line("    neg rax"); do emit_line("    mov byte [r9], 45"); do emit_line("    inc r9"); // '-' sign
+    do emit_line(".itoa_pos:");
+    do emit_line("    mov r10, r9"); // start of digits
+    do emit_line(".itoa_loop:");
+    do emit_line("    xor rdx, rdx"); do emit_line("    mov rcx, 10"); do emit_line("    div rcx");
+    do emit_line("    add dl, 48"); do emit_line("    mov byte [r9], dl"); do emit_line("    inc r9");
+    do emit_line("    cmp rax, 0"); do emit_line("    jne .itoa_loop");
+    // reverse digits
+    do emit_line("    mov r11, r9"); do emit_line("    dec r11"); // right end
+    do emit_line(".itoa_rev:");
+    do emit_line("    cmp r10, r11"); do emit_line("    jge .itoa_done");
+    do emit_line("    mov al, byte [r10]"); do emit_line("    mov cl, byte [r11]");
+    do emit_line("    mov byte [r10], cl"); do emit_line("    mov byte [r11], al");
+    do emit_line("    inc r10"); do emit_line("    dec r11"); do emit_line("    jmp .itoa_rev");
+    do emit_line(".itoa_done:");
+    do emit_line("    mov rax, r8"); // ptr
+    do emit_line("    mov rdx, r9"); do emit_line("    sub rdx, r8"); // len
+    do emit_line("    mov [_bump_pos], r9"); // advance bump
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line("");
+}
+
+// string_concat: rdi=left_ptr, rsi=left_len, rdx=right_ptr, rcx=right_len → rax=ptr, rdx=len
+fn cg_rt_concat(rc_g: Array<Int>, rc_n: Array<Int>, rc_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_string_concat:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp"); do emit_line("    sub rsp, 48");
+    do emit_line("    mov [rbp-8], rdi");   // left_ptr
+    do emit_line("    mov [rbp-16], rsi");  // left_len
+    do emit_line("    mov [rbp-24], rdx");  // right_ptr
+    do emit_line("    mov [rbp-32], rcx");  // right_len
+    do emit_line("    mov r8, [_bump_pos]"); // dest
+    // copy left
+    do emit_line("    mov rsi, rdi"); do emit_line("    mov rdi, r8"); do emit_line("    mov rcx, [rbp-16]");
+    do emit_line("    rep movsb");
+    // copy right
+    do emit_line("    mov rsi, [rbp-24]"); do emit_line("    mov rcx, [rbp-32]");
+    do emit_line("    rep movsb");
+    do emit_line("    mov rax, r8"); // result ptr
+    do emit_line("    mov rdx, [rbp-16]"); do emit_line("    add rdx, [rbp-32]"); // result len
+    do emit_line("    add r8, rdx"); do emit_line("    mov [_bump_pos], r8"); // advance bump
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line("");
+}
+
+// get_arg: rdi=n → rax=ptr, rdx=len
+fn cg_rt_getarg(rg_g: Array<Int>, rg_n: Array<Int>, rg_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_get_arg:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp");
+    do emit_line("    mov rax, [_argv]"); do emit_line("    mov rax, [rax + rdi*8]");
+    // strlen
+    do emit_line("    mov rdx, 0");
+    do emit_line(".ga_loop:"); do emit_line("    cmp byte [rax + rdx], 0"); do emit_line("    je .ga_done");
+    do emit_line("    inc rdx"); do emit_line("    jmp .ga_loop");
+    do emit_line(".ga_done:");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line("");
+}
+
+// read_file: rdi=path_ptr, rsi=path_len → rax=ptr, rdx=len
+fn cg_rt_readfile(rf_g: Array<Int>, rf_n: Array<Int>, rf_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_read_file:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp"); do emit_line("    sub rsp, 32");
+    // null-terminate filename in bump heap
+    do emit_line("    mov r8, [_bump_pos]"); do emit_line("    mov [rbp-8], rdi"); do emit_line("    mov [rbp-16], rsi");
+    do emit_line("    mov rcx, rsi"); do emit_line("    mov rdi, r8"); do emit_line("    mov rsi, [rbp-8]");
+    do emit_line("    rep movsb"); do emit_line("    mov byte [rdi], 0"); // null terminate
+    // open
+    do emit_line("    mov rdi, r8"); do emit_line("    xor rsi, rsi"); do emit_line("    xor rdx, rdx");
+    do emit_line("    mov rax, 2"); do emit_line("    syscall"); // open
+    do emit_line("    mov [rbp-24], rax"); // fd
+    // read into bump heap after the filename
+    do emit_line("    lea r9, [r8 + 256]"); // skip past filename
+    do emit_line("    mov rdi, [rbp-24]"); do emit_line("    mov rsi, r9"); do emit_line("    mov rdx, 65536");
+    do emit_line("    mov rax, 0"); do emit_line("    syscall"); // read
+    do emit_line("    mov [rbp-32], rax"); // bytes read
+    // close
+    do emit_line("    mov rdi, [rbp-24]"); do emit_line("    mov rax, 3"); do emit_line("    syscall");
+    // result
+    do emit_line("    mov rax, r9"); // ptr
+    do emit_line("    mov rdx, [rbp-32]"); // len
+    // advance bump past data
+    do emit_line("    lea r8, [r9 + rdx]"); do emit_line("    mov [_bump_pos], r8");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line("");
+}
+
+// print_byte: rdi=byte value
+fn cg_rt_print_byte(pb_g: Array<Int>, pb_n: Array<Int>, pb_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_print_byte:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp"); do emit_line("    sub rsp, 16");
+    do emit_line("    mov [rbp-1], dil"); // store byte
+    do emit_line("    lea rsi, [rbp-1]"); do emit_line("    mov rdi, 1"); do emit_line("    mov rdx, 1");
+    do emit_line("    mov rax, 1"); do emit_line("    syscall");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line("");
 }
 
 // Emit one function
@@ -669,8 +783,9 @@ fn cg_expr(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -> Unit {
     let ce_nt: Int = ce_n[ce_ni * 10];
     match ce_nt == 7 { true -> do cg_int(ce_g, ce_n, ce_s),
     false -> match ce_nt == 9 { true -> do cg_int(ce_g, ce_n, ce_s),
+    false -> match ce_nt == 8 { true -> do cg_str(ce_g, ce_n, ce_s),
     false -> match ce_nt == 11 { true -> do cg_binop(ce_g, ce_n, ce_s),
-    false -> do cg_expr2(ce_g, ce_n, ce_s) } } }
+    false -> do cg_expr2(ce_g, ce_n, ce_s) } } } }
 }
 
 // cg_expr2: handles unary, do, call
@@ -720,26 +835,65 @@ fn cg_int(ci_g: Array<Int>, ci_n: Array<Int>, ci_s: Array<Int>) [IO] -> Unit {
     } }
 }
 
+// cg_str: load string literal pointer and length
+fn cg_str(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>) [IO] -> Unit {
+    let cs_ni: Int = cs_g[31];
+    let cs_idx: Int = cs_n[cs_ni * 10 + 8]; // extra = string data label index
+    do print_raw("    lea rax, [rel _s"); do print_raw(int_to_string(cs_idx)); do emit_line("]");
+    do print_raw("    mov rdx, _s"); do print_raw(int_to_string(cs_idx)); do emit_line("_len");
+}
+
 // cg_binop: emit left, push, right, pop, operate
 fn cg_binop(bo_g: Array<Int>, bo_n: Array<Int>, bo_s: Array<Int>) [IO] -> Unit {
     let bo_ni: Int = bo_g[31];
     let bo_left: Int = bo_n[bo_ni * 10 + 5];
     let bo_right: Int = bo_n[bo_left * 10 + 6];
     let bo_op: Int = bo_n[bo_ni * 10 + 1];
-    bo_g[31] = bo_left; do cg_expr(bo_g, bo_n, bo_s);
+    let bo_ti: Int = bo_n[bo_ni * 10 + 7]; // type_info
+    match bo_op == 0 { true -> match bo_ti == 2 { true -> { // String concat
+        bo_g[31] = bo_left; do cg_expr(bo_g, bo_n, bo_s);
+        // rax=left_ptr, rdx=left_len
+        do emit_line("    push rdx"); do emit_line("    push rax"); // save left (ptr,len)
+        bo_g[31] = bo_right; do cg_expr(bo_g, bo_n, bo_s);
+        // rax=right_ptr, rdx=right_len — setup args for _rt_string_concat
+        do emit_line("    mov rdx, rax");   // rdx=right_ptr
+        do emit_line("    mov rcx, rcx");   // rcx already has right_len? No, rdx had it.
+        // Actually: after cg_expr for right string, rax=right_ptr, rdx=right_len
+        // Need: rdi=left_ptr, rsi=left_len, rdx=right_ptr, rcx=right_len
+        do emit_line("    mov rcx, rdx");   // rcx=right_len (from cg_expr result)
+        do emit_line("    mov rdx, rax");   // rdx=right_ptr
+        do emit_line("    pop rdi");        // rdi=left_ptr (from stack)
+        do emit_line("    pop rsi");        // rsi=left_len (from stack)
+        do emit_line("    call _rt_string_concat");
+        // result: rax=new_ptr, rdx=new_len
+    }, false -> do cg_binop_int(bo_g, bo_n, bo_s) },
+    false -> do cg_binop_int(bo_g, bo_n, bo_s) };
+}
+
+// Integer binary operation — evaluates left, right, applies operator
+fn cg_binop_int(bi_g: Array<Int>, bi_n: Array<Int>, bi_s: Array<Int>) [IO] -> Unit {
+    let bi_ni: Int = bi_g[31];
+    let bi_left: Int = bi_n[bi_ni * 10 + 5];
+    let bi_right: Int = bi_n[bi_left * 10 + 6];
+    let bi_op: Int = bi_n[bi_ni * 10 + 1];
+    bi_g[31] = bi_left; do cg_expr(bi_g, bi_n, bi_s);
     do emit_line("    push rax");
-    bo_g[31] = bo_right; do cg_expr(bo_g, bo_n, bo_s);
+    bi_g[31] = bi_right; do cg_expr(bi_g, bi_n, bi_s);
     do emit_line("    mov rcx, rax");
     do emit_line("    pop rax");
-    match bo_op == 0 { true -> do emit_line("    add rax, rcx"),
-    false -> match bo_op == 1 { true -> do emit_line("    sub rax, rcx"),
-    false -> match bo_op == 2 { true -> do emit_line("    imul rax, rcx"),
-    false -> match bo_op == 3 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); },
-    false -> match bo_op == 4 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); do emit_line("    mov rax, rdx"); },
-    false -> match bo_op >= 5 { true -> match bo_op <= 10 { true -> do cg_cmp(bo_op), false -> { } },
-    false -> match bo_op == 11 { true -> { do emit_line("    and rax, rcx"); do emit_line("    movzx rax, al"); }, // AND (both 0/1, AND works)
-    false -> match bo_op == 12 { true -> { do emit_line("    or rax, rcx"); do emit_line("    movzx rax, al"); }, // OR
-    false -> { } } } } } } } } };
+    match bi_op == 0 { true -> do emit_line("    add rax, rcx"),
+    false -> match bi_op == 1 { true -> do emit_line("    sub rax, rcx"),
+    false -> match bi_op == 2 { true -> do emit_line("    imul rax, rcx"),
+    false -> match bi_op == 3 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); },
+    false -> do cg_binop_int2(bi_op) } } } };
+}
+
+fn cg_binop_int2(b2_op: Int) [IO] -> Unit {
+    match b2_op == 4 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); do emit_line("    mov rax, rdx"); },
+    false -> match b2_op >= 5 { true -> match b2_op <= 10 { true -> do cg_cmp(b2_op), false -> { } },
+    false -> match b2_op == 11 { true -> { do emit_line("    and rax, rcx"); do emit_line("    movzx rax, al"); },
+    false -> match b2_op == 12 { true -> { do emit_line("    or rax, rcx"); do emit_line("    movzx rax, al"); },
+    false -> { } } } } };
 }
 
 fn cg_cmp(cc_op: Int) [IO] -> Unit {
@@ -765,14 +919,63 @@ fn cg_call(cc_g: Array<Int>, cc_n: Array<Int>, cc_s: Array<Int>) [IO] -> Unit {
         do emit_line("    mov rdi, rax");
         do emit_line("    mov rax, 60");
         do emit_line("    syscall");
-    }, false -> match cc_sub == 0 { true -> { // User-defined function call
-        do cg_user_call(cc_g, cc_n, cc_s);
-    }, false -> { // Other builtins — TODO M2.2d
-        do emit_line("    ; TODO builtin");
-    } } };
+    }, false -> { cc_g[36] = cc_sub; do cg_call2(cc_g, cc_n, cc_s); } };
 }
 
 // User function call: evaluate args, push to stack, pop into registers, call
+// cg_call2: handle builtins (print, int_to_string, etc.) and user calls
+// g[36] = builtin sub_type
+fn cg_call2(c2_g: Array<Int>, c2_n: Array<Int>, c2_s: Array<Int>) [IO] -> Unit {
+    let c2_ni: Int = c2_g[31];
+    let c2_sub: Int = c2_g[36];
+    match c2_sub == 1 { true -> { // print(String) — write + newline
+        c2_g[31] = c2_n[c2_ni * 10 + 5]; do cg_expr(c2_g, c2_n, c2_s);
+        // rax=ptr, rdx=len → write(1, ptr, len)
+        do emit_line("    mov rsi, rax"); // ptr
+        do emit_line("    mov rdi, 1");   // fd=stdout
+        do emit_line("    mov rax, 1");   // syscall=write
+        do emit_line("    syscall");
+        // write newline
+        do emit_line("    lea rsi, [rel _newline_byte]");
+        do emit_line("    mov rdi, 1");
+        do emit_line("    mov rdx, 1");
+        do emit_line("    mov rax, 1");
+        do emit_line("    syscall");
+    }, false -> match c2_sub == 3 { true -> { // int_to_string(Int) — call runtime
+        c2_g[31] = c2_n[c2_ni * 10 + 5]; do cg_expr(c2_g, c2_n, c2_s);
+        do emit_line("    mov rdi, rax");
+        do emit_line("    call _rt_int_to_string");
+    }, false -> match c2_sub == 0 { true -> do cg_user_call(c2_g, c2_n, c2_s), // user call
+    false -> { // Other builtins — print_raw, string_length, etc.
+        do cg_call3(c2_g, c2_n, c2_s);
+    } } } };
+}
+
+// cg_call3: remaining builtins
+fn cg_call3(c3_g: Array<Int>, c3_n: Array<Int>, c3_s: Array<Int>) [IO] -> Unit {
+    let c3_ni: Int = c3_g[31];
+    let c3_sub: Int = c3_g[36];
+    match c3_sub == 2 { true -> { // print_raw(String) — write without newline
+        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
+        do emit_line("    mov rsi, rax");
+        do emit_line("    mov rdi, 1");
+        do emit_line("    mov rax, 1");
+        do emit_line("    syscall");
+    }, false -> match c3_sub == 9 { true -> { // get_arg(Int) — call runtime
+        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
+        do emit_line("    mov rdi, rax");
+        do emit_line("    call _rt_get_arg");
+    }, false -> match c3_sub == 7 { true -> { // read_file(String) — call runtime
+        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
+        do emit_line("    mov rdi, rax");
+        do emit_line("    mov rsi, rdx");
+        do emit_line("    call _rt_read_file");
+    }, false -> match c3_sub == 4 { true -> { // string_length(String) — return len
+        c3_g[31] = c3_n[c3_ni * 10 + 5]; do cg_expr(c3_g, c3_n, c3_s);
+        do emit_line("    mov rax, rdx"); // len is in rdx, move to rax
+    }, false -> { } } } } };
+}
+
 fn cg_user_call(uc_g: Array<Int>, uc_n: Array<Int>, uc_s: Array<Int>) [IO] -> Unit {
     let uc_ni: Int = uc_g[31];
     let uc_ac: Int = uc_n[uc_ni * 10 + 4]; // arg count
