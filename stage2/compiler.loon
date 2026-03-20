@@ -679,29 +679,34 @@ fn cg_add_var(av_g: Array<Int>, av_n: Array<Int>, av_s: Array<Int>) [] -> Unit {
     av_g[50] = av_idx + 1;
 }
 
-// Recursive slot walker — finds ALL LET and FOR nodes in the tree
-// g[31]=node to walk, g[33]=current stack offset (updated)
-// Recursive slot walker — iterates siblings, recurses into children
+// Iterative slot walker — explicit stack in g[220..280], no recursion
 fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Unit {
-    let ws_ci: Array<Int> = Array(1); ws_ci[0] = ws_g[31];
-    let ws_done: Array<Int> = Array(1); ws_done[0] = 0;
-    for _ws in range(0, ws_g[12]) {
-        match ws_done[0] == 0 { true -> match ws_ci[0] >= 1 { true -> match ws_ci[0] < ws_g[12] { true -> {
-            ws_g[136] = ws_n[ws_ci[0] * 10];
-            match ws_g[136] == 4 { true -> {
-                ws_g[137] = ws_n[ws_ci[0] * 10 + 7];
-                match ws_g[137] == 2 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> match ws_g[137] == 4 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> { ws_g[33] = ws_g[33] + 8; } } };
-                ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
+    ws_g[220] = 0;
+    ws_g[221] = ws_g[31]; ws_g[220] = 1;
+    for _ws in range(0, 65536) {
+        match ws_g[220] > 0 { true -> {
+            ws_g[220] = ws_g[220] - 1;
+            ws_g[136] = ws_g[221 + ws_g[220]];
+            match ws_g[136] >= 1 { true -> {
+                ws_g[137] = ws_n[ws_g[136] * 10];
+                match ws_g[137] == 4 { true -> {
+                    ws_g[138] = ws_n[ws_g[136] * 10 + 7];
+                    match ws_g[138] == 2 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> match ws_g[138] == 4 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> { ws_g[33] = ws_g[33] + 8; } } };
+                    ws_g[34] = ws_g[136]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
+                }, false -> { } };
+                match ws_g[137] == 18 { true -> {
+                    ws_g[33] = ws_g[33] + 8;
+                    ws_g[34] = ws_g[136]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
+                    ws_g[33] = ws_g[33] + 8;
+                }, false -> { } };
+                // Push next_sibling (processed second = breadth after depth)
+                ws_g[138] = ws_n[ws_g[136] * 10 + 6];
+                match ws_g[138] >= 1 { true -> match ws_g[220] < 700 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
+                // Push first_child (processed first = depth-first)
+                ws_g[138] = ws_n[ws_g[136] * 10 + 5];
+                match ws_g[138] >= 1 { true -> match ws_g[220] < 700 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
             }, false -> { } };
-            match ws_g[136] == 18 { true -> {
-                ws_g[33] = ws_g[33] + 8;
-                ws_g[34] = ws_ci[0]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
-                ws_g[33] = ws_g[33] + 8;
-            }, false -> { } };
-                        ws_g[138] = ws_n[ws_ci[0] * 10 + 5];
-            match ws_g[138] >= 1 { true -> match ws_g[138] < ws_g[12] { true -> { ws_g[31] = ws_g[138]; do cg_walk_slots(ws_g, ws_n, ws_s); }, false -> { } }, false -> { } };
-            ws_ci[0] = ws_n[ws_ci[0] * 10 + 6];
-        }, false -> { ws_done[0] = 1; } }, false -> { ws_done[0] = 1; } }, false -> { } };
+        }, false -> { } };
     };
 }
 
@@ -1195,7 +1200,7 @@ fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(300);
+    let gs: Array<Int> = Array(1024);
     let gb: Array<Int> = Array(131072);
     let gt: Array<Int> = Array(131072);
     let gn: Array<Int> = Array(163840);
