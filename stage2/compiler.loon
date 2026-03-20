@@ -4,9 +4,8 @@
 module compiler;
 
 // State: g[0]=src_len [1]=pos [2]=line [3]=col [4]=tok_count [5]=str_pos
-//        [6]=mode(0=normal,1=comment) [7]=emit_line [8]=emit_col
-//        [9]=str_off [10]=str_len (for current token value)
-// String table: stored in s[] starting at offset src_len
+//        [6]=mode [7]=emit_line [8]=emit_col [9]=str_off [10]=str_len
+//        [12]=node_count [13]=tok_pos [15..17]=parse scratch
 
 // ===== Character classification =====
 fn is_lower(c: Int) [] -> Bool { match c >= 97 { true -> match c <= 122 { true -> true, false -> false }, false -> false } }
@@ -17,896 +16,329 @@ fn is_alnum(c: Int) [] -> Bool { match is_alpha(c) { true -> true, false -> is_d
 fn is_ws(c: Int) [] -> Bool { match c == 32 { true -> true, false -> match c == 9 { true -> true, false -> match c == 10 { true -> true, false -> match c == 13 { true -> true, false -> false } } } } }
 
 // ===== Lexer primitives =====
-fn xpeek(g: Array<Int>, s: Array<Int>) [] -> Int { s[g[1]] }
-fn xend(g: Array<Int>) [] -> Bool { match g[1] >= g[0] { true -> true, false -> false } }
-fn xadv(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let c: Int = s[g[1]];
-    g[1] = g[1] + 1;
-    match c == 10 { true -> { g[2] = g[2] + 1; g[3] = 1; c }, false -> { g[3] = g[3] + 1; c } }
+fn xpeek(xg: Array<Int>, xs: Array<Int>) [] -> Int { xs[xg[1]] }
+fn xend(xg: Array<Int>) [] -> Bool { match xg[1] >= xg[0] { true -> true, false -> false } }
+fn xadv(xg: Array<Int>, xs: Array<Int>) [] -> Int {
+    let xc: Int = xs[xg[1]]; xg[1] = xg[1] + 1;
+    match xc == 10 { true -> { xg[2] = xg[2] + 1; xg[3] = 1; xc }, false -> { xg[3] = xg[3] + 1; xc } }
+}
+fn xemit(xg: Array<Int>, xtk: Array<Int>, xt: Int) [] -> Unit {
+    let xb: Int = xg[4] * 5; xtk[xb] = xt; xtk[xb+1] = 0; xtk[xb+2] = 0; xtk[xb+3] = xg[7]; xtk[xb+4] = xg[8]; xg[4] = xg[4] + 1;
+}
+fn xemitv(xg: Array<Int>, xtk: Array<Int>, xt: Int) [] -> Unit {
+    let xb: Int = xg[4] * 5; xtk[xb] = xt; xtk[xb+1] = xg[9]; xtk[xb+2] = xg[10]; xtk[xb+3] = xg[7]; xtk[xb+4] = xg[8]; xg[4] = xg[4] + 1;
 }
 
-// ===== Token emission =====
-fn xemit(g: Array<Int>, tk: Array<Int>, t: Int) [] -> Unit {
-    let b: Int = g[4] * 5;
-    tk[b] = t; tk[b + 1] = 0; tk[b + 2] = 0; tk[b + 3] = g[7]; tk[b + 4] = g[8];
-    g[4] = g[4] + 1;
+// ===== Keyword detection =====
+fn kw2(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==102 { true -> match ks[ko+1]==110 { true -> 0, false -> 0-1 }, false -> match ks[ko]==105 { true -> match ks[ko+1]==110 { true -> 5, false -> 0-1 }, false -> match ks[ko]==100 { true -> match ks[ko+1]==111 { true -> 6, false -> 0-1 }, false -> 0-1 } } } }
+fn kw3(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==108 { true -> match ks[ko+1]==101 { true -> match ks[ko+2]==116 { true -> 1, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko]==102 { true -> match ks[ko+1]==111 { true -> match ks[ko+2]==114 { true -> 4, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } } }
+fn kw4(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==116 { true -> match ks[ko+1]==121 { true -> match ks[ko+2]==112 { true -> match ks[ko+3]==101 { true -> 2, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko+1]==114 { true -> match ks[ko+2]==117 { true -> match ks[ko+3]==101 { true -> 11, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }, false -> 0-1 } }
+fn kw5(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==109 { true -> match ks[ko+1]==97 { true -> match ks[ko+2]==116 { true -> match ks[ko+3]==99 { true -> match ks[ko+4]==104 { true -> 3, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko]==102 { true -> match ks[ko+1]==97 { true -> match ks[ko+2]==108 { true -> match ks[ko+3]==115 { true -> match ks[ko+4]==101 { true -> 12, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } } }
+fn kw6(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==109 { true -> match ks[ko+1]==111 { true -> match ks[ko+2]==100 { true -> match ks[ko+3]==117 { true -> match ks[ko+4]==108 { true -> match ks[ko+5]==101 { true -> 7, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
+fn kw7(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==105 { true -> match ks[ko+1]==109 { true -> match ks[ko+2]==112 { true -> match ks[ko+3]==111 { true -> match ks[ko+4]==114 { true -> match ks[ko+5]==116 { true -> match ks[ko+6]==115 { true -> 8, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko]==101 { true -> match ks[ko+1]==120 { true -> match ks[ko+2]==112 { true -> match ks[ko+3]==111 { true -> match ks[ko+4]==114 { true -> match ks[ko+5]==116 { true -> match ks[ko+6]==115 { true -> 9, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } } }
+fn kwtype(kg: Array<Int>, ks: Array<Int>) [] -> Int { match kg[10] { 2 -> kw2(kg, ks), 3 -> kw3(kg, ks), 4 -> kw4(kg, ks), 5 -> kw5(kg, ks), 6 -> kw6(kg, ks), 7 -> kw7(kg, ks), _ -> 0-1 } }
+
+// ===== Lexer readers =====
+fn lex_word(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; for _id in range(0, 256) { match xend(lg) { true -> { }, false -> match is_alnum(xpeek(lg, ls)) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } } }; }; lg[10] = lg[5] - lg[9]; let lkt: Int = kwtype(lg, ls); match lkt >= 0 { true -> do xemit(lg, lt, lkt), false -> do xemitv(lg, lt, 13) }; }
+fn lex_num(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; let lisf: Array<Int> = Array(1); lisf[0] = 0; for _ni in range(0, 256) { match xend(lg) { true -> { }, false -> { let lnc: Int = xpeek(lg, ls); match is_digit(lnc) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> match lnc == 46 { true -> match lisf[0] == 0 { true -> { lisf[0] = 1; ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } }, false -> { } } }; } }; }; lg[10] = lg[5] - lg[9]; match lisf[0] { 0 -> do xemitv(lg, lt, 14), _ -> do xemitv(lg, lt, 15) }; }
+fn lex_str(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let _lq: Int = xadv(lg, ls); lg[9] = lg[5]; for _si in range(0, 65536) { match xend(lg) { true -> { }, false -> { let lsc: Int = xpeek(lg, ls); match lsc == 34 { true -> { }, false -> match lsc == 92 { true -> { let _lbs: Int = xadv(lg, ls); match xend(lg) { true -> { }, false -> { let lec: Int = xadv(lg, ls); match lec { 110 -> { ls[lg[5]] = 10; lg[5] = lg[5] + 1; }, 116 -> { ls[lg[5]] = 9; lg[5] = lg[5] + 1; }, 92 -> { ls[lg[5]] = 92; lg[5] = lg[5] + 1; }, 34 -> { ls[lg[5]] = 34; lg[5] = lg[5] + 1; }, _ -> { ls[lg[5]] = lec; lg[5] = lg[5] + 1; } }; } }; }, false -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; } } }; } }; }; lg[10] = lg[5] - lg[9]; match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 34 { true -> { let _lcq: Int = xadv(lg, ls); }, false -> { } } }; do xemitv(lg, lt, 16); }
+fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let lc: Int = xadv(lg, ls); match lc { 123 -> do xemit(lg, lt, 17), 125 -> do xemit(lg, lt, 18), 40 -> do xemit(lg, lt, 19), 41 -> do xemit(lg, lt, 20), 91 -> do xemit(lg, lt, 21), 93 -> do xemit(lg, lt, 22), 43 -> do xemit(lg, lt, 24), 42 -> do xemit(lg, lt, 26), 37 -> do xemit(lg, lt, 28), 58 -> do xemit(lg, lt, 40), 59 -> do xemit(lg, lt, 41), 44 -> do xemit(lg, lt, 42), 46 -> do xemit(lg, lt, 43), 45 -> match xend(lg) { true -> do xemit(lg, lt, 25), false -> match xpeek(lg, ls) == 62 { true -> { let _lgt: Int = xadv(lg, ls); do xemit(lg, lt, 38); }, false -> do xemit(lg, lt, 25) } }, 61 -> match xend(lg) { true -> do xemit(lg, lt, 23), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 29); }, false -> do xemit(lg, lt, 23) } }, 33 -> match xend(lg) { true -> do xemit(lg, lt, 37), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 30); }, false -> do xemit(lg, lt, 37) } }, 60 -> match xend(lg) { true -> do xemit(lg, lt, 31), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 33); }, false -> do xemit(lg, lt, 31) } }, 62 -> match xend(lg) { true -> do xemit(lg, lt, 32), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 34); }, false -> do xemit(lg, lt, 32) } }, 38 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 38 { true -> { let _la: Int = xadv(lg, ls); do xemit(lg, lt, 35); }, false -> { } } }, 124 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 124 { true -> { let _lo: Int = xadv(lg, ls); do xemit(lg, lt, 36); }, false -> match xpeek(lg, ls) == 62 { true -> { let _lp: Int = xadv(lg, ls); do xemit(lg, lt, 39); }, false -> { } } } }, _ -> { do print("error: unexpected char"); do exit(1); } }; }
+fn lex_dispatch(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[7] = lg[2]; lg[8] = lg[3]; let lc: Int = xpeek(lg, ls); match lc == 47 { true -> match lg[1] + 1 < lg[0] { true -> match ls[lg[1] + 1] == 47 { true -> { let _ls1: Int = xadv(lg, ls); let _ls2: Int = xadv(lg, ls); lg[6] = 1; }, false -> do lex_sym(lg, lt, ls) }, false -> do lex_sym(lg, lt, ls) }, false -> match lc == 34 { true -> do lex_str(lg, lt, ls), false -> match is_alpha(lc) { true -> do lex_word(lg, lt, ls), false -> match is_digit(lc) { true -> do lex_num(lg, lt, ls), false -> do lex_sym(lg, lt, ls) } } } }; }
+fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = lg[0]; lg[6] = 0; for _li in range(0, 1048576) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
+
+// ===== Token access =====
+fn tcur(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5] }
+fn teat(_g: Array<Int>) [] -> Unit { _g[13] = _g[13] + 1; }
+fn tsoff(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 1] }
+fn tslen(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 2] }
+
+// ===== Node helpers =====
+fn nalloc(_g: Array<Int>, _n: Array<Int>) [] -> Int {
+    let _i: Int = _g[12]; let _b: Int = _i * 10;
+    _n[_b]=0; _n[_b+1]=0; _n[_b+2]=0; _n[_b+3]=0; _n[_b+4]=0;
+    _n[_b+5]=0-1; _n[_b+6]=0-1; _n[_b+7]=0; _n[_b+8]=0; _n[_b+9]=0;
+    _g[12] = _g[12] + 1; _i
 }
-fn xemitv(g: Array<Int>, tk: Array<Int>, t: Int) [] -> Unit {
-    let b: Int = g[4] * 5;
-    tk[b] = t; tk[b + 1] = g[9]; tk[b + 2] = g[10]; tk[b + 3] = g[7]; tk[b + 4] = g[8];
-    g[4] = g[4] + 1;
+fn blink(_n: Array<Int>, _fc: Array<Int>, _lc: Array<Int>, _cc: Array<Int>) [] -> Unit {
+    // Uses _g[18] as the node to link (set before calling)
+    // This avoids >3 params
+    0 - 1 // placeholder — need different approach
 }
 
-// ===== Keyword detection (by length, byte comparison) =====
-fn kw2(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let o: Int = g[9];
-    match s[o] == 102 { true -> match s[o+1] == 110 { true -> 0, false -> 0-1 }, false ->
-    match s[o] == 105 { true -> match s[o+1] == 110 { true -> 5, false -> 0-1 }, false ->
-    match s[o] == 100 { true -> match s[o+1] == 111 { true -> 6, false -> 0-1 }, false -> 0-1 } } }
-}
-fn kw3(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let o: Int = g[9];
-    match s[o] == 108 { true -> match s[o+1] == 101 { true -> match s[o+2] == 116 { true -> 1, false -> 0-1 }, false -> 0-1 }, false ->
-    match s[o] == 102 { true -> match s[o+1] == 111 { true -> match s[o+2] == 114 { true -> 4, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
-}
-fn kw4(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let o: Int = g[9];
-    match s[o] == 116 { true -> match s[o+1] == 121 { true -> match s[o+2] == 112 { true -> match s[o+3] == 101 { true -> 2, false -> 0-1 }, false -> 0-1 }, false ->
-    match s[o+1] == 114 { true -> match s[o+2] == 117 { true -> match s[o+3] == 101 { true -> 11, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }, false -> 0-1 }
-}
-fn kw5(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let o: Int = g[9];
-    match s[o] == 109 { true -> match s[o+1] == 97 { true -> match s[o+2] == 116 { true -> match s[o+3] == 99 { true -> match s[o+4] == 104 { true -> 3, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false ->
-    match s[o] == 102 { true -> match s[o+1] == 97 { true -> match s[o+2] == 108 { true -> match s[o+3] == 115 { true -> match s[o+4] == 101 { true -> 12, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
-}
-fn kw6(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let o: Int = g[9];
-    match s[o] == 109 { true -> match s[o+1] == 111 { true -> match s[o+2] == 100 { true -> match s[o+3] == 117 { true -> match s[o+4] == 108 { true -> match s[o+5] == 101 { true -> 7, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }
-}
-fn kw7(g: Array<Int>, s: Array<Int>) [] -> Int {
-    let o: Int = g[9];
-    match s[o] == 105 { true -> match s[o+1] == 109 { true -> match s[o+2] == 112 { true -> match s[o+3] == 111 { true -> match s[o+4] == 114 { true -> match s[o+5] == 116 { true -> match s[o+6] == 115 { true -> 8, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false ->
-    match s[o] == 101 { true -> match s[o+1] == 120 { true -> match s[o+2] == 112 { true -> match s[o+3] == 111 { true -> match s[o+4] == 114 { true -> match s[o+5] == 116 { true -> match s[o+6] == 115 { true -> 9, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
-}
-fn kwtype(g: Array<Int>, s: Array<Int>) [] -> Int {
-    match g[10] { 2 -> kw2(g, s), 3 -> kw3(g, s), 4 -> kw4(g, s), 5 -> kw5(g, s), 6 -> kw6(g, s), 7 -> kw7(g, s), _ -> 0-1 }
-}
+// ===== Parser =====
+// All parser functions use prefixed param names to avoid Stage 1 scoping bug #12
 
-// ===== Reader functions — each has exactly one FOR loop =====
-
-fn lex_word(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    g[9] = g[5];
-    for _id in range(0, 256) {
-        match xend(g) { true -> { }, false -> match is_alnum(xpeek(g, s)) {
-            true -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
-            false -> { },
+fn pp_parse(pp_g: Array<Int>, pp_t: Array<Int>, pp_n: Array<Int>) [] -> Unit {
+    pp_g[12] = 0; pp_g[13] = 0;
+    match tcur(pp_g, pp_t) == 7 { true -> { do teat(pp_g); }, false -> { } };
+    let pp_mi: Int = nalloc(pp_g, pp_n);
+    pp_n[pp_mi * 10] = 0;
+    pp_n[pp_mi * 10 + 2] = tsoff(pp_g, pp_t);
+    pp_n[pp_mi * 10 + 3] = tslen(pp_g, pp_t);
+    do teat(pp_g); do teat(pp_g);
+    for _ppf in range(0, 256) {
+        match tcur(pp_g, pp_t) == 44 { true -> { }, false -> match tcur(pp_g, pp_t) == 0 {
+            true -> do pf_parse(pp_g, pp_t, pp_n),
+            false -> { do teat(pp_g); },
         } };
     };
-    g[10] = g[5] - g[9];
-    let kt: Int = kwtype(g, s);
-    match kt >= 0 { true -> do xemit(g, tk, kt), false -> do xemitv(g, tk, 13) };
 }
 
-fn lex_num(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    g[9] = g[5];
-    let isf: Array<Int> = Array(1);
-    isf[0] = 0;
-    for _ni in range(0, 256) {
-        match xend(g) { true -> { }, false -> {
-            let nc: Int = xpeek(g, s);
-            match is_digit(nc) {
-                true -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
-                false -> match nc == 46 {
-                    true -> match isf[0] == 0 {
-                        true -> { isf[0] = 1; s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
-                        false -> { },
-                    },
-                    false -> { },
-                },
-            };
+fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
+    do teat(pf_g);
+    let pf_fi: Int = nalloc(pf_g, pf_n);
+    pf_n[pf_fi * 10] = 1;
+    pf_n[pf_fi * 10 + 2] = tsoff(pf_g, pf_t);
+    pf_n[pf_fi * 10 + 3] = tslen(pf_g, pf_t);
+    do teat(pf_g);
+    // Params
+    do teat(pf_g);
+    pf_g[15] = 0; pf_g[16] = 0 - 1; pf_g[17] = 0 - 1;
+    for _pfp in range(0, 32) {
+        match tcur(pf_g, pf_t) == 20 { true -> { }, false -> {
+            let pf_pi: Int = nalloc(pf_g, pf_n);
+            pf_n[pf_pi * 10] = 2;
+            pf_n[pf_pi * 10 + 2] = tsoff(pf_g, pf_t);
+            pf_n[pf_pi * 10 + 3] = tslen(pf_g, pf_t);
+            do teat(pf_g); do teat(pf_g);
+            pf_n[pf_pi * 10 + 7] = 5;
+            do teat(pf_g);
+            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); }, false -> { } };
+            match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
+            pf_g[15] = pf_g[15] + 1;
+            match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); }, false -> { } };
         } };
     };
-    g[10] = g[5] - g[9];
-    match isf[0] { 0 -> do xemitv(g, tk, 14), _ -> do xemitv(g, tk, 15) };
+    do teat(pf_g);
+    pf_n[pf_fi * 10 + 4] = pf_g[15];
+    pf_n[pf_fi * 10 + 5] = pf_g[16];
+    // Effects
+    do teat(pf_g);
+    for _pfe in range(0, 16) { match tcur(pf_g, pf_t) == 22 { true -> { }, false -> { do teat(pf_g); } }; };
+    do teat(pf_g);
+    // Return type
+    do teat(pf_g); do teat(pf_g);
+    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); }, false -> { } };
+    // Body
+    let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
+    pf_n[pf_fi * 10 + 8] = pf_bi;
 }
 
-fn lex_str(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    let _q: Int = xadv(g, s);
-    g[9] = g[5];
-    for _si in range(0, 65536) {
-        match xend(g) { true -> { }, false -> {
-            let sc: Int = xpeek(g, s);
-            match sc == 34 { true -> { }, false -> match sc == 92 {
+// Block parser
+fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
+    do teat(pb_g);
+    let pb_bi: Int = nalloc(pb_g, pb_n);
+    pb_n[pb_bi * 10] = 3;
+    // Use g[20]=first_child, g[21]=last_child, g[22]=child_count for block linking
+    pb_g[20] = 0 - 1; pb_g[21] = 0 - 1; pb_g[22] = 0;
+    for _pbs in range(0, 65536) {
+        match tcur(pb_g, pb_t) == 18 { true -> { }, false -> match tcur(pb_g, pb_t) == 44 { true -> { }, false -> {
+            match tcur(pb_g, pb_t) == 1 {
                 true -> {
-                    let _bs: Int = xadv(g, s);
-                    match xend(g) { true -> { }, false -> {
-                        let ec: Int = xadv(g, s);
-                        match ec {
-                            110 -> { s[g[5]] = 10; g[5] = g[5] + 1; },
-                            116 -> { s[g[5]] = 9; g[5] = g[5] + 1; },
-                            92  -> { s[g[5]] = 92; g[5] = g[5] + 1; },
-                            34  -> { s[g[5]] = 34; g[5] = g[5] + 1; },
-                            _   -> { s[g[5]] = ec; g[5] = g[5] + 1; },
-                        };
-                    } };
+                    let pb_li: Int = pl_parse(pb_g, pb_t, pb_n);
+                    // Link child
+                    match pb_g[20] == 0 - 1 { true -> { pb_g[20] = pb_li; pb_g[21] = pb_li; }, false -> { pb_n[pb_g[21]*10+6] = pb_li; pb_g[21] = pb_li; } };
+                    pb_g[22] = pb_g[22] + 1;
                 },
-                false -> { s[g[5]] = xadv(g, s); g[5] = g[5] + 1; },
-            } };
-        } };
-    };
-    g[10] = g[5] - g[9];
-    match xend(g) { true -> { }, false -> match xpeek(g, s) == 34 { true -> { let _cq: Int = xadv(g, s); }, false -> { } } };
-    do xemitv(g, tk, 16);
-}
-
-fn lex_sym(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    let c: Int = xadv(g, s);
-    match c {
-        123 -> do xemit(g, tk, 17), 125 -> do xemit(g, tk, 18),
-        40 -> do xemit(g, tk, 19), 41 -> do xemit(g, tk, 20),
-        91 -> do xemit(g, tk, 21), 93 -> do xemit(g, tk, 22),
-        43 -> do xemit(g, tk, 24), 42 -> do xemit(g, tk, 26),
-        37 -> do xemit(g, tk, 28), 58 -> do xemit(g, tk, 40),
-        59 -> do xemit(g, tk, 41), 44 -> do xemit(g, tk, 42),
-        46 -> do xemit(g, tk, 43),
-        45 -> match xend(g) { true -> do xemit(g, tk, 25), false -> match xpeek(g, s) == 62 { true -> { let _gt: Int = xadv(g, s); do xemit(g, tk, 38); }, false -> do xemit(g, tk, 25) } },
-        61 -> match xend(g) { true -> do xemit(g, tk, 23), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 29); }, false -> do xemit(g, tk, 23) } },
-        33 -> match xend(g) { true -> do xemit(g, tk, 37), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 30); }, false -> do xemit(g, tk, 37) } },
-        60 -> match xend(g) { true -> do xemit(g, tk, 31), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 33); }, false -> do xemit(g, tk, 31) } },
-        62 -> match xend(g) { true -> do xemit(g, tk, 32), false -> match xpeek(g, s) == 61 { true -> { let _e: Int = xadv(g, s); do xemit(g, tk, 34); }, false -> do xemit(g, tk, 32) } },
-        38 -> match xend(g) { true -> { }, false -> match xpeek(g, s) == 38 { true -> { let _a: Int = xadv(g, s); do xemit(g, tk, 35); }, false -> { } } },
-        124 -> match xend(g) { true -> { }, false -> match xpeek(g, s) == 124 { true -> { let _o: Int = xadv(g, s); do xemit(g, tk, 36); }, false -> match xpeek(g, s) == 62 { true -> { let _p: Int = xadv(g, s); do xemit(g, tk, 39); }, false -> { } } } },
-        _ -> { do print("error: unexpected char"); do exit(1); },
-    };
-}
-
-// ===== Dispatch — called for each non-ws, non-comment char =====
-fn lex_dispatch(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    g[7] = g[2]; g[8] = g[3];
-    let c: Int = xpeek(g, s);
-    match c == 47 {
-        true -> match g[1] + 1 < g[0] {
-            true -> match s[g[1] + 1] == 47 {
-                true -> { let _s1: Int = xadv(g, s); let _s2: Int = xadv(g, s); g[6] = 1; },
-                false -> do lex_sym(g, tk, s),
-            },
-            false -> do lex_sym(g, tk, s),
-        },
-        false -> match c == 34 {
-            true -> do lex_str(g, tk, s),
-            false -> match is_alpha(c) {
-                true -> do lex_word(g, tk, s),
-                false -> match is_digit(c) {
-                    true -> do lex_num(g, tk, s),
-                    false -> do lex_sym(g, tk, s),
-                },
-            },
-        },
-    };
-}
-
-// ===== Main lex loop — flat, one char per iteration =====
-fn lex_all(g: Array<Int>, tk: Array<Int>, s: Array<Int>) [] -> Unit {
-    g[1] = 0; g[2] = 1; g[3] = 1; g[4] = 0; g[5] = g[0]; g[6] = 0;
-    for _i in range(0, 1048576) {
-        match xend(g) {
-            true -> { },
-            false -> {
-                let c: Int = xpeek(g, s);
-                match g[6] == 1 {
-                    true -> match c == 10 {
-                        true -> { g[6] = 0; let _n: Int = xadv(g, s); },
-                        false -> { let _cc: Int = xadv(g, s); },
-                    },
-                    false -> match is_ws(c) {
-                        true -> { let _w: Int = xadv(g, s); },
-                        false -> do lex_dispatch(g, tk, s),
-                    },
-                };
-            },
-        };
-    };
-    g[7] = g[2]; g[8] = g[3];
-    do xemit(g, tk, 44);
-}
-
-// ===== Token name =====
-fn tname(t: Int) [] -> String {
-    match t {
-        0 -> "KW_FN", 1 -> "KW_LET", 2 -> "KW_TYPE", 3 -> "KW_MATCH",
-        4 -> "KW_FOR", 5 -> "KW_IN", 6 -> "KW_DO", 7 -> "KW_MODULE",
-        8 -> "KW_IMPORTS", 9 -> "KW_EXPORTS", 10 -> "KW_SEQUENTIAL",
-        11 -> "KW_TRUE", 12 -> "KW_FALSE", 13 -> "IDENT", 14 -> "LIT_INT",
-        15 -> "LIT_FLOAT", 16 -> "LIT_STRING", 17 -> "LBRACE", 18 -> "RBRACE",
-        19 -> "LPAREN", 20 -> "RPAREN", 21 -> "LBRACKET", 22 -> "RBRACKET",
-        23 -> "ASSIGN", 24 -> "PLUS", 25 -> "MINUS", 26 -> "STAR",
-        27 -> "SLASH", 28 -> "PERCENT", 29 -> "EQ", 30 -> "NEQ",
-        31 -> "LT", 32 -> "GT", 33 -> "LTE", 34 -> "GTE",
-        35 -> "AND", 36 -> "OR", 37 -> "NOT", 38 -> "ARROW",
-        39 -> "PIPE", 40 -> "COLON", 41 -> "SEMICOLON", 42 -> "COMMA",
-        43 -> "DOT", 44 -> "EOF", _ -> "?",
-    }
-}
-
-// ===================================================================
-// Parser state (extends g[] beyond lexer state):
-// g[12] = node_count
-// g[13] = tok_pos (parser read position into token array)
-// g[14] = func_count
-// ===================================================================
-
-// Node array: nd[i*10+0]=type [+1]=subtype [+2]=str_off [+3]=str_len
-//             [+4]=child_count [+5]=first_child [+6]=next_sibling
-//             [+7]=type_info [+8]=extra [+9]=reserved
-// Max 8192 nodes (81920 ints)
-
-// Node type constants: see ast-format.md
-// 0=MODULE 1=FN 2=PARAM 3=BLOCK 4=LET 5=EXPR_STMT 6=RET_EXPR
-// 7=INT_LIT 8=STR_LIT 9=BOOL_LIT 10=IDENT 11=BINOP 12=NOT 13=NEG
-// 14=CALL 15=DO 16=MATCH 17=ARM 18=FOR 19=ARR_NEW 20=ARR_GET 21=ARR_SET
-// NONE = -1 (0 - 1 in Loon-0)
-
-// Parser: allocate a node, return its index
-fn nalloc(g: Array<Int>, nd: Array<Int>) [] -> Int {
-    let idx: Int = g[12];
-    let b: Int = idx * 10;
-    nd[b] = 0; nd[b+1] = 0; nd[b+2] = 0; nd[b+3] = 0; nd[b+4] = 0;
-    nd[b+5] = 0 - 1; nd[b+6] = 0 - 1; nd[b+7] = 0; nd[b+8] = 0; nd[b+9] = 0;
-    g[12] = g[12] + 1;
-    idx
-}
-
-// Node field accessors
-fn ntype(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10] }
-fn nset(nd: Array<Int>, i: Int, v: Int) [] -> Unit { nd[i * 10] = v; }
-fn nsub(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 1] }
-fn nchild(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 5] }
-fn nsib(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 6] }
-fn nextra(nd: Array<Int>, i: Int) [] -> Int { nd[i * 10 + 8] }
-
-// Token access
-fn tcur(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5] }
-fn teat(g: Array<Int>) [] -> Unit { g[13] = g[13] + 1; }
-fn tline(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 3] }
-fn tcol(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 4] }
-fn tstroff(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 1] }
-fn tstrlen(g: Array<Int>, tk: Array<Int>) [] -> Int { tk[g[13] * 5 + 2] }
-
-// Parse module + fn signatures (M2.1a)
-fn parse_program(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [IO] -> Unit {
-    do print("parse_program start");
-    g[12] = 0; g[13] = 0;
-    // module name ;
-    let mt: Int = tcur(g, tk);
-    match mt == 7 { true -> { do teat(g); }, false -> { } }; // KW_MODULE = 7
-    let mi: Int = nalloc(g, nd);
-    nd[mi * 10] = 0;
-    nd[mi * 10 + 2] = tstroff(g, tk);
-    nd[mi * 10 + 3] = tstrlen(g, tk);
-    do teat(g); // skip module name IDENT
-    do teat(g); // skip semicolon
-
-    // Test: call lex_all(g, tk, s) which also takes 3 arrays — does it crash?
-    // Can't call lex_all again (wrong arrays). Try a simple call.
-    do parse_fn(g, tk, nd);
-    do print("parse_fn done");
-    do exit(0);
-}
-
-// Minimal parse_fn for debugging
-fn parse_fn(pg: Array<Int>, ptk: Array<Int>, pnd: Array<Int>) [] -> Unit {
-    do teat(pg); // skip KW_FN
-    let pfi: Int = nalloc(pg, pnd);
-    pnd[pfi * 10] = 1;
-    pnd[pfi * 10 + 2] = tstroff(pg, ptk);
-    pnd[pfi * 10 + 3] = tstrlen(pg, ptk);
-    do teat(pg); // skip fn name
-    // skip to matching RBRACE
-    do teat(pg); // LPAREN
-    for _xp in range(0, 32) {
-        match tcur(pg, ptk) == 20 { true -> { }, false -> { do teat(pg); } };
-    };
-    do teat(pg); // RPAREN
-    do teat(pg); // LBRACKET
-    for _xe in range(0, 16) {
-        match tcur(pg, ptk) == 22 { true -> { }, false -> { do teat(pg); } };
-    };
-    do teat(pg); // RBRACKET
-    do teat(pg); // ARROW
-    do teat(pg); // type
-    // skip body braces
-    do teat(pg); // LBRACE
-    let pdep: Array<Int> = Array(1);
-    pdep[0] = 1;
-    for _xb in range(0, 65536) {
-        match pdep[0] == 0 { true -> { }, false -> {
-            let pbt: Int = tcur(pg, ptk);
-            do teat(pg);
-            match pbt == 17 { true -> { pdep[0] = pdep[0] + 1; }, false -> { } };
-            match pbt == 18 { true -> { pdep[0] = pdep[0] - 1; }, false -> { } };
-        } };
-    };
-    let pbi: Int = nalloc(pg, pnd);
-    pnd[pbi * 10] = 3;
-    pnd[pfi * 10 + 8] = pbi;
-}
-
-fn parse_fn_DISABLED(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Unit {
-    do teat(g); // skip KW_FN
-    // Allocate FN_DECL node
-    let fi: Int = nalloc(g, nd);
-    nd[fi * 10] = 1;
-    nd[fi * 10 + 2] = tstroff(g, tk); // fn name
-    nd[fi * 10 + 3] = tstrlen(g, tk);
-    do teat(g); // skip fn name
-
-    // Parse params: LPAREN params RPAREN
-    // g[15]=pcount g[16]=first_param g[17]=last_param
-    do teat(g); // skip LPAREN
-    g[15] = 0;
-    g[16] = 0 - 1;
-    g[17] = 0 - 1;
-
-    for _pi in range(0, 32) {
-        match tcur(g, tk) == 20 {
-            true -> { },
-            false -> {
-                let pi: Int = nalloc(g, nd);
-                nd[pi * 10] = 2;
-                nd[pi * 10 + 2] = tstroff(g, tk);
-                nd[pi * 10 + 3] = tstrlen(g, tk);
-                do teat(g); // param name
-                do teat(g); // colon
-                nd[pi * 10 + 7] = 5;
-                do teat(g); // type name
-                match tcur(g, tk) == 31 {
-                    true -> { do teat(g); do teat(g); do teat(g); },
-                    false -> { },
-                };
-                match g[16] == 0 - 1 {
-                    true -> { g[16] = pi; g[17] = pi; },
-                    false -> { nd[g[17] * 10 + 6] = pi; g[17] = pi; },
-                };
-                g[15] = g[15] + 1;
-                match tcur(g, tk) == 42 { true -> { do teat(g); }, false -> { } };
-            },
-        };
-    };
-    do teat(g); // skip RPAREN
-
-    nd[fi * 10 + 4] = g[15]; // child_count
-    nd[fi * 10 + 5] = g[16]; // first_child
-
-    // Parse effects: [ ... ]
-    do teat(g); // skip LBRACKET
-    for _ei in range(0, 16) {
-        match tcur(g, tk) == 22 {
-            true -> { },
-            false -> { do teat(g); },
-        };
-    };
-    do teat(g); // skip RBRACKET
-
-    // Parse return type: -> type
-    do teat(g); // skip ARROW
-    do teat(g); // skip type name
-    // skip generic
-    match tcur(g, tk) == 31 {
-        true -> { do teat(g); do teat(g); do teat(g); },
-        false -> { },
-    };
-
-    // Parse body block
-    let bi: Int = parse_block(g, tk, nd);
-    nd[fi * 10 + 8] = bi; // extra = body node index
-}
-
-// ===================================================================
-// Expression parser — precedence climbing
-// Each level calls the next higher. Returns node index.
-// ===================================================================
-
-// Block: { stmt* expr? }
-fn parse_block(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    do teat(g); // skip LBRACE
-    let bi: Int = nalloc(g, nd);
-    nd[bi * 10] = 3; // NODE_BLOCK
-    let fc: Array<Int> = Array(1);
-    fc[0] = 0 - 1; // first child
-    let lc: Array<Int> = Array(1);
-    lc[0] = 0 - 1; // last child
-    let cc: Array<Int> = Array(1);
-    cc[0] = 0; // child count
-    for _si in range(0, 65536) {
-        match tcur(g, tk) == 18 { // RBRACE
-            true -> { },
-            false -> match tcur(g, tk) == 44 { // EOF
-                true -> { },
                 false -> {
-                    // Check for let
-                    match tcur(g, tk) == 1 { // KW_LET
+                    let pb_ei: Int = pe_parse(pb_g, pb_t, pb_n);
+                    // Wrap as EXPR_STMT or RETURN_EXPR
+                    match tcur(pb_g, pb_t) == 41 {
                         true -> {
-                            let li: Int = parse_let(g, tk, nd);
-                            do blink(nd, fc, lc, cc, li);
+                            do teat(pb_g);
+                            let pb_wi: Int = nalloc(pb_g, pb_n);
+                            pb_n[pb_wi*10] = 5; pb_n[pb_wi*10+4] = 1; pb_n[pb_wi*10+5] = pb_ei;
+                            match pb_g[20] == 0-1 { true -> { pb_g[20] = pb_wi; pb_g[21] = pb_wi; }, false -> { pb_n[pb_g[21]*10+6] = pb_wi; pb_g[21] = pb_wi; } };
+                            pb_g[22] = pb_g[22] + 1;
                         },
-                        false -> match tcur(g, tk) == 13 { // IDENT — check for array_set
-                            true -> match tk[(g[13] + 1) * 5] == 21 { // next is LBRACKET
-                                true -> match is_array_set(g, tk) {
-                                    true -> {
-                                        let ai: Int = parse_arr_set(g, tk, nd);
-                                        do blink(nd, fc, lc, cc, ai);
-                                    },
-                                    false -> {
-                                        // Expression (possibly return expr)
-                                        let ei: Int = parse_expr(g, tk, nd);
-                                        let wi: Int = wrap_expr(g, tk, nd, ei);
-                                        do blink(nd, fc, lc, cc, wi);
-                                    },
-                                },
-                                false -> {
-                                    let ei: Int = parse_expr(g, tk, nd);
-                                    let wi: Int = wrap_expr(g, tk, nd, ei);
-                                    do blink(nd, fc, lc, cc, wi);
-                                },
-                            },
-                            false -> {
-                                let ei: Int = parse_expr(g, tk, nd);
-                                let wi: Int = wrap_expr(g, tk, nd, ei);
-                                do blink(nd, fc, lc, cc, wi);
-                            },
+                        false -> {
+                            let pb_wi: Int = nalloc(pb_g, pb_n);
+                            pb_n[pb_wi*10] = 6; pb_n[pb_wi*10+4] = 1; pb_n[pb_wi*10+5] = pb_ei;
+                            match pb_g[20] == 0-1 { true -> { pb_g[20] = pb_wi; pb_g[21] = pb_wi; }, false -> { pb_n[pb_g[21]*10+6] = pb_wi; pb_g[21] = pb_wi; } };
+                            pb_g[22] = pb_g[22] + 1;
                         },
                     };
                 },
-            },
-        };
+            };
+        } } };
     };
-    do teat(g); // skip RBRACE
-    nd[bi * 10 + 4] = cc[0];
-    nd[bi * 10 + 5] = fc[0];
-    bi
+    do teat(pb_g);
+    pb_n[pb_bi * 10 + 4] = pb_g[22];
+    pb_n[pb_bi * 10 + 5] = pb_g[20];
+    pb_bi
 }
 
-// Check if IDENT LBRACKET ... RBRACKET ASSIGN pattern
-fn is_array_set(g: Array<Int>, tk: Array<Int>) [] -> Bool {
-    let pv: Array<Int> = Array(1);
-    pv[0] = g[13] + 2;
-    let dep: Array<Int> = Array(1);
-    dep[0] = 1;
-    for _x in range(0, 256) {
-        match dep[0] == 0 { true -> { }, false -> {
-            let tt: Int = tk[pv[0] * 5];
-            match tt == 21 { true -> { dep[0] = dep[0] + 1; }, false -> { } };
-            match tt == 22 { true -> { dep[0] = dep[0] - 1; }, false -> { } };
-            pv[0] = pv[0] + 1;
-        } };
-    };
-    match tk[pv[0] * 5] == 23 { true -> true, false -> false }
+// Let binding parser
+fn pl_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [] -> Int {
+    do teat(pl_g);
+    let pl_li: Int = nalloc(pl_g, pl_n);
+    pl_n[pl_li * 10] = 4;
+    pl_n[pl_li * 10 + 2] = tsoff(pl_g, pl_t);
+    pl_n[pl_li * 10 + 3] = tslen(pl_g, pl_t);
+    do teat(pl_g);
+    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); do teat(pl_g); match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); }, false -> { } }; }, false -> { } };
+    do teat(pl_g);
+    let pl_vi: Int = pe_parse(pl_g, pl_t, pl_n);
+    pl_n[pl_li * 10 + 4] = 1; pl_n[pl_li * 10 + 5] = pl_vi;
+    do teat(pl_g);
+    pl_li
 }
 
-// Wrap expression as EXPR_STMT or RETURN_EXPR based on following token
-fn wrap_expr(g: Array<Int>, tk: Array<Int>, nd: Array<Int>, ei: Int) [] -> Int {
-    match tcur(g, tk) == 41 { // SEMICOLON
-        true -> {
-            do teat(g);
-            let wi: Int = nalloc(g, nd);
-            nd[wi * 10] = 5; // NODE_EXPR_STMT
-            nd[wi * 10 + 4] = 1;
-            nd[wi * 10 + 5] = ei;
-            wi
-        },
-        false -> {
-            // No semicolon — return expression
-            let wi: Int = nalloc(g, nd);
-            nd[wi * 10] = 6; // NODE_RETURN_EXPR
-            nd[wi * 10 + 4] = 1;
-            nd[wi * 10 + 5] = ei;
-            wi
-        },
-    }
-}
-
-// Link child into block's sibling chain
-fn blink(nd: Array<Int>, fc: Array<Int>, lc: Array<Int>, cc: Array<Int>, ni: Int) [] -> Unit {
-    match fc[0] == 0 - 1 {
-        true -> { fc[0] = ni; lc[0] = ni; },
-        false -> { nd[lc[0] * 10 + 6] = ni; lc[0] = ni; },
-    };
-    cc[0] = cc[0] + 1;
-}
-
-// Let binding: let IDENT [: type] = expr ;
-fn parse_let(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    do teat(g); // skip KW_LET
-    let li: Int = nalloc(g, nd);
-    nd[li * 10] = 4; // NODE_LET
-    nd[li * 10 + 2] = tstroff(g, tk);
-    nd[li * 10 + 3] = tstrlen(g, tk);
-    do teat(g); // skip var name
-    // Optional type annotation
-    match tcur(g, tk) == 40 { // COLON
-        true -> { do teat(g); do teat(g); // skip : type
-            match tcur(g, tk) == 31 { true -> { do teat(g); do teat(g); do teat(g); }, false -> { } }; // <Type>
-        },
-        false -> { },
-    };
-    do teat(g); // skip ASSIGN (=)
-    let vi: Int = parse_expr(g, tk, nd);
-    nd[li * 10 + 4] = 1;
-    nd[li * 10 + 5] = vi;
-    do teat(g); // skip SEMICOLON
-    li
-}
-
-// Array set: IDENT [ expr ] = expr ;
-fn parse_arr_set(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let ai: Int = nalloc(g, nd);
-    nd[ai * 10] = 21; // NODE_ARR_SET
-    nd[ai * 10 + 2] = tstroff(g, tk);
-    nd[ai * 10 + 3] = tstrlen(g, tk);
-    do teat(g); // skip IDENT
-    do teat(g); // skip LBRACKET
-    let idx: Int = parse_expr(g, tk, nd);
-    do teat(g); // skip RBRACKET
-    do teat(g); // skip ASSIGN
-    let val: Int = parse_expr(g, tk, nd);
-    do teat(g); // skip SEMICOLON
-    nd[ai * 10 + 4] = 2;
-    nd[ai * 10 + 5] = idx;
-    nd[idx * 10 + 6] = val; // idx.next_sibling = val
-    ai
-}
-
-// Expression entry point
-fn parse_expr(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let t: Int = tcur(g, tk);
-    match t == 3 { true -> parse_match(g, tk, nd), // KW_MATCH
-    false -> match t == 4 { true -> parse_for(g, tk, nd), // KW_FOR
-    false -> parse_or(g, tk, nd) } }
+// Expression entry
+fn pe_parse(pe_g: Array<Int>, pe_t: Array<Int>, pe_n: Array<Int>) [] -> Int {
+    let pe_tt: Int = tcur(pe_g, pe_t);
+    match pe_tt == 3 { true -> pm_parse(pe_g, pe_t, pe_n),
+    false -> match pe_tt == 4 { true -> pfor_parse(pe_g, pe_t, pe_n),
+    false -> por_parse(pe_g, pe_t, pe_n) } }
 }
 
 // Level 1: ||
-fn parse_or(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let left: Array<Int> = Array(1);
-    left[0] = parse_and(g, tk, nd);
-    for _oi in range(0, 256) {
-        match tcur(g, tk) == 36 { // TOK_OR
-            true -> { do teat(g); let ri: Int = parse_and(g, tk, nd); left[0] = mkbin(g, nd, 12, left[0], ri); },
-            false -> { },
-        };
-    };
-    left[0]
+fn por_parse(po_g: Array<Int>, po_t: Array<Int>, po_n: Array<Int>) [] -> Int {
+    let po_l: Array<Int> = Array(1); po_l[0] = pand_parse(po_g, po_t, po_n);
+    for _po in range(0, 256) { match tcur(po_g, po_t) == 36 { true -> { do teat(po_g); let po_r: Int = pand_parse(po_g, po_t, po_n); po_l[0] = { po_g[18] = po_l[0]; po_g[19] = po_r; mkbin(po_g, po_n, 12) }; }, false -> { } }; }; po_l[0]
 }
-
 // Level 2: &&
-fn parse_and(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let left: Array<Int> = Array(1);
-    left[0] = parse_cmp(g, tk, nd);
-    for _ai in range(0, 256) {
-        match tcur(g, tk) == 35 { // TOK_AND
-            true -> { do teat(g); let ri: Int = parse_cmp(g, tk, nd); left[0] = mkbin(g, nd, 11, left[0], ri); },
-            false -> { },
-        };
-    };
-    left[0]
+fn pand_parse(pa_g: Array<Int>, pa_t: Array<Int>, pa_n: Array<Int>) [] -> Int {
+    let pa_l: Array<Int> = Array(1); pa_l[0] = pcmp_parse(pa_g, pa_t, pa_n);
+    for _pa in range(0, 256) { match tcur(pa_g, pa_t) == 35 { true -> { do teat(pa_g); let pa_r: Int = pcmp_parse(pa_g, pa_t, pa_n); pa_l[0] = { pa_g[18] = pa_l[0]; pa_g[19] = pa_r; mkbin(pa_g, pa_n, 11) }; }, false -> { } }; }; pa_l[0]
 }
-
-// Level 3: == != < > <= >= (non-chainable)
-fn parse_cmp(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let left: Int = parse_add(g, tk, nd);
-    let t: Int = tcur(g, tk);
-    match t >= 29 { // TOK_EQ=29 through TOK_GTE=34
-        true -> match t <= 34 {
-            true -> {
-                do teat(g);
-                let ri: Int = parse_add(g, tk, nd);
-                // Map token to BINOP sub_type: EQ=29→5, NEQ=30→6, etc.
-                mkbin(g, nd, t - 29 + 5, left, ri)
-            },
-            false -> left,
-        },
-        false -> left,
-    }
+// Level 3: comparison (non-chainable)
+fn pcmp_parse(pc_g: Array<Int>, pc_t: Array<Int>, pc_n: Array<Int>) [] -> Int {
+    let pc_l: Int = padd_parse(pc_g, pc_t, pc_n);
+    let pc_tt: Int = tcur(pc_g, pc_t);
+    match pc_tt >= 29 { true -> match pc_tt <= 34 { true -> { do teat(pc_g); let pc_r: Int = padd_parse(pc_g, pc_t, pc_n); { pc_g[18] = pc_l; pc_g[19] = pc_r; mkbin(pc_g, pc_n, pc_tt - 29 + 5) } }, false -> pc_l }, false -> pc_l }
 }
-
 // Level 4: + -
-fn parse_add(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let left: Array<Int> = Array(1);
-    left[0] = parse_mul(g, tk, nd);
-    for _di in range(0, 256) {
-        let t: Int = tcur(g, tk);
-        match t == 24 { // TOK_PLUS
-            true -> { do teat(g); let ri: Int = parse_mul(g, tk, nd); left[0] = mkbin(g, nd, 0, left[0], ri); },
-            false -> match t == 25 { // TOK_MINUS
-                true -> { do teat(g); let ri: Int = parse_mul(g, tk, nd); left[0] = mkbin(g, nd, 1, left[0], ri); },
-                false -> { },
-            },
-        };
-    };
-    left[0]
+fn padd_parse(pd_g: Array<Int>, pd_t: Array<Int>, pd_n: Array<Int>) [] -> Int {
+    let pd_l: Array<Int> = Array(1); pd_l[0] = pmul_parse(pd_g, pd_t, pd_n);
+    for _pd in range(0, 256) { let pd_tt: Int = tcur(pd_g, pd_t); match pd_tt == 24 { true -> { do teat(pd_g); let pd_r: Int = pmul_parse(pd_g, pd_t, pd_n); pd_l[0] = { pd_g[18] = pd_l[0]; pd_g[19] = pd_r; mkbin(pd_g, pd_n, 0) }; }, false -> match pd_tt == 25 { true -> { do teat(pd_g); let pd_r: Int = pmul_parse(pd_g, pd_t, pd_n); pd_l[0] = { pd_g[18] = pd_l[0]; pd_g[19] = pd_r; mkbin(pd_g, pd_n, 1) }; }, false -> { } } }; }; pd_l[0]
 }
-
 // Level 5: * / %
-fn parse_mul(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let left: Array<Int> = Array(1);
-    left[0] = parse_unary(g, tk, nd);
-    for _mi in range(0, 256) {
-        let t: Int = tcur(g, tk);
-        match t == 26 { // TOK_STAR
-            true -> { do teat(g); let ri: Int = parse_unary(g, tk, nd); left[0] = mkbin(g, nd, 2, left[0], ri); },
-            false -> match t == 27 { // TOK_SLASH
-                true -> { do teat(g); let ri: Int = parse_unary(g, tk, nd); left[0] = mkbin(g, nd, 3, left[0], ri); },
-                false -> match t == 28 { // TOK_PERCENT
-                    true -> { do teat(g); let ri: Int = parse_unary(g, tk, nd); left[0] = mkbin(g, nd, 4, left[0], ri); },
-                    false -> { },
-                },
-            },
-        };
-    };
-    left[0]
+fn pmul_parse(pm_g: Array<Int>, pm_t: Array<Int>, pm_n: Array<Int>) [] -> Int {
+    let pm_l: Array<Int> = Array(1); pm_l[0] = pun_parse(pm_g, pm_t, pm_n);
+    for _pm in range(0, 256) { let pm_tt: Int = tcur(pm_g, pm_t); match pm_tt == 26 { true -> { do teat(pm_g); let pm_r: Int = pun_parse(pm_g, pm_t, pm_n); pm_l[0] = { pm_g[18] = pm_l[0]; pm_g[19] = pm_r; mkbin(pm_g, pm_n, 2) }; }, false -> match pm_tt == 27 { true -> { do teat(pm_g); let pm_r: Int = pun_parse(pm_g, pm_t, pm_n); pm_l[0] = { pm_g[18] = pm_l[0]; pm_g[19] = pm_r; mkbin(pm_g, pm_n, 3) }; }, false -> match pm_tt == 28 { true -> { do teat(pm_g); let pm_r: Int = pun_parse(pm_g, pm_t, pm_n); pm_l[0] = { pm_g[18] = pm_l[0]; pm_g[19] = pm_r; mkbin(pm_g, pm_n, 4) }; }, false -> { } } } }; }; pm_l[0]
+}
+// Level 6: unary ! - do
+fn pun_parse(pu_g: Array<Int>, pu_t: Array<Int>, pu_n: Array<Int>) [] -> Int {
+    let pu_tt: Int = tcur(pu_g, pu_t);
+    match pu_tt == 37 { true -> { do teat(pu_g); let pu_ci: Int = pun_parse(pu_g, pu_t, pu_n); let pu_ni: Int = nalloc(pu_g, pu_n); pu_n[pu_ni*10]=12; pu_n[pu_ni*10+4]=1; pu_n[pu_ni*10+5]=pu_ci; pu_ni },
+    false -> match pu_tt == 25 { true -> { do teat(pu_g); let pu_ci: Int = pun_parse(pu_g, pu_t, pu_n); let pu_ni: Int = nalloc(pu_g, pu_n); pu_n[pu_ni*10]=13; pu_n[pu_ni*10+4]=1; pu_n[pu_ni*10+5]=pu_ci; pu_ni },
+    false -> match pu_tt == 6 { true -> { do teat(pu_g); let pu_ci: Int = ppf_parse(pu_g, pu_t, pu_n); let pu_ni: Int = nalloc(pu_g, pu_n); pu_n[pu_ni*10]=15; pu_n[pu_ni*10+4]=1; pu_n[pu_ni*10+5]=pu_ci; pu_ni },
+    false -> ppf_parse(pu_g, pu_t, pu_n) } } }
+}
+// Level 7: postfix f() arr[i]
+fn ppf_parse(pf2_g: Array<Int>, pf2_t: Array<Int>, pf2_n: Array<Int>) [] -> Int {
+    let pf2_b: Array<Int> = Array(1); pf2_b[0] = ppri_parse(pf2_g, pf2_t, pf2_n);
+    for _pf2 in range(0, 256) { match tcur(pf2_g, pf2_t) == 21 { true -> { do teat(pf2_g); let pf2_idx: Int = pe_parse(pf2_g, pf2_t, pf2_n); do teat(pf2_g); let pf2_ni: Int = nalloc(pf2_g, pf2_n); pf2_n[pf2_ni*10]=20; pf2_n[pf2_ni*10+2]=pf2_n[pf2_b[0]*10+2]; pf2_n[pf2_ni*10+3]=pf2_n[pf2_b[0]*10+3]; pf2_n[pf2_ni*10+4]=1; pf2_n[pf2_ni*10+5]=pf2_idx; pf2_b[0] = pf2_ni; }, false -> { } }; }; pf2_b[0]
+}
+// Primary
+fn ppri_parse(pr_g: Array<Int>, pr_t: Array<Int>, pr_n: Array<Int>) [] -> Int {
+    let pr_tt: Int = tcur(pr_g, pr_t);
+    match pr_tt == 14 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=7; pr_n[pr_ni*10+2]=tsoff(pr_g,pr_t); pr_n[pr_ni*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_ni },
+    false -> match pr_tt == 16 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=8; pr_n[pr_ni*10+2]=tsoff(pr_g,pr_t); pr_n[pr_ni*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_ni },
+    false -> match pr_tt == 11 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=9; pr_n[pr_ni*10+8]=1; do teat(pr_g); pr_ni },
+    false -> match pr_tt == 12 { true -> { let pr_ni: Int = nalloc(pr_g, pr_n); pr_n[pr_ni*10]=9; pr_n[pr_ni*10+8]=0; do teat(pr_g); pr_ni },
+    false -> match pr_tt == 19 { true -> { do teat(pr_g); let pr_ei: Int = pe_parse(pr_g, pr_t, pr_n); do teat(pr_g); pr_ei },
+    false -> match pr_tt == 17 { true -> pb_parse(pr_g, pr_t, pr_n),
+    false -> pic_parse(pr_g, pr_t, pr_n) } } } } } }
+}
+// Ident or call
+fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [] -> Int {
+    let pi_so: Int = tsoff(pi_g, pi_t); let pi_sl: Int = tslen(pi_g, pi_t);
+    do teat(pi_g);
+    match tcur(pi_g, pi_t) == 19 { true -> {
+        do teat(pi_g);
+        let pi_ci: Int = nalloc(pi_g, pi_n); pi_n[pi_ci*10]=14; pi_n[pi_ci*10+2]=pi_so; pi_n[pi_ci*10+3]=pi_sl;
+        pi_g[23] = 0-1; pi_g[24] = 0-1; pi_g[25] = 0;
+        for _pia in range(0, 32) { match tcur(pi_g, pi_t) == 20 { true -> { }, false -> {
+            let pi_ai: Int = pe_parse(pi_g, pi_t, pi_n);
+            match pi_g[23] == 0-1 { true -> { pi_g[23] = pi_ai; pi_g[24] = pi_ai; }, false -> { pi_n[pi_g[24]*10+6] = pi_ai; pi_g[24] = pi_ai; } };
+            pi_g[25] = pi_g[25] + 1;
+            match tcur(pi_g, pi_t) == 42 { true -> { do teat(pi_g); }, false -> { } };
+        } }; };
+        do teat(pi_g);
+        pi_n[pi_ci*10+4] = pi_g[25]; pi_n[pi_ci*10+5] = pi_g[23]; pi_ci
+    }, false -> {
+        let pi_ni: Int = nalloc(pi_g, pi_n); pi_n[pi_ni*10]=10; pi_n[pi_ni*10+2]=pi_so; pi_n[pi_ni*10+3]=pi_sl; pi_ni
+    } }
+}
+// Match
+fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [] -> Int {
+    do teat(pm2_g); let pm2_disc: Int = pe_parse(pm2_g, pm2_t, pm2_n);
+    let pm2_mi: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_mi*10]=16; pm2_n[pm2_mi*10+8]=pm2_disc;
+    do teat(pm2_g);
+    pm2_g[26] = 0-1; pm2_g[27] = 0-1; pm2_g[28] = 0;
+    for _pm2a in range(0, 256) { match tcur(pm2_g, pm2_t) == 18 { true -> { }, false -> {
+        let pm2_ai: Int = nalloc(pm2_g, pm2_n); pm2_n[pm2_ai*10]=17;
+        let pm2_pt: Int = tcur(pm2_g, pm2_t);
+        match pm2_pt == 11 { true -> { pm2_n[pm2_ai*10+8]=1; do teat(pm2_g); },
+        false -> match pm2_pt == 12 { true -> { pm2_n[pm2_ai*10+8]=0; do teat(pm2_g); },
+        false -> match pm2_pt == 14 { true -> { do teat(pm2_g); },
+        false -> { pm2_n[pm2_ai*10+1]=1; do teat(pm2_g); } } } };
+        do teat(pm2_g);
+        let pm2_body: Int = pe_parse(pm2_g, pm2_t, pm2_n);
+        pm2_n[pm2_ai*10+4]=1; pm2_n[pm2_ai*10+5]=pm2_body;
+        match pm2_g[26] == 0-1 { true -> { pm2_g[26] = pm2_ai; pm2_g[27] = pm2_ai; }, false -> { pm2_n[pm2_g[27]*10+6] = pm2_ai; pm2_g[27] = pm2_ai; } };
+        pm2_g[28] = pm2_g[28] + 1;
+        match tcur(pm2_g, pm2_t) == 42 { true -> { do teat(pm2_g); }, false -> { } };
+    } }; };
+    do teat(pm2_g);
+    pm2_n[pm2_mi*10+4]=pm2_g[28]; pm2_n[pm2_mi*10+5]=pm2_g[26]; pm2_mi
+}
+// For
+fn pfor_parse(pfo_g: Array<Int>, pfo_t: Array<Int>, pfo_n: Array<Int>) [] -> Int {
+    do teat(pfo_g);
+    let pfo_fi: Int = nalloc(pfo_g, pfo_n); pfo_n[pfo_fi*10]=18;
+    pfo_n[pfo_fi*10+2]=tsoff(pfo_g,pfo_t); pfo_n[pfo_fi*10+3]=tslen(pfo_g,pfo_t);
+    do teat(pfo_g); do teat(pfo_g); do teat(pfo_g); do teat(pfo_g);
+    let pfo_start: Int = pe_parse(pfo_g, pfo_t, pfo_n);
+    do teat(pfo_g);
+    let pfo_end: Int = pe_parse(pfo_g, pfo_t, pfo_n);
+    do teat(pfo_g);
+    let pfo_body: Int = pb_parse(pfo_g, pfo_t, pfo_n);
+    pfo_n[pfo_fi*10+4]=3; pfo_n[pfo_fi*10+5]=pfo_start;
+    pfo_n[pfo_start*10+6]=pfo_end; pfo_n[pfo_end*10+6]=pfo_body; pfo_fi
 }
 
-// Level 6: ! - (unary) do
-fn parse_unary(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let t: Int = tcur(g, tk);
-    match t == 37 { // TOK_NOT
-        true -> { do teat(g); let ci: Int = parse_unary(g, tk, nd); let ni: Int = nalloc(g, nd); nd[ni*10]=12; nd[ni*10+4]=1; nd[ni*10+5]=ci; ni },
-        false -> match t == 25 { // TOK_MINUS (unary neg)
-            true -> { do teat(g); let ci: Int = parse_unary(g, tk, nd); let ni: Int = nalloc(g, nd); nd[ni*10]=13; nd[ni*10+4]=1; nd[ni*10+5]=ci; ni },
-            false -> match t == 6 { // KW_DO
-                true -> { do teat(g); let ci: Int = parse_postfix(g, tk, nd); let ni: Int = nalloc(g, nd); nd[ni*10]=15; nd[ni*10+4]=1; nd[ni*10+5]=ci; ni },
-                false -> parse_postfix(g, tk, nd),
-            },
-        },
-    }
+fn mkbin(mb_g: Array<Int>, mb_n: Array<Int>, mb_op: Int) [] -> Int {
+    // mb_g[18]=left, mb_g[19]=right (set before calling)
+    let mb_ni: Int = nalloc(mb_g, mb_n);
+    mb_n[mb_ni*10]=11; mb_n[mb_ni*10+1]=mb_op; mb_n[mb_ni*10+4]=2;
+    mb_n[mb_ni*10+5]=mb_g[18]; mb_n[mb_g[18]*10+6]=mb_g[19]; mb_ni
 }
 
-// Level 7: f() arr[i]
-fn parse_postfix(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let base: Array<Int> = Array(1);
-    base[0] = parse_primary(g, tk, nd);
-    for _pi in range(0, 256) {
-        match tcur(g, tk) == 21 { // LBRACKET — array get
-            true -> {
-                do teat(g); // skip [
-                let idx: Int = parse_expr(g, tk, nd);
-                do teat(g); // skip ]
-                let ni: Int = nalloc(g, nd);
-                nd[ni * 10] = 20; // NODE_ARR_GET
-                // Copy name from base (if it's an IDENT)
-                nd[ni * 10 + 2] = nd[base[0] * 10 + 2];
-                nd[ni * 10 + 3] = nd[base[0] * 10 + 3];
-                nd[ni * 10 + 4] = 1;
-                nd[ni * 10 + 5] = idx;
-                base[0] = ni;
-            },
-            false -> { }, // no more postfix
-        };
-    };
-    base[0]
-}
+// Token name
+fn tname(tn_t: Int) [] -> String { match tn_t { 0 -> "KW_FN", 1 -> "KW_LET", 2 -> "KW_TYPE", 3 -> "KW_MATCH", 4 -> "KW_FOR", 5 -> "KW_IN", 6 -> "KW_DO", 7 -> "KW_MODULE", 8 -> "KW_IMPORTS", 9 -> "KW_EXPORTS", 10 -> "KW_SEQUENTIAL", 11 -> "KW_TRUE", 12 -> "KW_FALSE", 13 -> "IDENT", 14 -> "LIT_INT", 15 -> "LIT_FLOAT", 16 -> "LIT_STRING", 17 -> "LBRACE", 18 -> "RBRACE", 19 -> "LPAREN", 20 -> "RPAREN", 21 -> "LBRACKET", 22 -> "RBRACKET", 23 -> "ASSIGN", 24 -> "PLUS", 25 -> "MINUS", 26 -> "STAR", 27 -> "SLASH", 28 -> "PERCENT", 29 -> "EQ", 30 -> "NEQ", 31 -> "LT", 32 -> "GT", 33 -> "LTE", 34 -> "GTE", 35 -> "AND", 36 -> "OR", 37 -> "NOT", 38 -> "ARROW", 39 -> "PIPE", 40 -> "COLON", 41 -> "SEMICOLON", 42 -> "COMMA", 43 -> "DOT", 44 -> "EOF", _ -> "?" } }
 
-// Primary expressions
-fn parse_primary(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let t: Int = tcur(g, tk);
-    match t == 14 { // LIT_INT
-        true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=7; nd[ni*10+2]=tstroff(g,tk); nd[ni*10+3]=tstrlen(g,tk); do teat(g); ni },
-        false -> match t == 16 { // LIT_STRING
-            true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=8; nd[ni*10+2]=tstroff(g,tk); nd[ni*10+3]=tstrlen(g,tk); do teat(g); ni },
-            false -> match t == 11 { // KW_TRUE
-                true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=9; nd[ni*10+8]=1; do teat(g); ni },
-                false -> match t == 12 { // KW_FALSE
-                    true -> { let ni: Int = nalloc(g, nd); nd[ni*10]=9; nd[ni*10+8]=0; do teat(g); ni },
-                    false -> match t == 19 { // LPAREN
-                        true -> { do teat(g); let ei: Int = parse_expr(g, tk, nd); do teat(g); ei }, // skip )
-                        false -> match t == 17 { // LBRACE
-                            true -> parse_block(g, tk, nd),
-                            false -> parse_ident_call(g, tk, nd),
-                        },
-                    },
-                },
-            },
-        },
-    }
-}
-
-// IDENT — variable ref, function call, or Array(n)
-fn parse_ident_call(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    let soff: Int = tstroff(g, tk);
-    let slen: Int = tstrlen(g, tk);
-    do teat(g); // skip IDENT
-    match tcur(g, tk) == 19 { // LPAREN — function call
-        true -> {
-            do teat(g); // skip (
-            let ci: Int = nalloc(g, nd);
-            nd[ci * 10] = 14; // NODE_CALL
-            nd[ci * 10 + 2] = soff;
-            nd[ci * 10 + 3] = slen;
-            // Parse args
-            let afc: Array<Int> = Array(1);
-            afc[0] = 0 - 1;
-            let alc: Array<Int> = Array(1);
-            alc[0] = 0 - 1;
-            let acc: Array<Int> = Array(1);
-            acc[0] = 0;
-            for _ai in range(0, 32) {
-                match tcur(g, tk) == 20 { // RPAREN
-                    true -> { },
-                    false -> {
-                        let argi: Int = parse_expr(g, tk, nd);
-                        do blink(nd, afc, alc, acc, argi);
-                        match tcur(g, tk) == 42 { true -> { do teat(g); }, false -> { } }; // comma
-                    },
-                };
-            };
-            do teat(g); // skip )
-            nd[ci * 10 + 4] = acc[0];
-            nd[ci * 10 + 5] = afc[0];
-            ci
-        },
-        false -> {
-            // Simple variable reference
-            let ni: Int = nalloc(g, nd);
-            nd[ni * 10] = 10; // NODE_IDENT
-            nd[ni * 10 + 2] = soff;
-            nd[ni * 10 + 3] = slen;
-            ni
-        },
-    }
-}
-
-// Match expression
-fn parse_match(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    do teat(g); // skip KW_MATCH
-    let disc: Int = parse_expr(g, tk, nd);
-    let mi: Int = nalloc(g, nd);
-    nd[mi * 10] = 16; // NODE_MATCH
-    nd[mi * 10 + 8] = disc; // extra = discriminant
-    do teat(g); // skip LBRACE
-    let afc: Array<Int> = Array(1);
-    afc[0] = 0 - 1;
-    let alc: Array<Int> = Array(1);
-    alc[0] = 0 - 1;
-    let acc: Array<Int> = Array(1);
-    acc[0] = 0;
-    for _ai in range(0, 256) {
-        match tcur(g, tk) == 18 { // RBRACE
-            true -> { },
-            false -> {
-                let armi: Int = nalloc(g, nd);
-                nd[armi * 10] = 17; // NODE_ARM
-                // Pattern
-                let pt: Int = tcur(g, tk);
-                match pt == 11 { true -> { nd[armi*10+8] = 1; do teat(g); }, // true
-                false -> match pt == 12 { true -> { nd[armi*10+8] = 0; do teat(g); }, // false
-                false -> match pt == 14 { true -> { nd[armi*10+8] = parse_int_val(g, tk); do teat(g); }, // int literal
-                false -> match pt == 13 { true -> { nd[armi*10+1] = 1; do teat(g); }, // wildcard _
-                false -> { do teat(g); } } } } };
-                do teat(g); // skip ARROW (->)
-                let body: Int = parse_expr(g, tk, nd);
-                nd[armi * 10 + 4] = 1;
-                nd[armi * 10 + 5] = body;
-                do blink(nd, afc, alc, acc, armi);
-                match tcur(g, tk) == 42 { true -> { do teat(g); }, false -> { } }; // comma
-            },
-        };
-    };
-    do teat(g); // skip RBRACE
-    nd[mi * 10 + 4] = acc[0];
-    nd[mi * 10 + 5] = afc[0];
-    mi
-}
-
-// For expression
-fn parse_for(g: Array<Int>, tk: Array<Int>, nd: Array<Int>) [] -> Int {
-    do teat(g); // skip KW_FOR
-    let fi: Int = nalloc(g, nd);
-    nd[fi * 10] = 18; // NODE_FOR
-    nd[fi * 10 + 2] = tstroff(g, tk); // loop var name
-    nd[fi * 10 + 3] = tstrlen(g, tk);
-    do teat(g); // skip loop var IDENT
-    do teat(g); // skip KW_IN
-    do teat(g); // skip "range" IDENT
-    do teat(g); // skip LPAREN
-    let start: Int = parse_expr(g, tk, nd);
-    do teat(g); // skip COMMA
-    let endi: Int = parse_expr(g, tk, nd);
-    do teat(g); // skip RPAREN
-    let body: Int = parse_block(g, tk, nd);
-    nd[fi * 10 + 4] = 3; // 3 children: start, end, body
-    nd[fi * 10 + 5] = start;
-    nd[start * 10 + 6] = endi;
-    nd[endi * 10 + 6] = body;
-    fi
-}
-
-// Parse integer literal value from token
-fn parse_int_val(g: Array<Int>, tk: Array<Int>) [] -> Int {
-    // Read digits from string table — but we need the source buffer
-    // For now just return 0 (pattern value will be checked at codegen)
-    0
-}
-
-// Make a BINOP node
-fn mkbin(g: Array<Int>, nd: Array<Int>, op: Int, li: Int, ri: Int) [] -> Int {
-    let ni: Int = nalloc(g, nd);
-    nd[ni * 10] = 11; // NODE_BINOP
-    nd[ni * 10 + 1] = op;
-    nd[ni * 10 + 4] = 2;
-    nd[ni * 10 + 5] = li;
-    nd[li * 10 + 6] = ri; // left.next_sibling = right
-    ni
-}
-
-// AST dump for --dump-ast comparison
-fn dump_ast(g: Array<Int>, nd: Array<Int>, s: Array<Int>) [IO] -> Unit {
-    do print("tokens: " + int_to_string(g[4]));
-    do print("nodes: " + int_to_string(g[12]));
-    // Count functions
-    let fc: Array<Int> = Array(1);
-    fc[0] = 0;
-    for di in range(0, g[12]) {
-        match ntype(nd, di) == 1 { true -> { fc[0] = fc[0] + 1; }, false -> { } };
-    };
-    do print("funcs: " + int_to_string(fc[0]));
-    // Print nodes
-    for di2 in range(0, g[12]) {
-        let nt: Int = ntype(nd, di2);
-        match nt == 0 {
-            true -> do print("  MODULE " + strsub(nd, di2, s)),
-            false -> match nt == 1 {
-                true -> do print("  FN " + strsub(nd, di2, s) + " params=" + int_to_string(nd[di2 * 10 + 4])),
-                false -> match nt == 2 {
-                    true -> do print("    PARAM " + strsub(nd, di2, s)),
-                    false -> match nt == 3 {
-                        true -> do print("    BLOCK (body)"),
-                        false -> { },
-                    },
-                },
-            },
-        };
+// AST dump
+fn dump_ast(da_g: Array<Int>, da_n: Array<Int>) [IO] -> Unit {
+    do print("tokens: " + int_to_string(da_g[4]));
+    do print("nodes: " + int_to_string(da_g[12]));
+    let da_fc: Array<Int> = Array(1); da_fc[0] = 0;
+    for da_i in range(0, da_g[12]) { match da_n[da_i * 10] == 1 { true -> { da_fc[0] = da_fc[0] + 1; }, false -> { } }; };
+    do print("funcs: " + int_to_string(da_fc[0]));
+    for da_j in range(0, da_g[12]) {
+        let da_nt: Int = da_n[da_j * 10];
+        match da_nt == 0 { true -> do print("  MODULE " + int_to_string(da_n[da_j*10+2]) + ":" + int_to_string(da_n[da_j*10+3])),
+        false -> match da_nt == 1 { true -> do print("  FN " + int_to_string(da_n[da_j*10+2]) + ":" + int_to_string(da_n[da_j*10+3]) + " params=" + int_to_string(da_n[da_j*10+4])),
+        false -> match da_nt == 2 { true -> do print("    PARAM " + int_to_string(da_n[da_j*10+2]) + ":" + int_to_string(da_n[da_j*10+3])),
+        false -> match da_nt == 3 { true -> do print("    BLOCK (body)"),
+        false -> { } } } } };
     };
 }
 
-// Extract string from source buffer using node's str_off/str_len
-fn strsub(nd: Array<Int>, i: Int, s: Array<Int>) [] -> String {
-    let off: Int = nd[i * 10 + 2];
-    let xlen: Int = nd[i * 10 + 3];
-    // Build string by concatenating int_to_string of each char... no, that's wrong.
-    // We need to build a String from bytes. Loon-0 doesn't have char→string.
-    // Workaround: the string table bytes in s[] can't be directly converted to String.
-    // For the dump, just print the offset and length for now.
-    // Actually: we already stored the bytes in s[off..off+len] during lexing.
-    // The read_file returned a String. We can use string_char_at on the ORIGINAL
-    // source string... but we don't have it here.
-    // For M2.1a: print offset:length instead of the actual name.
-    int_to_string(off) + ":" + int_to_string(xlen)
-}
-
-// ===== Main =====
+// Main
 fn main() [IO] -> Unit {
-    do print("main start");
     let source: String = read_file(get_arg(1));
-    do print("read ok");
     let slen: Int = string_length(source);
-    do print("slen=" + int_to_string(slen));
-    do print("alloc gs");
     let gs: Array<Int> = Array(32);
-    do print("alloc gb");
     let gb: Array<Int> = Array(131072);
-    do print("alloc gt");
     let gt: Array<Int> = Array(65536);
-    do print("alloc gn");
     let gn: Array<Int> = Array(81920);
-    do print("alloc done");
-    for ci in range(0, slen) {
-        gb[ci] = string_char_at(source, ci);
-    };
-    do print("copy done");
+    for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
-    do print("lex done, tok=" + int_to_string(gs[4]));
-    do parse_program(gs, gt, gn);
-    do print("parse done");
-    do dump_ast(gs, gn, gb);
+    do pp_parse(gs, gt, gn);
+    do dump_ast(gs, gn);
     do exit(0);
 }
