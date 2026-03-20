@@ -189,7 +189,8 @@ fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
     do teat(pb_g);
     let pb_bi: Int = nalloc(pb_g, pb_n);
     pb_n[pb_bi * 10] = 3;
-    pb_g[150]=pb_g[20]; pb_g[151]=pb_g[21]; pb_g[152]=pb_g[22];
+    pb_g[153]=pb_g[153]+1; pb_g[154]=180+pb_g[153]*3;
+    pb_g[pb_g[154]]=pb_g[20]; pb_g[pb_g[154]+1]=pb_g[21]; pb_g[pb_g[154]+2]=pb_g[22];
     pb_g[20] = 0 - 1; pb_g[21] = 0 - 1; pb_g[22] = 0;
     for _pbs in range(0, 65536) {
         match tcur(pb_g, pb_t) == 18 { true -> { }, false -> match tcur(pb_g, pb_t) == 44 { true -> { }, false -> {
@@ -237,7 +238,9 @@ fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
     do teat(pb_g);
     pb_n[pb_bi * 10 + 4] = pb_g[22];
     pb_n[pb_bi * 10 + 5] = pb_g[20];
-    pb_g[20]=pb_g[150]; pb_g[21]=pb_g[151]; pb_g[22]=pb_g[152];
+    pb_g[154]=180+pb_g[153]*3;
+    pb_g[20]=pb_g[pb_g[154]]; pb_g[21]=pb_g[pb_g[154]+1]; pb_g[22]=pb_g[pb_g[154]+2];
+    pb_g[153]=pb_g[153]-1;
     pb_bi
 }
 
@@ -1207,6 +1210,7 @@ fn main() [IO] -> Unit {
     for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
+    gs[46] = 0 - 1; gs[153] = 0 - 1;
     do pp_parse(gs, gt, gn);
     do cg_emit(gs, gn, gb);
     do exit(0);
