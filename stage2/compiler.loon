@@ -7,44 +7,26 @@
 
 module compiler;
 
-// All mutable state is allocated in main() and passed to functions.
-// Loon-0 has no globals — arrays are the only mutable containers.
-//
-// State layout: a single Array<Int> with known offsets
-// This avoids passing dozens of parameters.
-//
-// state[0]  = src_len      (source byte count)
-// state[1]  = src_pos      (current read position)
-// state[2]  = src_line     (current line, 1-indexed)
-// state[3]  = src_col      (current column, 1-indexed)
-// state[4]  = tok_count    (number of tokens)
-// state[5]  = str_pos      (string table write position)
-//
-// Separate arrays for large data:
-//   src[]       — source bytes (1 byte per Int)
-//   tokens[]    — 5 Ints per token: type, str_off, str_len, line, col
-//   str_tab[]   — string table bytes (1 byte per Int)
-
 // ===================================================================
-// Token type constants
+// Token type constants (from ast-format.md)
 // ===================================================================
-fn T_KW_FN() [] -> Int { 0 }
-fn T_KW_LET() [] -> Int { 1 }
-fn T_KW_TYPE() [] -> Int { 2 }
-fn T_KW_MATCH() [] -> Int { 3 }
-fn T_KW_FOR() [] -> Int { 4 }
-fn T_KW_IN() [] -> Int { 5 }
-fn T_KW_DO() [] -> Int { 6 }
-fn T_KW_MODULE() [] -> Int { 7 }
-fn T_KW_IMPORTS() [] -> Int { 8 }
-fn T_KW_EXPORTS() [] -> Int { 9 }
-fn T_KW_SEQ() [] -> Int { 10 }
-fn T_KW_TRUE() [] -> Int { 11 }
-fn T_KW_FALSE() [] -> Int { 12 }
+fn T_FN() [] -> Int { 0 }
+fn T_LET() [] -> Int { 1 }
+fn T_TYPE() [] -> Int { 2 }
+fn T_MATCH() [] -> Int { 3 }
+fn T_FOR() [] -> Int { 4 }
+fn T_IN() [] -> Int { 5 }
+fn T_DO() [] -> Int { 6 }
+fn T_MODULE() [] -> Int { 7 }
+fn T_IMPORTS() [] -> Int { 8 }
+fn T_EXPORTS() [] -> Int { 9 }
+fn T_SEQ() [] -> Int { 10 }
+fn T_TRUE() [] -> Int { 11 }
+fn T_FALSE() [] -> Int { 12 }
 fn T_IDENT() [] -> Int { 13 }
 fn T_INT() [] -> Int { 14 }
 fn T_FLOAT() [] -> Int { 15 }
-fn T_STR() [] -> Int { 16 }
+fn T_STRING() [] -> Int { 16 }
 fn T_LBRACE() [] -> Int { 17 }
 fn T_RBRACE() [] -> Int { 18 }
 fn T_LPAREN() [] -> Int { 19 }
@@ -77,313 +59,224 @@ fn T_EOF() [] -> Int { 44 }
 // ===================================================================
 // Character classification
 // ===================================================================
-fn is_alpha_lower(c: Int) [] -> Bool {
+fn is_lower(c: Int) [] -> Bool {
     match c >= 97 { true -> match c <= 122 { true -> true, false -> false }, false -> false }
 }
-
-fn is_alpha_upper(c: Int) [] -> Bool {
+fn is_upper(c: Int) [] -> Bool {
     match c >= 65 { true -> match c <= 90 { true -> true, false -> false }, false -> false }
 }
-
 fn is_alpha(c: Int) [] -> Bool {
-    match is_alpha_lower(c) { true -> true, false -> match is_alpha_upper(c) { true -> true, false -> match c == 95 { true -> true, false -> false } } }
+    match is_lower(c) { true -> true, false -> match is_upper(c) { true -> true, false -> match c == 95 { true -> true, false -> false } } }
 }
-
 fn is_digit(c: Int) [] -> Bool {
     match c >= 48 { true -> match c <= 57 { true -> true, false -> false }, false -> false }
 }
-
 fn is_alnum(c: Int) [] -> Bool {
     match is_alpha(c) { true -> true, false -> is_digit(c) }
 }
-
 fn is_ws(c: Int) [] -> Bool {
     match c == 32 { true -> true, false -> match c == 9 { true -> true, false -> match c == 10 { true -> true, false -> match c == 13 { true -> true, false -> false } } } }
 }
 
 // ===================================================================
-// Lexer helpers
+// State: st[0]=src_len, st[1]=pos, st[2]=line, st[3]=col,
+//        st[4]=tok_count, st[5]=str_pos, st[6]=mode (0=normal,1=comment)
 // ===================================================================
-fn lex_peek(st: Array<Int>, src: Array<Int>) [] -> Int {
-    match st[1] >= st[0] { true -> 0, false -> src[st[1]] }
-}
 
-fn lex_at_end(st: Array<Int>) [] -> Bool {
-    match st[1] >= st[0] { true -> true, false -> false }
-}
-
-fn lex_advance(st: Array<Int>, src: Array<Int>) [] -> Int {
-    let c: Int = src[st[1]];
+// Advance one byte, update line/col
+fn adv(st: Array<Int>, sb: Array<Int>) [] -> Int {
+    let c: Int = sb[st[1]];
     st[1] = st[1] + 1;
-    match c == 10 {
-        true -> { st[2] = st[2] + 1; st[3] = 1; c },
-        false -> { st[3] = st[3] + 1; c },
-    }
+    match c == 10 { true -> { st[2] = st[2] + 1; st[3] = 1; c }, false -> { st[3] = st[3] + 1; c } }
 }
 
-fn tok_add(st: Array<Int>, toks: Array<Int>, typ: Int, off: Int, len: Int, line: Int, col: Int) [] -> Unit {
+fn peek(st: Array<Int>, sb: Array<Int>) [] -> Int { sb[st[1]] }
+fn atend(st: Array<Int>) [] -> Bool { match st[1] >= st[0] { true -> true, false -> false } }
+
+// Append token
+fn emit(st: Array<Int>, tk: Array<Int>, t: Int, o: Int, l: Int, ln: Int, co: Int) [] -> Unit {
     let b: Int = st[4] * 5;
-    toks[b] = typ;
-    toks[b + 1] = off;
-    toks[b + 2] = len;
-    toks[b + 3] = line;
-    toks[b + 4] = col;
+    tk[b] = t; tk[b + 1] = o; tk[b + 2] = l; tk[b + 3] = ln; tk[b + 4] = co;
     st[4] = st[4] + 1;
 }
 
-fn str_add(st: Array<Int>, stab: Array<Int>, byte: Int) [] -> Unit {
-    stab[st[5]] = byte;
+// Append byte to string table
+fn sadd(st: Array<Int>, tab: Array<Int>, byte: Int) [] -> Unit {
+    tab[st[5]] = byte;
     st[5] = st[5] + 1;
 }
 
 // ===================================================================
-// Keyword matching
+// Keyword match
 // ===================================================================
-fn kw_match(stab: Array<Int>, off: Int, len: Int, kw: String, tok: Int) [] -> Int {
+fn kwm(tab: Array<Int>, off: Int, len: Int, kw: String, tok: Int) [] -> Int {
     match len == string_length(kw) {
         false -> 0 - 1,
         true -> {
             let ok: Array<Int> = Array(1);
             ok[0] = 1;
-            for i in range(0, len) {
-                match stab[off + i] == string_char_at(kw, i) {
-                    true -> { },
-                    false -> { ok[0] = 0; },
-                };
+            for j in range(0, len) {
+                match tab[off + j] == string_char_at(kw, j) { true -> { }, false -> { ok[0] = 0; } };
             };
             match ok[0] { 1 -> tok, _ -> 0 - 1 }
         },
     }
 }
 
-fn lex_kw_or_id(st: Array<Int>, toks: Array<Int>, stab: Array<Int>, off: Int, len: Int, line: Int, col: Int) [] -> Unit {
-    let t: Array<Int> = Array(1);
-    t[0] = 0 - 1;
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "fn", T_KW_FN()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "do", T_KW_DO()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "in", T_KW_IN()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "let", T_KW_LET()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "for", T_KW_FOR()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "type", T_KW_TYPE()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "true", T_KW_TRUE()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "match", T_KW_MATCH()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "false", T_KW_FALSE()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "module", T_KW_MODULE()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "imports", T_KW_IMPORTS()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "exports", T_KW_EXPORTS()); }, false -> { } };
-    match t[0] == 0 - 1 { true -> { t[0] = kw_match(stab, off, len, "sequential", T_KW_SEQ()); }, false -> { } };
-    match t[0] == 0 - 1 {
-        true -> do tok_add(st, toks, T_IDENT(), off, len, line, col),
-        false -> do tok_add(st, toks, t[0], 0, 0, line, col),
+fn kwcheck(st: Array<Int>, tk: Array<Int>, tab: Array<Int>, off: Int, len: Int, ln: Int, co: Int) [] -> Unit {
+    let r: Array<Int> = Array(1);
+    r[0] = 0 - 1;
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "fn", T_FN()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "do", T_DO()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "in", T_IN()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "let", T_LET()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "for", T_FOR()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "type", T_TYPE()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "true", T_TRUE()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "match", T_MATCH()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "false", T_FALSE()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "module", T_MODULE()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "imports", T_IMPORTS()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "exports", T_EXPORTS()); }, false -> { } };
+    match r[0] == 0 - 1 { true -> { r[0] = kwm(tab, off, len, "sequential", T_SEQ()); }, false -> { } };
+    match r[0] == 0 - 1 {
+        true -> do emit(st, tk, T_IDENT(), off, len, ln, co),
+        false -> do emit(st, tk, r[0], 0, 0, ln, co),
     };
 }
 
 // ===================================================================
-// Lexer — read identifier
+// Token readers — each advances st[1] past what it consumes
 // ===================================================================
-fn lex_ident(st: Array<Int>, toks: Array<Int>, src: Array<Int>, stab: Array<Int>, line: Int, col: Int) [] -> Unit {
+
+fn lex_ident(st: Array<Int>, tk: Array<Int>, sb: Array<Int>, tab: Array<Int>, ln: Int, co: Int) [] -> Unit {
     let start: Int = st[5];
-    for _i in range(0, 256) {
-        match lex_at_end(st) {
-            true -> { },
-            false -> match is_alnum(lex_peek(st, src)) {
-                true -> { do str_add(st, stab, lex_advance(st, src)); },
-                false -> { },
-            },
-        };
+    for _k in range(0, 256) {
+        match atend(st) { true -> { }, false -> match is_alnum(peek(st, sb)) { true -> { do sadd(st, tab, adv(st, sb)); }, false -> { } } };
     };
-    do lex_kw_or_id(st, toks, stab, start, st[5] - start, line, col);
+    do kwcheck(st, tk, tab, start, st[5] - start, ln, co);
+}
+
+fn lex_number(st: Array<Int>, tk: Array<Int>, sb: Array<Int>, tab: Array<Int>, ln: Int, co: Int) [] -> Unit {
+    let start: Int = st[5];
+    let fl: Array<Int> = Array(1);
+    fl[0] = 0;
+    for _k in range(0, 256) {
+        match atend(st) { true -> { }, false -> {
+            let c: Int = peek(st, sb);
+            match is_digit(c) { true -> { do sadd(st, tab, adv(st, sb)); }, false -> match c == 46 { true -> match fl[0] == 0 { true -> { fl[0] = 1; do sadd(st, tab, adv(st, sb)); }, false -> { } }, false -> { } } };
+        } };
+    };
+    match fl[0] { 0 -> do emit(st, tk, T_INT(), start, st[5] - start, ln, co), _ -> do emit(st, tk, T_FLOAT(), start, st[5] - start, ln, co) };
+}
+
+fn lex_str(st: Array<Int>, tk: Array<Int>, sb: Array<Int>, tab: Array<Int>, ln: Int, co: Int) [] -> Unit {
+    let _q: Int = adv(st, sb);
+    let start: Int = st[5];
+    for _k in range(0, 65536) {
+        match atend(st) { true -> { }, false -> {
+            let c: Int = peek(st, sb);
+            match c == 34 { true -> { }, false -> match c == 92 {
+                true -> {
+                    let _bs: Int = adv(st, sb);
+                    match atend(st) { true -> { }, false -> {
+                        let ec: Int = adv(st, sb);
+                        match ec { 110 -> { do sadd(st, tab, 10); }, 116 -> { do sadd(st, tab, 9); }, 92 -> { do sadd(st, tab, 92); }, 34 -> { do sadd(st, tab, 34); }, _ -> { do sadd(st, tab, ec); } };
+                    } };
+                },
+                false -> { do sadd(st, tab, adv(st, sb)); },
+            } };
+        } };
+    };
+    match atend(st) { true -> { }, false -> match peek(st, sb) == 34 { true -> { let _cq: Int = adv(st, sb); }, false -> { } } };
+    do emit(st, tk, T_STRING(), start, st[5] - start, ln, co);
+}
+
+fn lex_sym(st: Array<Int>, tk: Array<Int>, sb: Array<Int>, ln: Int, co: Int) [] -> Unit {
+    let c: Int = adv(st, sb);
+    match c {
+        123 -> do emit(st, tk, T_LBRACE(), 0, 0, ln, co),
+        125 -> do emit(st, tk, T_RBRACE(), 0, 0, ln, co),
+        40 -> do emit(st, tk, T_LPAREN(), 0, 0, ln, co),
+        41 -> do emit(st, tk, T_RPAREN(), 0, 0, ln, co),
+        91 -> do emit(st, tk, T_LBRACKET(), 0, 0, ln, co),
+        93 -> do emit(st, tk, T_RBRACKET(), 0, 0, ln, co),
+        43 -> do emit(st, tk, T_PLUS(), 0, 0, ln, co),
+        42 -> do emit(st, tk, T_STAR(), 0, 0, ln, co),
+        37 -> do emit(st, tk, T_PERCENT(), 0, 0, ln, co),
+        58 -> do emit(st, tk, T_COLON(), 0, 0, ln, co),
+        59 -> do emit(st, tk, T_SEMI(), 0, 0, ln, co),
+        44 -> do emit(st, tk, T_COMMA(), 0, 0, ln, co),
+        46 -> do emit(st, tk, T_DOT(), 0, 0, ln, co),
+        45 -> match atend(st) { true -> do emit(st, tk, T_MINUS(), 0, 0, ln, co), false -> match peek(st, sb) == 62 { true -> { let _g: Int = adv(st, sb); do emit(st, tk, T_ARROW(), 0, 0, ln, co); }, false -> do emit(st, tk, T_MINUS(), 0, 0, ln, co) } },
+        61 -> match atend(st) { true -> do emit(st, tk, T_ASSIGN(), 0, 0, ln, co), false -> match peek(st, sb) == 61 { true -> { let _e: Int = adv(st, sb); do emit(st, tk, T_EQ(), 0, 0, ln, co); }, false -> do emit(st, tk, T_ASSIGN(), 0, 0, ln, co) } },
+        33 -> match atend(st) { true -> do emit(st, tk, T_NOT(), 0, 0, ln, co), false -> match peek(st, sb) == 61 { true -> { let _e: Int = adv(st, sb); do emit(st, tk, T_NEQ(), 0, 0, ln, co); }, false -> do emit(st, tk, T_NOT(), 0, 0, ln, co) } },
+        60 -> match atend(st) { true -> do emit(st, tk, T_LT(), 0, 0, ln, co), false -> match peek(st, sb) == 61 { true -> { let _e: Int = adv(st, sb); do emit(st, tk, T_LTE(), 0, 0, ln, co); }, false -> do emit(st, tk, T_LT(), 0, 0, ln, co) } },
+        62 -> match atend(st) { true -> do emit(st, tk, T_GT(), 0, 0, ln, co), false -> match peek(st, sb) == 61 { true -> { let _e: Int = adv(st, sb); do emit(st, tk, T_GTE(), 0, 0, ln, co); }, false -> do emit(st, tk, T_GT(), 0, 0, ln, co) } },
+        38 -> match atend(st) { true -> { }, false -> match peek(st, sb) == 38 { true -> { let _a: Int = adv(st, sb); do emit(st, tk, T_AND(), 0, 0, ln, co); }, false -> { } } },
+        124 -> match atend(st) { true -> { }, false -> match peek(st, sb) == 124 { true -> { let _o: Int = adv(st, sb); do emit(st, tk, T_OR(), 0, 0, ln, co); }, false -> match peek(st, sb) == 62 { true -> { let _p: Int = adv(st, sb); do emit(st, tk, T_PIPE(), 0, 0, ln, co); }, false -> { } } } },
+        _ -> { do print("error: unexpected char at " + int_to_string(ln) + ":" + int_to_string(co)); do exit(1); },
+    };
 }
 
 // ===================================================================
-// Lexer — read number
+// Main lexer loop — flat state machine, one char per iteration
 // ===================================================================
-fn lex_number(st: Array<Int>, toks: Array<Int>, src: Array<Int>, stab: Array<Int>, line: Int, col: Int) [] -> Unit {
-    let start: Int = st[5];
-    let is_float: Array<Int> = Array(1);
-    is_float[0] = 0;
-    for _i in range(0, 256) {
-        match lex_at_end(st) {
+fn lex_all(st: Array<Int>, tk: Array<Int>, sb: Array<Int>, tab: Array<Int>) [] -> Unit {
+    st[1] = 0; st[2] = 1; st[3] = 1; st[4] = 0; st[5] = 0; st[6] = 0;
+
+    for _i in range(0, 1048576) {
+        match atend(st) {
             true -> { },
             false -> {
-                let c: Int = lex_peek(st, src);
-                match is_digit(c) {
-                    true -> { do str_add(st, stab, lex_advance(st, src)); },
-                    false -> match c == 46 {
-                        true -> match is_float[0] == 0 {
-                            true -> { is_float[0] = 1; do str_add(st, stab, lex_advance(st, src)); },
-                            false -> { },
-                        },
-                        false -> { },
+                let c: Int = peek(st, sb);
+                match st[6] == 1 {
+                    // In comment mode: skip until newline
+                    true -> match c == 10 {
+                        true -> { st[6] = 0; let _n: Int = adv(st, sb); },
+                        false -> { let _cc: Int = adv(st, sb); },
                     },
-                };
-            },
-        };
-    };
-    let len: Int = st[5] - start;
-    match is_float[0] {
-        0 -> do tok_add(st, toks, T_INT(), start, len, line, col),
-        _ -> do tok_add(st, toks, T_FLOAT(), start, len, line, col),
-    };
-}
-
-// ===================================================================
-// Lexer — read string
-// ===================================================================
-fn lex_string(st: Array<Int>, toks: Array<Int>, src: Array<Int>, stab: Array<Int>, line: Int, col: Int) [] -> Unit {
-    let _q: Int = lex_advance(st, src); // skip opening "
-    let start: Int = st[5];
-    for _i in range(0, 65536) {
-        match lex_at_end(st) {
-            true -> { },
-            false -> {
-                let c: Int = lex_peek(st, src);
-                match c == 34 { // closing "
-                    true -> { },
-                    false -> match c == 92 { // backslash
-                        true -> {
-                            let _bs: Int = lex_advance(st, src);
-                            match lex_at_end(st) {
-                                true -> { },
-                                false -> {
-                                    let ec: Int = lex_advance(st, src);
-                                    match ec {
-                                        110 -> { do str_add(st, stab, 10); },
-                                        116 -> { do str_add(st, stab, 9); },
-                                        92  -> { do str_add(st, stab, 92); },
-                                        34  -> { do str_add(st, stab, 34); },
-                                        _   -> { do str_add(st, stab, ec); },
-                                    };
+                    false -> match is_ws(c) {
+                        true -> { let _w: Int = adv(st, sb); },
+                        false -> {
+                            let ln: Int = st[2];
+                            let co: Int = st[3];
+                            match c == 47 {
+                                true -> match st[1] + 1 < st[0] {
+                                    true -> match sb[st[1] + 1] == 47 {
+                                        true -> { let _s1: Int = adv(st, sb); let _s2: Int = adv(st, sb); st[6] = 1; },
+                                        false -> { do lex_sym(st, tk, sb, ln, co); },
+                                    },
+                                    false -> { do lex_sym(st, tk, sb, ln, co); },
+                                },
+                                false -> match c == 34 {
+                                    true -> { do lex_str(st, tk, sb, tab, ln, co); },
+                                    false -> match is_alpha(c) {
+                                        true -> { do lex_ident(st, tk, sb, tab, ln, co); },
+                                        false -> match is_digit(c) {
+                                            true -> { do lex_number(st, tk, sb, tab, ln, co); },
+                                            false -> { do lex_sym(st, tk, sb, ln, co); },
+                                        },
+                                    },
                                 },
                             };
                         },
-                        false -> { do str_add(st, stab, lex_advance(st, src)); },
                     },
                 };
             },
         };
     };
-    let len: Int = st[5] - start;
-    match lex_at_end(st) {
-        true -> { },
-        false -> match lex_peek(st, src) == 34 {
-            true -> { let _cq: Int = lex_advance(st, src); },
-            false -> { },
-        },
-    };
-    do tok_add(st, toks, T_STR(), start, len, line, col);
-}
-
-// ===================================================================
-// Lexer — symbols
-// ===================================================================
-fn lex_sym(st: Array<Int>, toks: Array<Int>, src: Array<Int>, line: Int, col: Int) [] -> Unit {
-    let c: Int = lex_advance(st, src);
-    match c {
-        123 -> do tok_add(st, toks, T_LBRACE(), 0, 0, line, col),
-        125 -> do tok_add(st, toks, T_RBRACE(), 0, 0, line, col),
-        40  -> do tok_add(st, toks, T_LPAREN(), 0, 0, line, col),
-        41  -> do tok_add(st, toks, T_RPAREN(), 0, 0, line, col),
-        91  -> do tok_add(st, toks, T_LBRACKET(), 0, 0, line, col),
-        93  -> do tok_add(st, toks, T_RBRACKET(), 0, 0, line, col),
-        43  -> do tok_add(st, toks, T_PLUS(), 0, 0, line, col),
-        42  -> do tok_add(st, toks, T_STAR(), 0, 0, line, col),
-        37  -> do tok_add(st, toks, T_PERCENT(), 0, 0, line, col),
-        58  -> do tok_add(st, toks, T_COLON(), 0, 0, line, col),
-        59  -> do tok_add(st, toks, T_SEMI(), 0, 0, line, col),
-        44  -> do tok_add(st, toks, T_COMMA(), 0, 0, line, col),
-        46  -> do tok_add(st, toks, T_DOT(), 0, 0, line, col),
-        45  -> match lex_at_end(st) { true -> do tok_add(st, toks, T_MINUS(), 0, 0, line, col), false -> match lex_peek(st, src) == 62 { true -> { let _g: Int = lex_advance(st, src); do tok_add(st, toks, T_ARROW(), 0, 0, line, col); }, false -> do tok_add(st, toks, T_MINUS(), 0, 0, line, col) } },
-        61  -> match lex_at_end(st) { true -> do tok_add(st, toks, T_ASSIGN(), 0, 0, line, col), false -> match lex_peek(st, src) == 61 { true -> { let _e: Int = lex_advance(st, src); do tok_add(st, toks, T_EQ(), 0, 0, line, col); }, false -> do tok_add(st, toks, T_ASSIGN(), 0, 0, line, col) } },
-        33  -> match lex_at_end(st) { true -> do tok_add(st, toks, T_NOT(), 0, 0, line, col), false -> match lex_peek(st, src) == 61 { true -> { let _e: Int = lex_advance(st, src); do tok_add(st, toks, T_NEQ(), 0, 0, line, col); }, false -> do tok_add(st, toks, T_NOT(), 0, 0, line, col) } },
-        60  -> match lex_at_end(st) { true -> do tok_add(st, toks, T_LT(), 0, 0, line, col), false -> match lex_peek(st, src) == 61 { true -> { let _e: Int = lex_advance(st, src); do tok_add(st, toks, T_LTE(), 0, 0, line, col); }, false -> do tok_add(st, toks, T_LT(), 0, 0, line, col) } },
-        62  -> match lex_at_end(st) { true -> do tok_add(st, toks, T_GT(), 0, 0, line, col), false -> match lex_peek(st, src) == 61 { true -> { let _e: Int = lex_advance(st, src); do tok_add(st, toks, T_GTE(), 0, 0, line, col); }, false -> do tok_add(st, toks, T_GT(), 0, 0, line, col) } },
-        38  -> match lex_at_end(st) { true -> { }, false -> match lex_peek(st, src) == 38 { true -> { let _a: Int = lex_advance(st, src); do tok_add(st, toks, T_AND(), 0, 0, line, col); }, false -> { } } },
-        124 -> match lex_at_end(st) { true -> { }, false -> match lex_peek(st, src) == 124 { true -> { let _o: Int = lex_advance(st, src); do tok_add(st, toks, T_OR(), 0, 0, line, col); }, false -> match lex_peek(st, src) == 62 { true -> { let _p: Int = lex_advance(st, src); do tok_add(st, toks, T_PIPE(), 0, 0, line, col); }, false -> { } } } },
-        _   -> {
-            do print("error: unexpected character at " + int_to_string(line) + ":" + int_to_string(col));
-            do exit(1);
-        },
-    };
-}
-
-// ===================================================================
-// Lexer — main
-// ===================================================================
-fn lex_all(st: Array<Int>, toks: Array<Int>, src: Array<Int>, stab: Array<Int>) [] -> Unit {
-    st[1] = 0; // src_pos
-    st[2] = 1; // line
-    st[3] = 1; // col
-    st[4] = 0; // tok_count
-    st[5] = 0; // str_pos
-
-    for _iter in range(0, st[0]) {
-        match lex_at_end(st) {
-            true -> { },
-            false -> {
-                // Skip whitespace
-                for _ws in range(0, 1024) {
-                    match lex_at_end(st) {
-                        true -> { },
-                        false -> match is_ws(lex_peek(st, src)) {
-                            true -> { let _w: Int = lex_advance(st, src); },
-                            false -> { },
-                        },
-                    };
-                };
-                match lex_at_end(st) {
-                    true -> { },
-                    false -> {
-                        let line: Int = st[2];
-                        let col: Int = st[3];
-                        let c: Int = lex_peek(st, src);
-                        match c == 47 {
-                            true -> match st[1] + 1 < st[0] {
-                                true -> match src[st[1] + 1] == 47 {
-                                    true -> {
-                                        let _s1: Int = lex_advance(st, src);
-                                        let _s2: Int = lex_advance(st, src);
-                                        for _cm in range(0, st[0]) {
-                                            match lex_at_end(st) {
-                                                true -> { },
-                                                false -> match lex_peek(st, src) == 10 {
-                                                    true -> { },
-                                                    false -> { let _cc: Int = lex_advance(st, src); },
-                                                },
-                                            };
-                                        };
-                                    },
-                                    false -> { do lex_sym(st, toks, src, line, col); },
-                                },
-                                false -> { do lex_sym(st, toks, src, line, col); },
-                            },
-                            false -> match c == 34 {
-                                true -> { do lex_string(st, toks, src, stab, line, col); },
-                                false -> match is_alpha(c) {
-                                    true -> { do lex_ident(st, toks, src, stab, line, col); },
-                                    false -> match is_digit(c) {
-                                        true -> { do lex_number(st, toks, src, stab, line, col); },
-                                        false -> { do lex_sym(st, toks, src, line, col); },
-                                    },
-                                },
-                            },
-                        };
-                    },
-                };
-            },
-        };
-    };
-    do tok_add(st, toks, T_EOF(), 0, 0, st[2], st[3]);
+    do emit(st, tk, T_EOF(), 0, 0, st[2], st[3]);
 }
 
 // ===================================================================
 // Token name for debug
 // ===================================================================
-fn tok_name(t: Int) [] -> String {
+fn tname(t: Int) [] -> String {
     match t {
-        0  -> "KW_FN", 1  -> "KW_LET", 2  -> "KW_TYPE", 3  -> "KW_MATCH",
-        4  -> "KW_FOR", 5  -> "KW_IN", 6  -> "KW_DO", 7  -> "KW_MODULE",
-        8  -> "KW_IMPORTS", 9  -> "KW_EXPORTS", 10 -> "KW_SEQUENTIAL",
+        0 -> "KW_FN", 1 -> "KW_LET", 2 -> "KW_TYPE", 3 -> "KW_MATCH",
+        4 -> "KW_FOR", 5 -> "KW_IN", 6 -> "KW_DO", 7 -> "KW_MODULE",
+        8 -> "KW_IMPORTS", 9 -> "KW_EXPORTS", 10 -> "KW_SEQUENTIAL",
         11 -> "KW_TRUE", 12 -> "KW_FALSE", 13 -> "IDENT", 14 -> "LIT_INT",
         15 -> "LIT_FLOAT", 16 -> "LIT_STRING", 17 -> "LBRACE", 18 -> "RBRACE",
         19 -> "LPAREN", 20 -> "RPAREN", 21 -> "LBRACKET", 22 -> "RBRACKET",
@@ -404,29 +297,27 @@ fn main() [IO] -> Unit {
     let source: String = read_file(path);
     let slen: Int = string_length(source);
 
-    // Allocate all state
-    let st: Array<Int> = Array(16);   // state vector
-    let src: Array<Int> = Array(65536);    // source bytes
-    let toks: Array<Int> = Array(65536);   // token array (5 fields × 13107 max)
-    let stab: Array<Int> = Array(65536);   // string table bytes
+    let gst: Array<Int> = Array(16);
+    let gsb: Array<Int> = Array(65536);
+    let gtk: Array<Int> = Array(65536);
+    let gtab: Array<Int> = Array(65536);
 
     // Copy source bytes
-    for i in range(0, slen) {
-        src[i] = string_char_at(source, i);
+    for ci in range(0, slen) {
+        gsb[ci] = string_char_at(source, ci);
     };
-    st[0] = slen; // src_len
+    gst[0] = slen;
+    do print("slen=" + int_to_string(slen));
+    do print("gst0=" + int_to_string(gst[0]));
 
     // Lex
-    do lex_all(st, toks, src, stab);
+    do lex_all(gst, gtk, gsb, gtab);
 
-    // Print token count
-    do print("tokens: " + int_to_string(st[4]));
-
-    // Dump simplified: type + position
-    for i in range(0, st[4]) {
-        let b: Int = i * 5;
-        do print(tok_name(toks[b]) + " " + int_to_string(toks[b + 3]) + ":" + int_to_string(toks[b + 4]));
+    // Print token count + tokens (type + position only)
+    do print("tokens: " + int_to_string(gst[4]));
+    for ti in range(0, gst[4]) {
+        let b: Int = ti * 5;
+        do print(tname(gtk[b]) + " " + int_to_string(gtk[b + 3]) + ":" + int_to_string(gtk[b + 4]));
     };
-
     do exit(0);
 }

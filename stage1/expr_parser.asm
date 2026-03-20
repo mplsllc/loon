@@ -157,10 +157,11 @@ expr_pb_loop:
     cmp eax, TOK_KW_LET
     je expr_pb_let
 
-    ; Check for array_set: IDENT LBRACKET → always array_set_stmt (LL(1) rule)
+    ; Check for array_set: IDENT LBRACKET expr RBRACKET ASSIGN
+    ; Must look past the index expression to find RBRACKET then ASSIGN
     cmp eax, TOK_IDENT
     jne expr_pb_not_array_set
-    ; Peek at next token
+    ; Peek at next token — must be LBRACKET
     mov rax, [rel tok_pos]
     inc rax
     cmp rax, [rel tok_count]
@@ -169,7 +170,55 @@ expr_pb_loop:
     lea rsi, [rel tokens]
     movzx eax, byte [rsi + rax]
     cmp eax, TOK_LBRACKET
+    jne expr_pb_not_array_set
+    ; Scan forward from tok_pos+2 to find matching RBRACKET
+    ; then check if next token is ASSIGN
+    push rcx
+    push rdx
+    mov rcx, [rel tok_pos]
+    add rcx, 2                     ; start after IDENT LBRACKET
+    mov edx, 1                     ; bracket depth
+expr_pb_scan_bracket:
+    cmp rcx, [rel tok_count]
+    jge expr_pb_not_array_set_pop
+    mov rax, rcx
+    imul rax, TOKEN_SIZE
+    lea rsi, [rel tokens]
+    movzx eax, byte [rsi + rax]
+    cmp eax, TOK_LBRACKET
+    je expr_pb_scan_open
+    cmp eax, TOK_RBRACKET
+    je expr_pb_scan_close
+    inc rcx
+    jmp expr_pb_scan_bracket
+expr_pb_scan_open:
+    inc edx
+    inc rcx
+    jmp expr_pb_scan_bracket
+expr_pb_scan_close:
+    dec edx
+    cmp edx, 0
+    jne expr_pb_scan_next
+    ; Found matching RBRACKET at position rcx
+    ; Check if next token is ASSIGN
+    inc rcx
+    cmp rcx, [rel tok_count]
+    jge expr_pb_not_array_set_pop
+    mov rax, rcx
+    imul rax, TOKEN_SIZE
+    lea rsi, [rel tokens]
+    movzx eax, byte [rsi + rax]
+    pop rdx
+    pop rcx
+    cmp eax, TOK_ASSIGN
     je expr_pb_array_set
+    jmp expr_pb_not_array_set
+expr_pb_scan_next:
+    inc rcx
+    jmp expr_pb_scan_bracket
+expr_pb_not_array_set_pop:
+    pop rdx
+    pop rcx
 
 expr_pb_not_array_set:
     ; Parse expression

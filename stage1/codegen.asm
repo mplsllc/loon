@@ -602,7 +602,7 @@ cg_als_for:
 
 cg_als_match:
     ; Walk match arms and recurse into arm bodies
-    ; Match arms are in the sibling chain from first_child
+    ; Arms may contain blocks with let/for inside (e.g., kw_match in compiler.loon)
     mov r13d, [rbx + 16]           ; first arm
 cg_als_match_arm:
     cmp r13d, NO_CHILD
@@ -611,9 +611,44 @@ cg_als_match_arm:
     imul eax, NODE_SIZE
     lea rbx, [rel nodes]
     add rbx, rax
-    ; Arm body is first_child — but it's an expression, not necessarily a block
-    ; No need to recurse unless it contains nested for/let
-    ; For simplicity, skip recursion into match arms for now
+    ; Arm body is first_child — check if it's a BLOCK
+    mov eax, [rbx + 16]            ; first_child of arm = body expression
+    cmp eax, NO_CHILD
+    je cg_als_match_arm_next
+    push rbx
+    push r13
+    imul eax, NODE_SIZE
+    lea rdi, [rel nodes]
+    add rdi, rax
+    movzx eax, byte [rdi]
+    cmp eax, NODE_BLOCK
+    jne cg_als_match_arm_not_block
+    ; It's a block — recurse
+    mov eax, [rbx + 16]
+    mov edi, eax
+    call cg_assign_let_slots
+    jmp cg_als_match_arm_recursed
+cg_als_match_arm_not_block:
+    ; Check if it's a FOR or MATCH directly (unlikely but handle it)
+    cmp eax, NODE_FOR
+    jne cg_als_match_arm_recursed
+    ; Assign FOR slots
+    mov eax, [rbx + 16]
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
+    add r14d, 8
+    mov [rbx + 28], r14d
+    add r14d, 8
+cg_als_match_arm_recursed:
+    pop r13
+    pop rbx
+cg_als_match_arm_next:
+    ; Recalculate rbx for current arm (may have been clobbered)
+    mov eax, r13d
+    imul eax, NODE_SIZE
+    lea rbx, [rel nodes]
+    add rbx, rax
     mov r13d, [rbx + 20]           ; next_sibling
     jmp cg_als_match_arm
 
