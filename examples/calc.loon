@@ -1,0 +1,161 @@
+// calc.loon — A calculator that reads arithmetic expressions and evaluates them.
+// Exercises: ADTs (expression tree), recursion, string matching, string_char_at,
+// string_length, int_to_string, pattern matching, the full Loon-0 feature set.
+//
+// Supports: integers, +, -, *, /, parentheses
+// Usage: echo "3 + 4 * (2 - 1)" | ./calc
+// Output: 7
+module calc;
+
+// Expression tree — the heart of the calculator
+type Expr {
+    Num(value: Int),
+    Add(left: Int, right: Int),
+    Sub(left: Int, right: Int),
+    Mul(left: Int, right: Int),
+    Div(left: Int, right: Int),
+}
+
+// ===== Lexer =====
+// Tokenize input into a flat array: [type, value, type, value, ...]
+// Token types: 0=NUM, 1=PLUS, 2=MINUS, 3=STAR, 4=SLASH, 5=LPAREN, 6=RPAREN, 7=EOF
+
+fn lex(lx_src: String, lx_toks: Array<Int>) [IO] -> Int {
+    let lx_len: Int = string_length(lx_src);
+    let lx_pos: Array<Int> = Array(1); lx_pos[0] = 0;
+    let lx_tc: Array<Int> = Array(1); lx_tc[0] = 0;
+    for _li in range(0, 256) {
+        match lx_pos[0] < lx_len { true -> {
+            let lx_ch: Int = string_char_at(lx_src, lx_pos[0]);
+            // Skip whitespace
+            match lx_ch == 32 { true -> { lx_pos[0] = lx_pos[0] + 1; }, false ->
+            match lx_ch == 10 { true -> { lx_pos[0] = lx_pos[0] + 1; }, false ->
+            // Operators
+            match lx_ch == 43 { true -> { lx_toks[lx_tc[0] * 2] = 1; lx_toks[lx_tc[0] * 2 + 1] = 0; lx_tc[0] = lx_tc[0] + 1; lx_pos[0] = lx_pos[0] + 1; }, false ->
+            match lx_ch == 45 { true -> { lx_toks[lx_tc[0] * 2] = 2; lx_toks[lx_tc[0] * 2 + 1] = 0; lx_tc[0] = lx_tc[0] + 1; lx_pos[0] = lx_pos[0] + 1; }, false ->
+            match lx_ch == 42 { true -> { lx_toks[lx_tc[0] * 2] = 3; lx_toks[lx_tc[0] * 2 + 1] = 0; lx_tc[0] = lx_tc[0] + 1; lx_pos[0] = lx_pos[0] + 1; }, false ->
+            match lx_ch == 47 { true -> { lx_toks[lx_tc[0] * 2] = 4; lx_toks[lx_tc[0] * 2 + 1] = 0; lx_tc[0] = lx_tc[0] + 1; lx_pos[0] = lx_pos[0] + 1; }, false ->
+            match lx_ch == 40 { true -> { lx_toks[lx_tc[0] * 2] = 5; lx_toks[lx_tc[0] * 2 + 1] = 0; lx_tc[0] = lx_tc[0] + 1; lx_pos[0] = lx_pos[0] + 1; }, false ->
+            match lx_ch == 41 { true -> { lx_toks[lx_tc[0] * 2] = 6; lx_toks[lx_tc[0] * 2 + 1] = 0; lx_tc[0] = lx_tc[0] + 1; lx_pos[0] = lx_pos[0] + 1; }, false ->
+            // Digits → number
+            match lx_ch >= 48 { true -> match lx_ch <= 57 { true -> {
+                let lx_val: Array<Int> = Array(1); lx_val[0] = 0;
+                for _ld in range(0, 32) {
+                    match lx_pos[0] < lx_len { true -> {
+                        let lx_d: Int = string_char_at(lx_src, lx_pos[0]);
+                        match lx_d >= 48 { true -> match lx_d <= 57 { true -> {
+                            lx_val[0] = lx_val[0] * 10 + (lx_d - 48);
+                            lx_pos[0] = lx_pos[0] + 1;
+                        }, false -> { } }, false -> { } };
+                    }, false -> { } };
+                };
+                lx_toks[lx_tc[0] * 2] = 0; lx_toks[lx_tc[0] * 2 + 1] = lx_val[0];
+                lx_tc[0] = lx_tc[0] + 1;
+            }, false -> { lx_pos[0] = lx_pos[0] + 1; } }, false -> { lx_pos[0] = lx_pos[0] + 1; } }
+            } } } } } } } };
+        }, false -> { } };
+    };
+    // Append EOF
+    lx_toks[lx_tc[0] * 2] = 7; lx_toks[lx_tc[0] * 2 + 1] = 0;
+    lx_tc[0]
+}
+
+// ===== Parser (recursive descent with precedence) =====
+// Builds expression tree in a flat node array: [type, val_or_left, right, ...]
+// Node types: 0=Num, 1=Add, 2=Sub, 3=Mul, 4=Div
+// Each node: 3 ints [type, left/value, right]
+// State array: st[0]=token position, st[1]=node count
+
+fn parse_expr(px_toks: Array<Int>, px_st: Array<Int>, px_nodes: Array<Int>) [] -> Int {
+    let px_left: Array<Int> = Array(1);
+    px_left[0] = parse_term(px_toks, px_st, px_nodes);
+    for _pe in range(0, 256) {
+        let px_tt: Int = px_toks[px_st[0] * 2];
+        match px_tt == 1 { true -> {
+            px_st[0] = px_st[0] + 1;
+            let px_right: Int = parse_term(px_toks, px_st, px_nodes);
+            let px_ni: Int = px_st[1]; px_st[1] = px_st[1] + 1;
+            px_nodes[px_ni * 3] = 1; px_nodes[px_ni * 3 + 1] = px_left[0]; px_nodes[px_ni * 3 + 2] = px_right;
+            px_left[0] = px_ni;
+        }, false -> match px_tt == 2 { true -> {
+            px_st[0] = px_st[0] + 1;
+            let px_right: Int = parse_term(px_toks, px_st, px_nodes);
+            let px_ni: Int = px_st[1]; px_st[1] = px_st[1] + 1;
+            px_nodes[px_ni * 3] = 2; px_nodes[px_ni * 3 + 1] = px_left[0]; px_nodes[px_ni * 3 + 2] = px_right;
+            px_left[0] = px_ni;
+        }, false -> { } } };
+    };
+    px_left[0]
+}
+
+fn parse_term(pt_toks: Array<Int>, pt_st: Array<Int>, pt_nodes: Array<Int>) [] -> Int {
+    let pt_left: Array<Int> = Array(1);
+    pt_left[0] = parse_primary(pt_toks, pt_st, pt_nodes);
+    for _pt in range(0, 256) {
+        let pt_tt: Int = pt_toks[pt_st[0] * 2];
+        match pt_tt == 3 { true -> {
+            pt_st[0] = pt_st[0] + 1;
+            let pt_right: Int = parse_primary(pt_toks, pt_st, pt_nodes);
+            let pt_ni: Int = pt_st[1]; pt_st[1] = pt_st[1] + 1;
+            pt_nodes[pt_ni * 3] = 3; pt_nodes[pt_ni * 3 + 1] = pt_left[0]; pt_nodes[pt_ni * 3 + 2] = pt_right;
+            pt_left[0] = pt_ni;
+        }, false -> match pt_tt == 4 { true -> {
+            pt_st[0] = pt_st[0] + 1;
+            let pt_right: Int = parse_primary(pt_toks, pt_st, pt_nodes);
+            let pt_ni: Int = pt_st[1]; pt_st[1] = pt_st[1] + 1;
+            pt_nodes[pt_ni * 3] = 4; pt_nodes[pt_ni * 3 + 1] = pt_left[0]; pt_nodes[pt_ni * 3 + 2] = pt_right;
+            pt_left[0] = pt_ni;
+        }, false -> { } } };
+    };
+    pt_left[0]
+}
+
+fn parse_primary(pp_toks: Array<Int>, pp_st: Array<Int>, pp_nodes: Array<Int>) [] -> Int {
+    let pp_tt: Int = pp_toks[pp_st[0] * 2];
+    match pp_tt == 0 { true -> {
+        let pp_val: Int = pp_toks[pp_st[0] * 2 + 1];
+        pp_st[0] = pp_st[0] + 1;
+        let pp_ni: Int = pp_st[1]; pp_st[1] = pp_st[1] + 1;
+        pp_nodes[pp_ni * 3] = 0; pp_nodes[pp_ni * 3 + 1] = pp_val; pp_nodes[pp_ni * 3 + 2] = 0;
+        pp_ni
+    }, false -> match pp_tt == 5 { true -> {
+        pp_st[0] = pp_st[0] + 1;
+        let pp_inner: Int = parse_expr(pp_toks, pp_st, pp_nodes);
+        pp_st[0] = pp_st[0] + 1;
+        pp_inner
+    }, false -> {
+        let pp_ni: Int = pp_st[1]; pp_st[1] = pp_st[1] + 1;
+        pp_nodes[pp_ni * 3] = 0; pp_nodes[pp_ni * 3 + 1] = 0; pp_nodes[pp_ni * 3 + 2] = 0;
+        pp_ni
+    } } }
+}
+
+// ===== Evaluator =====
+
+fn eval_node(ev_nodes: Array<Int>, ev_ni: Int) [] -> Int {
+    let ev_type: Int = ev_nodes[ev_ni * 3];
+    match ev_type == 0 { true -> ev_nodes[ev_ni * 3 + 1], // Num → value
+    false -> {
+        let ev_left: Int = eval_node(ev_nodes, ev_nodes[ev_ni * 3 + 1]);
+        let ev_right: Int = eval_node(ev_nodes, ev_nodes[ev_ni * 3 + 2]);
+        match ev_type == 1 { true -> ev_left + ev_right,
+        false -> match ev_type == 2 { true -> ev_left - ev_right,
+        false -> match ev_type == 3 { true -> ev_left * ev_right,
+        false -> match ev_type == 4 { true -> ev_left / ev_right,
+        false -> 0 } } } }
+    } }
+}
+
+// ===== Main =====
+
+fn main() [IO] -> Unit {
+    let input: String = read_file(get_arg(1));
+    let toks: Array<Int> = Array(512);
+    let nodes: Array<Int> = Array(512);
+    let st: Array<Int> = Array(2); st[0] = 0; st[1] = 0; // st[0]=pos, st[1]=node_count
+    do lex(input, toks);
+    let root: Int = parse_expr(toks, st, nodes);
+    let result: Int = eval_node(nodes, root);
+    do print(int_to_string(result));
+    do exit(0);
+}
