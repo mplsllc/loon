@@ -446,6 +446,8 @@ cgx_call_expr:
     je cgx_call_get_arg
     cmp eax, BUILTIN_READ_FILE
     je cgx_call_read_file
+    ; string_char_at and string_equals use the general call handler
+    ; (16-byte push/pop pairs set up args correctly)
 
     ; General function call: evaluate args, push 16 bytes per arg (rax+rdx),
     ; then pop into register pairs (rdi/rsi, rdx/rcx, r8/r9)

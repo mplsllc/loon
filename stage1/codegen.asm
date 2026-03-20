@@ -122,7 +122,7 @@ cg_str_len_equ:     db "_len equ "
 cg_str_len_equ_len  equ $ - cg_str_len_equ
 
 ; Bump heap in compiled output
-cg_bump_heap_decl:  db "    _bump_heap resb 1048576", 10
+cg_bump_heap_decl:  db "    _bump_heap resb 16777216", 10
 cg_bump_heap_len    equ $ - cg_bump_heap_decl
 cg_bump_pos_decl:   db "    _bump_pos  dq _bump_heap", 10
 cg_bump_pos_len     equ $ - cg_bump_pos_decl
@@ -150,7 +150,7 @@ cg_rt_string_concat_label: db "fn_string_concat:", 10
 cg_rt_string_concat_label_len equ $ - cg_rt_string_concat_label
 
 section .bss
-cg_outbuf   resb 8192      ; output buffer
+cg_outbuf   resb 65536     ; output buffer (64KB)
 cg_outpos   resq 1         ; current write position in output buffer
 cg_itoa_buf resb 32        ; scratch for number→string
 cg_str_lit_count resq 1    ; number of string literals emitted in .data
@@ -1042,6 +1042,16 @@ cg_emit_runtime:
     mov rdx, cg_rt_read_file_len
     call cg_write
 
+    ; --- fn_string_char_at: rdi=str_ptr, rsi=str_len, rdx=index, returns rax=byte ---
+    lea rsi, [rel cg_rt_string_char_at]
+    mov rdx, cg_rt_string_char_at_len
+    call cg_write
+
+    ; --- fn_string_equals: rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2, returns rax=0/1 ---
+    lea rsi, [rel cg_rt_string_equals]
+    mov rdx, cg_rt_string_equals_len
+    call cg_write
+
     pop rbx
     ret
 
@@ -1199,6 +1209,35 @@ cg_rt_get_arg:
     db "    ret", 10, 10
 cg_rt_get_arg_len equ $ - cg_rt_get_arg
 
+cg_rt_string_char_at:
+    db "fn_string_char_at:", 10
+    db "    ; string_char_at(str_ptr=rdi, str_len=rsi, index=rdx) -> byte", 10
+    db "    movzx rax, byte [rdi + rdx]", 10
+    db "    ret", 10, 10
+cg_rt_string_char_at_len equ $ - cg_rt_string_char_at
+
+cg_rt_string_equals:
+    db "fn_string_equals:", 10
+    db "    ; string_equals(ptr1=rdi, len1=rsi, ptr2=rdx, len2=rcx) -> 0/1", 10
+    db "    cmp rsi, rcx", 10
+    db "    jne .seq_false", 10
+    db "    xor r8, r8", 10
+    db ".seq_loop:", 10
+    db "    cmp r8, rsi", 10
+    db "    jge .seq_true", 10
+    db "    movzx rax, byte [rdi + r8]", 10
+    db "    cmp al, byte [rdx + r8]", 10
+    db "    jne .seq_false", 10
+    db "    inc r8", 10
+    db "    jmp .seq_loop", 10
+    db ".seq_true:", 10
+    db "    mov rax, 1", 10
+    db "    ret", 10
+    db ".seq_false:", 10
+    db "    xor rax, rax", 10
+    db "    ret", 10, 10
+cg_rt_string_equals_len equ $ - cg_rt_string_equals
+
 cg_rt_read_file:
     db "fn_read_file:", 10
     db "    ; read_file(path: String) -> String", 10
@@ -1280,7 +1319,7 @@ cg_write:
     ; Check if buffer has space
     mov rax, [rel cg_outpos]
     add rax, rcx
-    cmp rax, 8192
+    cmp rax, 65536
     jge cg_write_flush_first
 
 cg_write_copy:
@@ -1312,9 +1351,11 @@ cg_write_done:
 ; cg_flush — write output buffer to stdout
 cg_flush:
     push rax
+    push rcx                       ; save rcx — write syscall clobbers it
     push rdi
     push rsi
     push rdx
+    push r11                       ; save r11 — write syscall clobbers it
 
     mov rdx, [rel cg_outpos]
     cmp rdx, 0
@@ -1329,9 +1370,11 @@ cg_flush:
     mov [rel cg_outpos], rax
 
 cg_flush_done:
+    pop r11
     pop rdx
     pop rsi
     pop rdi
+    pop rcx
     pop rax
     ret
 
