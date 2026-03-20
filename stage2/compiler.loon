@@ -682,7 +682,7 @@ fn cg_add_var(av_g: Array<Int>, av_n: Array<Int>, av_s: Array<Int>) [] -> Unit {
 fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Unit {
     let ws_ci: Array<Int> = Array(1); ws_ci[0] = ws_g[31];
     for _ws in range(0, 65536) {
-        match ws_ci[0] >= 0 { true -> {
+        match ws_ci[0] >= 1 { true -> match ws_ci[0] < ws_g[12] { true -> {
             ws_g[136] = ws_n[ws_ci[0] * 10]; // node type
             // If NODE_LET — assign a slot
             match ws_g[136] == 4 { true -> {
@@ -697,10 +697,11 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                 ws_g[33] = ws_g[33] + 8;
             }, false -> { } };
             // Recurse into first_child (depth-first)
-            match ws_n[ws_ci[0] * 10 + 5] >= 0 { true -> { ws_g[31] = ws_n[ws_ci[0] * 10 + 5]; do cg_walk_slots(ws_g, ws_n, ws_s); }, false -> { } };
+            ws_g[138] = ws_n[ws_ci[0] * 10 + 5];
+            match ws_g[138] >= 1 { true -> match ws_g[138] < ws_g[12] { true -> { ws_g[31] = ws_g[138]; do cg_walk_slots(ws_g, ws_n, ws_s); }, false -> { } }, false -> { } };
             // Move to next_sibling (iteration, not recursion)
             ws_ci[0] = ws_n[ws_ci[0] * 10 + 6];
-        }, false -> { } };
+        }, false -> { ws_ci[0] = 0 - 1; } }, false -> { ws_ci[0] = 0 - 1; } };
     };
 }
 
