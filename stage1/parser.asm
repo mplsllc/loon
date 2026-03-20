@@ -31,7 +31,7 @@
 ;   20:12 padding
 
 %define NODE_SIZE 32
-%define MAX_NODES 16384
+%define MAX_NODES 32768
 %define FUNC_ENTRY_SIZE 32
 %define MAX_FUNCS 256
 %define NO_CHILD 0xFFFFFFFF

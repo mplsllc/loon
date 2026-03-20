@@ -355,15 +355,18 @@ fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [] -> Int {
     match tcur(pi_g, pi_t) == 19 { true -> {
         do teat(pi_g);
         let pi_ci: Int = nalloc(pi_g, pi_n); pi_n[pi_ci*10]=14; pi_n[pi_ci*10+2]=pi_so; pi_n[pi_ci*10+3]=pi_sl;
-        pi_g[23] = 0-1; pi_g[24] = 0-1; pi_g[25] = 0;
+        pi_g[112]=pi_g[23]; pi_g[113]=pi_g[24]; pi_g[114]=pi_g[25];
+        pi_g[23]=0-1; pi_g[24]=0-1; pi_g[25]=0;
         for _pia in range(0, 32) { match tcur(pi_g, pi_t) == 20 { true -> { }, false -> {
-            let pi_ai: Int = pe_parse(pi_g, pi_t, pi_n);
-            match pi_g[23] == 0-1 { true -> { pi_g[23] = pi_ai; pi_g[24] = pi_ai; }, false -> { pi_n[pi_g[24]*10+6] = pi_ai; pi_g[24] = pi_ai; } };
-            pi_g[25] = pi_g[25] + 1;
-            match tcur(pi_g, pi_t) == 42 { true -> { do teat(pi_g); }, false -> { } };
+            pi_g[110]=pe_parse(pi_g, pi_t, pi_n);
+            match pi_g[23]==0-1 { true -> { pi_g[23]=pi_g[110]; pi_g[24]=pi_g[110]; }, false -> { pi_n[pi_g[24]*10+6]=pi_g[110]; pi_g[24]=pi_g[110]; } };
+            pi_g[25]=pi_g[25]+1;
+            match tcur(pi_g, pi_t)==42 { true -> { do teat(pi_g); }, false -> { } };
         } }; };
         do teat(pi_g);
-        pi_n[pi_ci*10+4] = pi_g[25]; pi_n[pi_ci*10+5] = pi_g[23]; pi_ci
+        pi_n[pi_ci*10+4]=pi_g[25]; pi_n[pi_ci*10+5]=pi_g[23];
+        pi_g[23]=pi_g[112]; pi_g[24]=pi_g[113]; pi_g[25]=pi_g[114];
+        pi_ci
     }, false -> {
         let pi_ni: Int = nalloc(pi_g, pi_n); pi_n[pi_ni*10]=10; pi_n[pi_ni*10+2]=pi_so; pi_n[pi_ni*10+3]=pi_sl; pi_ni
     } }
@@ -1092,7 +1095,7 @@ fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(32);
+    let gs: Array<Int> = Array(200);
     let gb: Array<Int> = Array(131072);
     let gt: Array<Int> = Array(65536);
     let gn: Array<Int> = Array(81920);
