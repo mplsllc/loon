@@ -1360,7 +1360,7 @@ cg_rt_read_file:
     db "    mov r8, [rel _bump_pos]", 10
     db "    mov rdi, r9", 10            ; fd
     db "    mov rsi, r8", 10            ; buffer
-    db "    mov rdx, 65536", 10         ; max read
+    db "    mov rdx, 1048576", 10       ; max read (1MB)
     db "    mov rax, 0", 10             ; SYS_READ
     db "    syscall", 10
     db "    mov r10, rax", 10           ; bytes read

@@ -590,7 +590,7 @@ fn cg_rt_readfile(rf_g: Array<Int>, rf_n: Array<Int>, rf_s: Array<Int>) [IO] -> 
     do emit_line("    mov [rbp-24], rax"); // fd
     // read into bump heap after the filename
     do emit_line("    lea r9, [r8 + 256]"); // skip past filename
-    do emit_line("    mov rdi, [rbp-24]"); do emit_line("    mov rsi, r9"); do emit_line("    mov rdx, 65536");
+    do emit_line("    mov rdi, [rbp-24]"); do emit_line("    mov rsi, r9"); do emit_line("    mov rdx, 1048576");
     do emit_line("    mov rax, 0"); do emit_line("    syscall"); // read
     do emit_line("    mov [rbp-32], rax"); // bytes read
     // close
@@ -881,7 +881,14 @@ fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit 
 }
 fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
     do print_raw(".Lm"); do print_raw(int_to_string(ab_g[117])); do print_raw("_a"); do print_raw(int_to_string(ab_g[119])); do emit_line(":");
+    ab_g[121]=ab_g[121]+1; ab_g[122]=200+ab_g[121]*6;
+    ab_g[ab_g[122]]=ab_g[115]; ab_g[ab_g[122]+1]=ab_g[116]; ab_g[ab_g[122]+2]=ab_g[117];
+    ab_g[ab_g[122]+3]=ab_g[118]; ab_g[ab_g[122]+4]=ab_g[119]; ab_g[ab_g[122]+5]=ab_g[120];
     ab_g[31]=ab_n[ab_g[118]*10+5]; do cg_expr(ab_g, ab_n, ab_s);
+    ab_g[122]=200+ab_g[121]*6;
+    ab_g[115]=ab_g[ab_g[122]]; ab_g[116]=ab_g[ab_g[122]+1]; ab_g[117]=ab_g[ab_g[122]+2];
+    ab_g[118]=ab_g[ab_g[122]+3]; ab_g[119]=ab_g[ab_g[122]+4]; ab_g[120]=ab_g[ab_g[122]+5];
+    ab_g[121]=ab_g[121]-1;
     do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[117])); do emit_line("_end");
 }
 
@@ -1197,14 +1204,14 @@ fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
 fn main() [IO] -> Unit {
     let source: String = read_file(get_arg(1));
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(200);
+    let gs: Array<Int> = Array(300);
     let gb: Array<Int> = Array(131072);
-    let gt: Array<Int> = Array(65536);
-    let gn: Array<Int> = Array(81920);
+    let gt: Array<Int> = Array(131072);
+    let gn: Array<Int> = Array(163840);
     for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
-    gs[46] = 0 - 1; gs[153] = 0 - 1;
+    gs[46] = 0 - 1; gs[121] = 0 - 1; gs[153] = 0 - 1;
     do pp_parse(gs, gt, gn);
     do cg_emit(gs, gn, gb);
     do exit(0);
