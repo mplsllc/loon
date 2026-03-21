@@ -1647,7 +1647,7 @@ fn tc_type_name(tn_t: Int) [] -> String {
 // Report a type error. g[905]=node, g[906]=kind (1=type_mismatch, 2=undeclared_effect), g[907]=expected, g[908]=received
 fn tc_error(te_g: Array<Int>, te_n: Array<Int>, te_s: Array<Int>) [IO] -> Unit {
     te_g[911] = te_g[911] + 1;
-    let te_kind: String = match te_g[906] { 1 -> "type_mismatch", 2 -> "undeclared_effect", _ -> "error" };
+    let te_kind: String = match te_g[906] { 1 -> "type_mismatch", 2 -> "undeclared_effect", 3 -> "undefined_variable", 4 -> "wrong_arg_count", _ -> "error" };
     match te_g[910] == 1 { true -> {
         // JSON output
         do print_byte(123);
@@ -1678,7 +1678,15 @@ fn tc_error(te_g: Array<Int>, te_n: Array<Int>, te_s: Array<Int>) [IO] -> Unit {
             let te_fo2: Int = te_n[te_g[905] * 10 + 2]; let te_fl2: Int = te_n[te_g[905] * 10 + 3];
             for te_i2 in range(0, te_fl2) { do print_byte(te_s[te_fo2 + te_i2]); };
             do print(" uses IO but declares []");
-        }, false -> do print("unknown error") } };
+        }, false -> match te_g[906] == 3 { true -> {
+            do print_raw("undefined variable: ");
+            let te_fo3: Int = te_n[te_g[905] * 10 + 2]; let te_fl3: Int = te_n[te_g[905] * 10 + 3];
+            for te_i3 in range(0, te_fl3) { do print_byte(te_s[te_fo3 + te_i3]); };
+            do print("");
+        }, false -> match te_g[906] == 4 { true -> {
+            do print_raw("wrong argument count: expected "); do print_raw(int_to_string(te_g[907]));
+            do print_raw(", got "); do print(int_to_string(te_g[908]));
+        }, false -> do print("unknown error") } } } };
     } };
 }
 
@@ -1783,10 +1791,88 @@ fn tc_check_types(tt_g: Array<Int>, tt_n: Array<Int>, tt_s: Array<Int>) [IO] -> 
     };
 }
 
+// Undefined variable check: scan each function, collect declared names, verify IDENT_REFs
+fn tc_check_undef(tu_g: Array<Int>, tu_n: Array<Int>, tu_s: Array<Int>) [IO] -> Unit {
+    for tu_fi in range(0, tu_g[12]) {
+        match tu_n[tu_fi * 10] == 1 { true -> {
+            // Find function boundary
+            let tu_end: Array<Int> = Array(1); tu_end[0] = tu_g[12];
+            for tu_bi in range(tu_fi + 1, tu_g[12]) {
+                match tu_n[tu_bi * 10] == 1 { true -> match tu_end[0] == tu_g[12] { true -> { tu_end[0] = tu_bi; }, false -> { } }, false -> { } };
+                match tu_n[tu_bi * 10] == 22 { true -> match tu_end[0] == tu_g[12] { true -> { tu_end[0] = tu_bi; }, false -> { } }, false -> { } };
+            };
+            // Collect declared names: params (type 2) and let bindings (type 4) and for vars (type 18)
+            // Store in g[920..999] as (off, len) pairs — room for 40 names
+            let tu_dc: Array<Int> = Array(1); tu_dc[0] = 0;
+            for tu_ni in range(tu_fi, tu_end[0]) {
+                let tu_nt: Int = tu_n[tu_ni * 10];
+                match tu_nt == 2 { true -> { tu_g[920 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[920 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
+                match tu_nt == 4 { true -> { tu_g[920 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[920 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
+                match tu_nt == 18 { true -> { tu_g[920 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[920 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
+            };
+            // Check every IDENT_REF (type 10) in this function against declared names
+            for tu_ni2 in range(tu_fi + 1, tu_end[0]) {
+                match tu_n[tu_ni2 * 10] == 10 { true -> {
+                    let tu_ref_off: Int = tu_n[tu_ni2 * 10 + 2];
+                    let tu_ref_len: Int = tu_n[tu_ni2 * 10 + 3];
+                    let tu_found: Array<Int> = Array(1); tu_found[0] = 0;
+                    for tu_di in range(0, tu_dc[0]) {
+                        match tu_g[920 + tu_di * 2 + 1] == tu_ref_len { true -> {
+                            tu_g[40] = tu_ref_off; tu_g[41] = tu_g[920 + tu_di * 2]; tu_g[42] = tu_ref_len;
+                            match cg_name_eq(tu_g, tu_s) { true -> { tu_found[0] = 1; }, false -> { } };
+                        }, false -> { } };
+                    };
+                    match tu_found[0] == 0 { true -> {
+                        tu_g[905] = tu_ni2; tu_g[906] = 3; tu_g[907] = 0; tu_g[908] = 0;
+                        do tc_error(tu_g, tu_n, tu_s);
+                    }, false -> { } };
+                }, false -> { } };
+            };
+        }, false -> { } };
+    };
+}
+
+// Wrong argument count check: compare CALL child_count against FN_DECL param_count
+fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> Unit {
+    for ta_ni in range(0, ta_g[12]) {
+        match ta_n[ta_ni * 10] == 14 { true -> {
+            // CALL node — look up function and compare arg counts
+            let ta_call_ac: Int = ta_n[ta_ni * 10 + 4]; // actual arg count
+            ta_g[40] = ta_n[ta_ni * 10 + 2]; ta_g[41] = ta_n[ta_ni * 10 + 3];
+            // Skip builtins (str_eq would match them)
+            let ta_is_bi: Int = chk_bi(ta_g, ta_s);
+            match ta_is_bi == 0 { true -> {
+                // User function — find FN_DECL and get param count
+                let ta_found: Array<Int> = Array(1); ta_found[0] = 0;
+                for ta_fi in range(0, ta_g[12]) {
+                    match ta_n[ta_fi * 10] == 1 { true -> {
+                        match ta_n[ta_fi * 10 + 3] == ta_g[41] { true -> {
+                            ta_g[42] = ta_g[41];
+                            let ta_sv41: Int = ta_g[41];
+                            ta_g[41] = ta_n[ta_fi * 10 + 2];
+                            match cg_name_eq(ta_g, ta_s) { true -> {
+                                let ta_expected: Int = ta_n[ta_fi * 10 + 4];
+                                match ta_expected == ta_call_ac { true -> { }, false -> {
+                                    ta_g[905] = ta_ni; ta_g[906] = 4; ta_g[907] = ta_expected; ta_g[908] = ta_call_ac;
+                                    do tc_error(ta_g, ta_n, ta_s);
+                                } };
+                                ta_found[0] = 1;
+                            }, false -> { } };
+                            ta_g[41] = ta_sv41;
+                        }, false -> { } };
+                    }, false -> { } };
+                };
+            }, false -> { } };
+        }, false -> { } };
+    };
+}
+
 fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     tc_g[911] = 0;
     do tc_check_effects(tc_g, tc_n, tc_s);
     do tc_check_types(tc_g, tc_n, tc_s);
+    do tc_check_undef(tc_g, tc_n, tc_s);
+    do tc_check_args(tc_g, tc_n, tc_s);
     match tc_g[911] > 0 { true -> do exit(1), false -> { } };
 }
 
