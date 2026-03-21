@@ -2087,45 +2087,68 @@ fn ll_call(lc_g: Array<Int>, lc_n: Array<Int>, lc_s: Array<Int>) [IO] -> Int {
     lc_t
 }
 
-// Emit LLVM IR for an expression node. Returns SSA temp number.
+// LLVM: emit match expression
+fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
+    let lm_ni: Int = lm_g[31];
+    let lm_ac: Int = lm_n[lm_ni * 10 + 4];
+    let lm_disc: Int = lm_n[lm_ni * 10 + 8];
+    let lm_mid: Int = lm_g[34]; lm_g[34] = lm_g[34] + 1;
+    lm_g[31] = lm_disc;
+    let lm_dt: Int = ll_expr(lm_g, lm_n, lm_s);
+    let lm_arm: Array<Int> = Array(1); lm_arm[0] = lm_n[lm_ni * 10 + 5];
+    let lm_res: Array<Int> = Array(16);
+    for lm_ai in range(0, lm_ac) {
+        let lm_an: Int = lm_arm[0];
+        let lm_sub: Int = lm_n[lm_an * 10 + 1];
+        let lm_pat: Int = lm_n[lm_an * 10 + 8];
+        match lm_sub == 1 {
+            true -> do print("    br label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
+            false -> {
+                let lm_ct: Int = ll_tmp(lm_g);
+                do print("    %t" + int_to_string(lm_ct) + " = icmp eq i64 %t" + int_to_string(lm_dt) + ", " + int_to_string(lm_pat));
+                match lm_ai + 1 < lm_ac {
+                    true -> do print("    br i1 %t" + int_to_string(lm_ct) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1)),
+                    false -> do print("    br i1 %t" + int_to_string(lm_ct) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
+                };
+            },
+        };
+        do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ":");
+        lm_g[31] = lm_n[lm_an * 10 + 5];
+        lm_res[lm_ai] = ll_expr(lm_g, lm_n, lm_s);
+        do print("    br label %m" + int_to_string(lm_mid) + "_end");
+        match lm_ai + 1 < lm_ac {
+            true -> match lm_sub == 1 { true -> { }, false -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":") },
+            false -> { },
+        };
+        lm_arm[0] = lm_n[lm_an * 10 + 6];
+    };
+    do print("m" + int_to_string(lm_mid) + "_end:");
+    let lm_rt: Int = ll_tmp(lm_g);
+    do print_raw("    %t" + int_to_string(lm_rt) + " = phi i64 ");
+    for lm_pi in range(0, lm_ac) {
+        match lm_pi > 0 { true -> do print_raw(", "), false -> { } };
+        do print_raw("[%t" + int_to_string(lm_res[lm_pi]) + ", %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_pi) + "]");
+    };
+    do print("");
+    lm_rt
+}
+
+// Emit LLVM IR for an expression. Dispatches by node type.
 fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
-    match le_nt == 7 {
-        // INT_LIT — parse value from string table via str2int
-        true -> {
-            let le_t: Int = ll_tmp(le_g);
-            le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
-            let le_val: Int = str2int(le_g, le_s);
-            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(le_val));
-            le_t
-        },
-        false -> match le_nt == 11 {
-            true -> do ll_binop(le_g, le_n, le_s),
-            false -> match le_nt == 10 {
-                true -> do ll_ident(le_g, le_n, le_s),
-                false -> match le_nt == 14 {
-                    true -> {
-                        le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
-                        let le_bi: Int = chk_bi(le_g, le_s);
-                        match le_bi > 0 {
-                            true -> { le_g[140] = le_bi; le_g[31] = le_ni; do ll_builtin(le_g, le_n, le_s) },
-                            false -> { le_g[31] = le_ni; do ll_call(le_g, le_n, le_s) },
-                        }
-                    },
-                    false -> match le_nt == 15 {
-                        // DO_EXPR (type 15) — unwrap and evaluate child
-                        true -> { le_g[31] = le_n[le_ni * 10 + 5]; do ll_expr(le_g, le_n, le_s) },
-                        false -> {
-                            let le_t2: Int = ll_tmp(le_g);
-                            do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt));
-                            le_t2
-                        },
-                    },
-                },
-            },
-        },
-    }
+    match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s))); le_t },
+    false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
+    false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
+    false -> match le_nt == 14 { true -> { le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; let le_bi: Int = chk_bi(le_g, le_s); match le_bi > 0 { true -> { le_g[140] = le_bi; le_g[31] = le_ni; ll_builtin(le_g, le_n, le_s) }, false -> { le_g[31] = le_ni; ll_call(le_g, le_n, le_s) } } },
+    false -> match le_nt == 16 { true -> ll_match(le_g, le_n, le_s),
+    false -> match le_nt == 15 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
+    false -> match le_nt == 6 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
+    false -> match le_nt == 5 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
+    false -> match le_nt == 3 { true -> { let le_bci: Array<Int> = Array(1); le_bci[0] = le_n[le_ni * 10 + 5]; let le_last: Array<Int> = Array(1); le_last[0] = 0; for _le_bi in range(0, le_n[le_ni * 10 + 4]) { le_g[31] = le_bci[0]; le_last[0] = ll_expr(le_g, le_n, le_s); le_bci[0] = le_n[le_bci[0] * 10 + 6]; }; le_last[0] },
+    false -> match le_nt == 4 { true -> { le_g[31] = le_ni; do ll_stmt(le_g, le_n, le_s); let le_lt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_lt) + " = add i64 0, 0"); le_lt },
+    false -> { let le_t2: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt)); le_t2 }
+    } } } } } } } } } }
 }
 
 // Emit LLVM IR for a statement node
@@ -2199,6 +2222,7 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     lf_g[50] = 0;
     lf_g[32] = 0; // reset SSA counter
     lf_g[33] = 0; // reset has_unreachable flag
+    lf_g[34] = 0; // reset match label counter
     // Emit function header
     do print_raw("define i64 @fn_");
     for lf_i in range(0, lf_name_len) { do print_byte(lf_s[lf_name_off + lf_i]); };
