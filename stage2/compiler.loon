@@ -2001,11 +2001,22 @@ fn ll_ident(li_g: Array<Int>, li_n: Array<Int>, li_s: Array<Int>) [IO] -> Int {
         match li_g[42] == li_g[51 + li_fi * 4 + 1] { true -> match cg_name_eq(li_g, li_s) { true -> { li_vf[0] = li_fi; }, false -> { } }, false -> { } };
     };
     match li_vf[0] >= 0 {
-        true -> do print("    %t" + int_to_string(li_t) + " = load i64, i64* %v" + int_to_string(li_vf[0])),
+        true -> match li_g[51 + li_vf[0] * 4 + 2] == 1 {
+            // Param — reference directly
+            true -> {
+                do print_raw("    %t" + int_to_string(li_t) + " = add i64 %p_");
+                let li_po: Int = li_g[51 + li_vf[0] * 4];
+                let li_pl: Int = li_g[51 + li_vf[0] * 4 + 1];
+                for li_pk in range(0, li_pl) { do print_byte(li_s[li_po + li_pk]); };
+                do print(", 0");
+            },
+            // Local — load from alloca
+            false -> do print("    %t" + int_to_string(li_t) + " = load i64, i64* %v" + int_to_string(li_vf[0])),
+        },
         false -> {
-            do print_raw("    %t" + int_to_string(li_t) + " = add i64 0, %p_");
+            do print_raw("    %t" + int_to_string(li_t) + " = add i64 %p_");
             for li_pi in range(0, li_vlen) { do print_byte(li_s[li_voff + li_pi]); };
-            do print("");
+            do print(", 0");
         },
     };
     li_t
@@ -2127,6 +2138,7 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
             let ls_vi: Int = ls_g[50];
             ls_g[51 + ls_vi * 4] = ls_n[ls_ni * 10 + 2];
             ls_g[51 + ls_vi * 4 + 1] = ls_n[ls_ni * 10 + 3];
+            ls_g[51 + ls_vi * 4 + 2] = 0; // local var (not param)
             ls_g[50] = ls_vi + 1;
             do print("    %v" + int_to_string(ls_vi) + " = alloca i64");
             let ls_init: Int = ls_n[ls_ni * 10 + 5];
@@ -2140,15 +2152,24 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
                 ls_g[31] = ls_n[ls_ni * 10 + 5];
                 let _ls_t: Int = ll_expr(ls_g, ls_n, ls_s);
             },
-            false -> match ls_nt == 15 {
-                // DO_EXPR (type 15) — evaluate child call
+            false -> match ls_nt == 6 {
+                // RETURN_EXPR (type 6) — evaluate child, emit ret
                 true -> {
                     ls_g[31] = ls_n[ls_ni * 10 + 5];
-                    let _ls_t2: Int = ll_expr(ls_g, ls_n, ls_s);
+                    let ls_rt: Int = ll_expr(ls_g, ls_n, ls_s);
+                    do print("    ret i64 %t" + int_to_string(ls_rt));
+                    ls_g[33] = 1; // mark has return
                 },
-                false -> {
-                    ls_g[31] = ls_ni;
-                    let _ls_t3: Int = ll_expr(ls_g, ls_n, ls_s);
+                false -> match ls_nt == 15 {
+                    // DO_EXPR (type 15) — evaluate child call
+                    true -> {
+                        ls_g[31] = ls_n[ls_ni * 10 + 5];
+                        let _ls_t2: Int = ll_expr(ls_g, ls_n, ls_s);
+                    },
+                    false -> {
+                        ls_g[31] = ls_ni;
+                        let _ls_t3: Int = ll_expr(ls_g, ls_n, ls_s);
+                    },
                 },
             },
         },
@@ -2190,9 +2211,10 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
         let lf_poff: Int = lf_n[lf_pn[0] * 10 + 2];
         let lf_plen: Int = lf_n[lf_pn[0] * 10 + 3];
         for lf_k in range(0, lf_plen) { do print_byte(lf_s[lf_poff + lf_k]); };
-        // Register param as variable
+        // Register param as variable (slot 2 = 1 marks it as param)
         lf_g[51 + lf_g[50] * 4] = lf_poff;
         lf_g[51 + lf_g[50] * 4 + 1] = lf_plen;
+        lf_g[51 + lf_g[50] * 4 + 2] = 1;
         lf_g[50] = lf_g[50] + 1;
         lf_pn[0] = lf_n[lf_pn[0] * 10 + 6]; // next sibling
     };
