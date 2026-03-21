@@ -51,13 +51,13 @@ module gauntlet;
 
 // ===== TEST 6: Undefined variable =====
 // Using a variable that was never declared.
-// STATUS: MISSED — cg_find_var returns default offset 8, no error.
+// STATUS: CAUGHT — tc_check_undef detects undefined variable references.
 //
 // fn use_undefined() [] -> Int { y }
 
 // ===== TEST 7: Wrong argument count =====
 // Calling a function with wrong number of arguments.
-// STATUS: MISSED — parser accepts any argument count, codegen emits what it gets.
+// STATUS: CAUGHT — tc_check_args compares call arg count vs function param count.
 //
 // fn takes_two(a: Int, b: Int) [] -> Int { a + b }
 // fn wrong_args() [] -> Int { takes_two(1) }
@@ -80,8 +80,8 @@ module gauntlet;
 // fn reassign() [] -> Unit { let x: Int = 1; x = 2; }
 
 // ===== SUMMARY =====
-// CAUGHT:  3 (effect violation, type mismatch literal, non-exhaustive match)
-// MISSED:  6 (call arg types, return type, undefined var, wrong arg count, immutable reassign, division by zero)
+// CAUGHT:  5 (effect violation, type mismatch literal, non-exhaustive match, undefined var, wrong arg count)
+// MISSED:  4 (call arg types, return type, immutable reassign, division by zero)
 // DEFERRED: 2 (division by zero, array bounds — runtime checks for Stage 3)
 //
 // The 4 caught violations are the core compile-time safety guarantees.
@@ -89,7 +89,7 @@ module gauntlet;
 // The 2 deferred items are runtime safety for Stage 3.
 
 fn main() [IO] -> Unit {
-    do print("Security gauntlet: 3 caught, 6 missed, 2 deferred");
+    do print("Security gauntlet: 5 caught, 4 missed, 2 deferred");
     do print("See source comments for details on each test.");
     do exit(0);
 }
