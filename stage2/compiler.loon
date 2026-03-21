@@ -258,7 +258,7 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [] -> Unit {
 }
 
 // Block parser
-fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
+fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [IO] -> Int {
     do teat(pb_g);
     let pb_bi: Int = nalloc(pb_g, pb_n);
     pb_n[pb_bi * 10] = 3;
@@ -278,10 +278,14 @@ fn pb_parse(pb_g: Array<Int>, pb_t: Array<Int>, pb_n: Array<Int>) [] -> Int {
             }, false -> {
                 pb_g[161]=pe_parse(pb_g, pb_t, pb_n);
                 do pb_wrap_stmt(pb_g, pb_t, pb_n);
-            } }, false -> {
+            } }, false -> match pb_t[(pb_g[13]+1)*5]==23 { true -> {
+                // IDENT followed by ASSIGN (=) — immutable reassignment attempt
+                do print("error: immutable reassignment — Loon bindings cannot be reassigned");
+                do exit(1);
+            }, false -> {
                 pb_g[161]=pe_parse(pb_g, pb_t, pb_n);
                 do pb_wrap_stmt(pb_g, pb_t, pb_n);
-            } }, false -> {
+            } } }, false -> {
                 pb_g[161]=pe_parse(pb_g, pb_t, pb_n);
                 do pb_wrap_stmt(pb_g, pb_t, pb_n);
             } } };

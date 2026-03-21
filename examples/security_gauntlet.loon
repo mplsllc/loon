@@ -74,14 +74,14 @@ module gauntlet;
 
 // ===== TEST 10: Immutable reassignment =====
 // Attempting to reassign a let binding.
-// STATUS: MISSED — parser treats `x = 2;` as an expression statement, no error.
+// STATUS: CAUGHT — parser rejects bare IDENT ASSIGN outside array set context.
 // Compiles but produces wrong behavior at runtime.
 //
 // fn reassign() [] -> Unit { let x: Int = 1; x = 2; }
 
 // ===== SUMMARY =====
-// CAUGHT:  5 (effect violation, type mismatch literal, non-exhaustive match, undefined var, wrong arg count)
-// MISSED:  4 (call arg types, return type, immutable reassign, division by zero)
+// CAUGHT:  6 (effect, type mismatch, exhaustive match, undefined var, wrong arg count, immutable reassign)
+// MISSED:  3 (call arg types, return type, division by zero)
 // DEFERRED: 2 (division by zero, array bounds — runtime checks for Stage 3)
 //
 // The 4 caught violations are the core compile-time safety guarantees.
@@ -89,7 +89,7 @@ module gauntlet;
 // The 2 deferred items are runtime safety for Stage 3.
 
 fn main() [IO] -> Unit {
-    do print("Security gauntlet: 5 caught, 4 missed, 2 deferred");
+    do print("Security gauntlet: 6 caught, 3 missed, 2 deferred");
     do print("See source comments for details on each test.");
     do exit(0);
 }
