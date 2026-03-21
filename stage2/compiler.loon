@@ -1972,8 +1972,19 @@ fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
     lb_g[31] = lb_rhs;
     let lb_rt: Int = ll_expr(lb_g, lb_n, lb_s);
     let lb_t: Int = ll_tmp(lb_g);
-    let lb_opn: String = match lb_op { 0 -> "add", 1 -> "sub", 2 -> "mul", 3 -> "sdiv", _ -> "srem" };
-    do print("    %t" + int_to_string(lb_t) + " = " + lb_opn + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+    // Arithmetic: add/sub/mul/sdiv/srem, Comparison: icmp eq/ne/slt/sgt/sle/sge
+    match lb_op <= 4 {
+        true -> {
+            let lb_opn: String = match lb_op { 0 -> "add", 1 -> "sub", 2 -> "mul", 3 -> "sdiv", _ -> "srem" };
+            do print("    %t" + int_to_string(lb_t) + " = " + lb_opn + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+        },
+        false -> {
+            let lb_cmp: String = match lb_op { 5 -> "eq", 6 -> "ne", 7 -> "slt", 8 -> "sgt", 9 -> "sle", 10 -> "sge", 11 -> "eq", _ -> "eq" };
+            let lb_ct: Int = ll_tmp(lb_g);
+            do print("    %t" + int_to_string(lb_ct) + " = icmp " + lb_cmp + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+            do print("    %t" + int_to_string(lb_t) + " = zext i1 %t" + int_to_string(lb_ct) + " to i64");
+        },
+    };
     lb_t
 }
 
@@ -2013,6 +2024,7 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
             do print("    %t" + int_to_string(lbu_t) + " = trunc i64 %t" + int_to_string(lbu_at) + " to i32");
             do print("    call void @exit(i32 %t" + int_to_string(lbu_t) + ")");
             do print("    unreachable");
+                lbu_g[33] = 1;
             lbu_t
         },
         false -> match lbu_bi == 1 {
@@ -2069,13 +2081,15 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
     match le_nt == 7 {
-        // INT_LIT
+        // INT_LIT — parse value from string table via str2int
         true -> {
             let le_t: Int = ll_tmp(le_g);
-            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8]));
+            le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
+            let le_val: Int = str2int(le_g, le_s);
+            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(le_val));
             le_t
         },
-        false -> match le_nt == 12 {
+        false -> match le_nt == 11 {
             true -> do ll_binop(le_g, le_n, le_s),
             false -> match le_nt == 10 {
                 true -> do ll_ident(le_g, le_n, le_s),
@@ -2088,10 +2102,14 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
                             false -> { le_g[31] = le_ni; do ll_call(le_g, le_n, le_s) },
                         }
                     },
-                    false -> {
-                        let le_t2: Int = ll_tmp(le_g);
-                        do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt));
-                        le_t2
+                    false -> match le_nt == 15 {
+                        // DO_EXPR (type 15) — unwrap and evaluate child
+                        true -> { le_g[31] = le_n[le_ni * 10 + 5]; do ll_expr(le_g, le_n, le_s) },
+                        false -> {
+                            let le_t2: Int = ll_tmp(le_g);
+                            do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt));
+                            le_t2
+                        },
                     },
                 },
             },
@@ -2107,31 +2125,32 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
     match ls_nt == 4 {
         true -> {
             let ls_vi: Int = ls_g[50];
-            // Register variable
-            ls_g[51 + ls_vi * 4] = ls_n[ls_ni * 10 + 2]; // name off
-            ls_g[51 + ls_vi * 4 + 1] = ls_n[ls_ni * 10 + 3]; // name len
+            ls_g[51 + ls_vi * 4] = ls_n[ls_ni * 10 + 2];
+            ls_g[51 + ls_vi * 4 + 1] = ls_n[ls_ni * 10 + 3];
             ls_g[50] = ls_vi + 1;
-            // Emit alloca
             do print("    %v" + int_to_string(ls_vi) + " = alloca i64");
-            // Evaluate initializer
-            let ls_init: Int = ls_n[ls_ni * 10 + 5]; // first_child = init expr
+            let ls_init: Int = ls_n[ls_ni * 10 + 5];
             ls_g[31] = ls_init;
             let ls_vt: Int = ll_expr(ls_g, ls_n, ls_s);
             do print("    store i64 %t" + int_to_string(ls_vt) + ", i64* %v" + int_to_string(ls_vi));
         },
-        false -> {
-            // DO_CALL (type 13) or expression statement
-            match ls_nt == 13 {
+        false -> match ls_nt == 5 {
+            // EXPR_STMT (type 5) — evaluate child, discard result
+            true -> {
+                ls_g[31] = ls_n[ls_ni * 10 + 5];
+                let _ls_t: Int = ll_expr(ls_g, ls_n, ls_s);
+            },
+            false -> match ls_nt == 15 {
+                // DO_EXPR (type 15) — evaluate child call
                 true -> {
-                    ls_g[31] = ls_n[ls_ni * 10 + 5]; // first_child = call expr
-                    let _ls_t: Int = ll_expr(ls_g, ls_n, ls_s);
-                },
-                false -> {
-                    // Any other expression
-                    ls_g[31] = ls_ni;
+                    ls_g[31] = ls_n[ls_ni * 10 + 5];
                     let _ls_t2: Int = ll_expr(ls_g, ls_n, ls_s);
                 },
-            };
+                false -> {
+                    ls_g[31] = ls_ni;
+                    let _ls_t3: Int = ll_expr(ls_g, ls_n, ls_s);
+                },
+            },
         },
     };
 }
@@ -2153,18 +2172,19 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     let lf_ni: Int = lf_g[31];
     let lf_name_off: Int = lf_n[lf_ni * 10 + 2];
     let lf_name_len: Int = lf_n[lf_ni * 10 + 3];
-    let lf_pc: Int = lf_n[lf_ni * 10 + 4]; // param count + 1 for body
+    let lf_pc: Int = lf_n[lf_ni * 10 + 4]; // param count (NOT including body)
+    let lf_body: Int = lf_n[lf_ni * 10 + 8]; // extra = body block index
     // Reset variable table
     lf_g[50] = 0;
     lf_g[32] = 0; // reset SSA counter
+    lf_g[33] = 0; // reset has_unreachable flag
     // Emit function header
     do print_raw("define i64 @fn_");
     for lf_i in range(0, lf_name_len) { do print_byte(lf_s[lf_name_off + lf_i]); };
     do print_raw("(");
     // Emit params
     let lf_pn: Array<Int> = Array(1); lf_pn[0] = lf_n[lf_ni * 10 + 5];
-    let lf_param_count: Int = lf_pc - 1; // last child is body
-    for lf_j in range(0, lf_param_count) {
+    for lf_j in range(0, lf_pc) {
         match lf_j > 0 { true -> do print_raw(", "), false -> { } };
         do print_raw("i64 %p_");
         let lf_poff: Int = lf_n[lf_pn[0] * 10 + 2];
@@ -2178,11 +2198,11 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     };
     do print(") {");
     do print("entry:");
-    // Emit body (lf_pn[0] now points to body block)
-    lf_g[31] = lf_pn[0];
+    // Emit body from extra field
+    lf_g[31] = lf_body;
     do ll_block(lf_g, lf_n, lf_s);
     // If function didn't end with exit/unreachable, add a ret
-    do print("    ret i64 0");
+    match lf_g[33] == 0 { true -> do print("    ret i64 0"), false -> { } };
     do print("}");
     do print("");
 }
@@ -2265,7 +2285,8 @@ fn main() [IO] -> Unit {
     let a1len: Int = string_length(arg1);
     let mf: Array<Int> = Array(1); mf[0] = 0;
     match a1len == 8 { true -> { let a2t: String = get_arg(2); match string_char_at(a2t, 0) == 108 { true -> { mf[0] = 1; }, false -> { } }; }, false -> { } };
-    let source: String = match a1len == 6 { true -> read_file(get_arg(2)), false -> read_file(arg1) };
+    // Source file: --target (8 chars) shifts source to arg3, --json (6 chars) to arg2
+    let source: String = match a1len == 8 { true -> read_file(get_arg(3)), false -> match a1len == 6 { true -> read_file(get_arg(2)), false -> read_file(arg1) } };
     let slen: Int = string_length(source);
     let gs: Array<Int> = Array(2048);
     let gb: Array<Int> = Array(262144);
