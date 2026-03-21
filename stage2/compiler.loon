@@ -194,7 +194,7 @@ fn pt_parse(pt_g: Array<Int>, pt_t: Array<Int>, pt_n: Array<Int>) [IO] -> Unit {
 }
 
 // Check if name at g[40]/g[41] matches a known variant. Returns type_index*256+tag or -1
-// Source bytes are at n[130000+offset] (copied there before parsing)
+// Source bytes are at n[200000+offset] (copied there before parsing)
 fn chk_vari(cv_g: Array<Int>, cv_n: Array<Int>) [] -> Int {
     let cv_res: Array<Int> = Array(1); cv_res[0] = 0 - 1;
     for cv_ti in range(0, cv_g[900]) {
@@ -203,10 +203,10 @@ fn chk_vari(cv_g: Array<Int>, cv_n: Array<Int>) [] -> Int {
         for cv_vi in range(0, cv_vc) {
             let cv_vb: Int = cv_base + 3 + cv_vi * 3;
             match cv_g[cv_vb + 1] == cv_g[41] { true -> {
-                // Length matches — compare characters via gn[130000+offset]
+                // Length matches — compare characters via gn[200000+offset]
                 cv_g[136] = 1;
                 for cv_ci in range(0, cv_g[41]) {
-                    match cv_n[130000 + cv_g[cv_vb] + cv_ci] == cv_n[130000 + cv_g[40] + cv_ci] { true -> { }, false -> { cv_g[136] = 0; } };
+                    match cv_n[200000 + cv_g[cv_vb] + cv_ci] == cv_n[200000 + cv_g[40] + cv_ci] { true -> { }, false -> { cv_g[136] = 0; } };
                 };
                 match cv_g[136] == 1 { true -> { cv_res[0] = cv_ti * 256 + cv_vi; }, false -> { } };
             }, false -> { } };
@@ -473,12 +473,12 @@ fn pic_qualify(pq_g: Array<Int>, pq_t: Array<Int>, pq_n: Array<Int>) [] -> Unit 
     // g[47]=first ident off, g[48]=first ident len, current token=second ident
     let pq_dst: Int = pq_g[5]; // write combined name at end of string table
     // Copy first part (module name)
-    for pq_i in range(0, pq_g[48]) { pq_n[130000 + pq_dst + pq_i] = pq_n[130000 + pq_g[47] + pq_i]; };
+    for pq_i in range(0, pq_g[48]) { pq_n[200000 + pq_dst + pq_i] = pq_n[200000 + pq_g[47] + pq_i]; };
     // Add dot
-    pq_n[130000 + pq_dst + pq_g[48]] = 46;
+    pq_n[200000 + pq_dst + pq_g[48]] = 46;
     // Copy second part (function name)
     let pq_so2: Int = tsoff(pq_g, pq_t); let pq_sl2: Int = tslen(pq_g, pq_t);
-    for pq_j in range(0, pq_sl2) { pq_n[130000 + pq_dst + pq_g[48] + 1 + pq_j] = pq_n[130000 + pq_so2 + pq_j]; };
+    for pq_j in range(0, pq_sl2) { pq_n[200000 + pq_dst + pq_g[48] + 1 + pq_j] = pq_n[200000 + pq_so2 + pq_j]; };
     // Update g[47]/g[48] to point to combined name
     pq_g[47] = pq_dst; pq_g[48] = pq_g[48] + 1 + pq_sl2;
     pq_g[5] = pq_g[5] + pq_g[48]; // advance string table
@@ -495,7 +495,7 @@ fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [IO] -> Int {
         do teat(pi_g); // eat second ident
     }, false -> { } };
     // Check if uppercase (variant constructor)
-    let pi_fc: Int = pi_n[130000 + pi_g[47]];
+    let pi_fc: Int = pi_n[200000 + pi_g[47]];
     let pi_upper: Int = match pi_fc >= 65 { true -> match pi_fc <= 90 { true -> 1, false -> 0 }, false -> 0 };
     match tcur(pi_g, pi_t) == 19 { true -> {
         do teat(pi_g);
@@ -568,7 +568,7 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [IO] -> Int
         // Check if pattern is an uppercase IDENT (ADT variant)
         let pm2_is_adt: Array<Int> = Array(1); pm2_is_adt[0] = 0;
         match pm2_pt == 13 { true -> {
-            let pm2_pfc: Int = pm2_n[130000 + tsoff(pm2_g, pm2_t)];
+            let pm2_pfc: Int = pm2_n[200000 + tsoff(pm2_g, pm2_t)];
             match pm2_pfc >= 65 { true -> match pm2_pfc <= 90 { true -> { pm2_is_adt[0] = 1; }, false -> { } }, false -> { } };
         }, false -> { } };
         match pm2_is_adt[0] == 1 { true -> {
@@ -651,7 +651,7 @@ fn chk_vari_type(ct_g: Array<Int>, ct_n: Array<Int>) [] -> Int {
         match ct_g[ct_base + 1] == ct_g[41] { true -> {
             ct_g[136] = 1;
             for ct_ci in range(0, ct_g[41]) {
-                match ct_n[130000 + ct_g[ct_base] + ct_ci] == ct_n[130000 + ct_g[40] + ct_ci] { true -> { }, false -> { ct_g[136] = 0; } };
+                match ct_n[200000 + ct_g[ct_base] + ct_ci] == ct_n[200000 + ct_g[40] + ct_ci] { true -> { }, false -> { ct_g[136] = 0; } };
             };
             match ct_g[136] == 1 { true -> { ct_res[0] = ct_ti; }, false -> { } };
         }, false -> { } };
@@ -1950,12 +1950,296 @@ fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
 }
 
 // ========== LLVM IR Backend (stub) ==========
+// ========== LLVM IR Backend ==========
+// gs[32] = SSA temp counter (reused from label counter)
+// gs[31] = current node index
+// Node layout: [type, sub_type, str_off, str_len, child_count, first_child, next_sibling, type_info, extra, padding]
+
+fn ll_tmp(ll_g: Array<Int>) [] -> Int {
+    let ll_n: Int = ll_g[32];
+    ll_g[32] = ll_n + 1;
+    ll_n
+}
+
+// LLVM: emit BINOP expression
+fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
+    let lb_ni: Int = lb_g[31];
+    let lb_op: Int = lb_n[lb_ni * 10 + 1];
+    let lb_lhs: Int = lb_n[lb_ni * 10 + 5];
+    let lb_rhs: Int = lb_n[lb_lhs * 10 + 6];
+    lb_g[31] = lb_lhs;
+    let lb_lt: Int = ll_expr(lb_g, lb_n, lb_s);
+    lb_g[31] = lb_rhs;
+    let lb_rt: Int = ll_expr(lb_g, lb_n, lb_s);
+    let lb_t: Int = ll_tmp(lb_g);
+    let lb_opn: String = match lb_op { 0 -> "add", 1 -> "sub", 2 -> "mul", 3 -> "sdiv", _ -> "srem" };
+    do print("    %t" + int_to_string(lb_t) + " = " + lb_opn + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+    lb_t
+}
+
+// LLVM: emit variable reference
+fn ll_ident(li_g: Array<Int>, li_n: Array<Int>, li_s: Array<Int>) [IO] -> Int {
+    let li_ni: Int = li_g[31];
+    let li_t: Int = ll_tmp(li_g);
+    let li_voff: Int = li_n[li_ni * 10 + 2];
+    let li_vlen: Int = li_n[li_ni * 10 + 3];
+    li_g[40] = li_voff; li_g[42] = li_vlen;
+    let li_vf: Array<Int> = Array(1); li_vf[0] = 0 - 1;
+    for li_fi in range(0, li_g[50]) {
+        li_g[41] = li_g[51 + li_fi * 4];
+        match li_g[42] == li_g[51 + li_fi * 4 + 1] { true -> match cg_name_eq(li_g, li_s) { true -> { li_vf[0] = li_fi; }, false -> { } }, false -> { } };
+    };
+    match li_vf[0] >= 0 {
+        true -> do print("    %t" + int_to_string(li_t) + " = load i64, i64* %v" + int_to_string(li_vf[0])),
+        false -> {
+            do print_raw("    %t" + int_to_string(li_t) + " = add i64 0, %p_");
+            for li_pi in range(0, li_vlen) { do print_byte(li_s[li_voff + li_pi]); };
+            do print("");
+        },
+    };
+    li_t
+}
+
+// LLVM: emit builtin call (exit, print, int_to_string)
+fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> Int {
+    let lbu_ni: Int = lbu_g[31];
+    let lbu_bi: Int = lbu_g[140]; // builtin ID passed via g[140]
+    match lbu_bi == 8 {
+        true -> {
+            let lbu_arg: Int = lbu_n[lbu_ni * 10 + 5];
+            lbu_g[31] = lbu_arg;
+            let lbu_at: Int = ll_expr(lbu_g, lbu_n, lbu_s);
+            let lbu_t: Int = ll_tmp(lbu_g);
+            do print("    %t" + int_to_string(lbu_t) + " = trunc i64 %t" + int_to_string(lbu_at) + " to i32");
+            do print("    call void @exit(i32 %t" + int_to_string(lbu_t) + ")");
+            do print("    unreachable");
+            lbu_t
+        },
+        false -> match lbu_bi == 1 {
+            true -> {
+                let lbu_a2: Int = lbu_n[lbu_ni * 10 + 5];
+                let lbu_si: Int = lbu_n[lbu_a2 * 10 + 8];
+                let lbu_sl: Int = lbu_n[lbu_a2 * 10 + 3];
+                let lbu_pt: Int = ll_tmp(lbu_g);
+                do print("    %t" + int_to_string(lbu_pt) + " = getelementptr [" + int_to_string(lbu_sl) + " x i8], [" + int_to_string(lbu_sl) + " x i8]* @_s" + int_to_string(lbu_si) + ", i64 0, i64 0");
+                let lbu_wt: Int = ll_tmp(lbu_g);
+                do print("    %t" + int_to_string(lbu_wt) + " = call i64 @write(i32 1, i8* %t" + int_to_string(lbu_pt) + ", i64 " + int_to_string(lbu_sl) + ")");
+                let lbu_nlt: Int = ll_tmp(lbu_g);
+                do print("    %t" + int_to_string(lbu_nlt) + " = getelementptr [1 x i8], [1 x i8]* @_nl, i64 0, i64 0");
+                let lbu_nwt: Int = ll_tmp(lbu_g);
+                do print("    %t" + int_to_string(lbu_nwt) + " = call i64 @write(i32 1, i8* %t" + int_to_string(lbu_nlt) + ", i64 1)");
+                lbu_nwt
+            },
+            false -> {
+                let lbu_t2: Int = ll_tmp(lbu_g);
+                do print("    %t" + int_to_string(lbu_t2) + " = add i64 0, 0 ; builtin " + int_to_string(lbu_bi) + " stub");
+                lbu_t2
+            },
+        },
+    }
+}
+
+// LLVM: emit user function call
+fn ll_call(lc_g: Array<Int>, lc_n: Array<Int>, lc_s: Array<Int>) [IO] -> Int {
+    let lc_ni: Int = lc_g[31];
+    let lc_coff: Int = lc_n[lc_ni * 10 + 2];
+    let lc_clen: Int = lc_n[lc_ni * 10 + 3];
+    let lc_cac: Int = lc_n[lc_ni * 10 + 4];
+    let lc_args: Array<Int> = Array(8);
+    let lc_ari: Array<Int> = Array(1); lc_ari[0] = lc_n[lc_ni * 10 + 5];
+    for lc_ai in range(0, lc_cac) {
+        lc_g[31] = lc_ari[0];
+        lc_args[lc_ai] = ll_expr(lc_g, lc_n, lc_s);
+        lc_ari[0] = lc_n[lc_ari[0] * 10 + 6];
+    };
+    let lc_t: Int = ll_tmp(lc_g);
+    do print_raw("    %t" + int_to_string(lc_t) + " = call i64 @fn_");
+    for lc_ni2 in range(0, lc_clen) { do print_byte(lc_s[lc_coff + lc_ni2]); };
+    do print_raw("(");
+    for lc_ai2 in range(0, lc_cac) {
+        match lc_ai2 > 0 { true -> do print_raw(", "), false -> { } };
+        do print_raw("i64 %t" + int_to_string(lc_args[lc_ai2]));
+    };
+    do print(")");
+    lc_t
+}
+
+// Emit LLVM IR for an expression node. Returns SSA temp number.
+fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
+    let le_ni: Int = le_g[31];
+    let le_nt: Int = le_n[le_ni * 10];
+    match le_nt == 7 {
+        // INT_LIT
+        true -> {
+            let le_t: Int = ll_tmp(le_g);
+            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8]));
+            le_t
+        },
+        false -> match le_nt == 12 {
+            true -> do ll_binop(le_g, le_n, le_s),
+            false -> match le_nt == 10 {
+                true -> do ll_ident(le_g, le_n, le_s),
+                false -> match le_nt == 14 {
+                    true -> {
+                        le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
+                        let le_bi: Int = chk_bi(le_g, le_s);
+                        match le_bi > 0 {
+                            true -> { le_g[140] = le_bi; le_g[31] = le_ni; do ll_builtin(le_g, le_n, le_s) },
+                            false -> { le_g[31] = le_ni; do ll_call(le_g, le_n, le_s) },
+                        }
+                    },
+                    false -> {
+                        let le_t2: Int = ll_tmp(le_g);
+                        do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt));
+                        le_t2
+                    },
+                },
+            },
+        },
+    }
+}
+
+// Emit LLVM IR for a statement node
+fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
+    let ls_ni: Int = ls_g[31];
+    let ls_nt: Int = ls_n[ls_ni * 10];
+    // LET (type 4)
+    match ls_nt == 4 {
+        true -> {
+            let ls_vi: Int = ls_g[50];
+            // Register variable
+            ls_g[51 + ls_vi * 4] = ls_n[ls_ni * 10 + 2]; // name off
+            ls_g[51 + ls_vi * 4 + 1] = ls_n[ls_ni * 10 + 3]; // name len
+            ls_g[50] = ls_vi + 1;
+            // Emit alloca
+            do print("    %v" + int_to_string(ls_vi) + " = alloca i64");
+            // Evaluate initializer
+            let ls_init: Int = ls_n[ls_ni * 10 + 5]; // first_child = init expr
+            ls_g[31] = ls_init;
+            let ls_vt: Int = ll_expr(ls_g, ls_n, ls_s);
+            do print("    store i64 %t" + int_to_string(ls_vt) + ", i64* %v" + int_to_string(ls_vi));
+        },
+        false -> {
+            // DO_CALL (type 13) or expression statement
+            match ls_nt == 13 {
+                true -> {
+                    ls_g[31] = ls_n[ls_ni * 10 + 5]; // first_child = call expr
+                    let _ls_t: Int = ll_expr(ls_g, ls_n, ls_s);
+                },
+                false -> {
+                    // Any other expression
+                    ls_g[31] = ls_ni;
+                    let _ls_t2: Int = ll_expr(ls_g, ls_n, ls_s);
+                },
+            };
+        },
+    };
+}
+
+// Emit LLVM IR for a block of statements
+fn ll_block(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Unit {
+    let lb_ni: Int = lb_g[31];
+    let lb_cc: Int = lb_n[lb_ni * 10 + 4]; // child count
+    let lb_ci: Array<Int> = Array(1); lb_ci[0] = lb_n[lb_ni * 10 + 5];
+    for _lb_i in range(0, lb_cc) {
+        lb_g[31] = lb_ci[0];
+        do ll_stmt(lb_g, lb_n, lb_s);
+        lb_ci[0] = lb_n[lb_ci[0] * 10 + 6]; // next sibling
+    };
+}
+
+// Emit one function
+fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
+    let lf_ni: Int = lf_g[31];
+    let lf_name_off: Int = lf_n[lf_ni * 10 + 2];
+    let lf_name_len: Int = lf_n[lf_ni * 10 + 3];
+    let lf_pc: Int = lf_n[lf_ni * 10 + 4]; // param count + 1 for body
+    // Reset variable table
+    lf_g[50] = 0;
+    lf_g[32] = 0; // reset SSA counter
+    // Emit function header
+    do print_raw("define i64 @fn_");
+    for lf_i in range(0, lf_name_len) { do print_byte(lf_s[lf_name_off + lf_i]); };
+    do print_raw("(");
+    // Emit params
+    let lf_pn: Array<Int> = Array(1); lf_pn[0] = lf_n[lf_ni * 10 + 5];
+    let lf_param_count: Int = lf_pc - 1; // last child is body
+    for lf_j in range(0, lf_param_count) {
+        match lf_j > 0 { true -> do print_raw(", "), false -> { } };
+        do print_raw("i64 %p_");
+        let lf_poff: Int = lf_n[lf_pn[0] * 10 + 2];
+        let lf_plen: Int = lf_n[lf_pn[0] * 10 + 3];
+        for lf_k in range(0, lf_plen) { do print_byte(lf_s[lf_poff + lf_k]); };
+        // Register param as variable
+        lf_g[51 + lf_g[50] * 4] = lf_poff;
+        lf_g[51 + lf_g[50] * 4 + 1] = lf_plen;
+        lf_g[50] = lf_g[50] + 1;
+        lf_pn[0] = lf_n[lf_pn[0] * 10 + 6]; // next sibling
+    };
+    do print(") {");
+    do print("entry:");
+    // Emit body (lf_pn[0] now points to body block)
+    lf_g[31] = lf_pn[0];
+    do ll_block(lf_g, lf_n, lf_s);
+    // If function didn't end with exit/unreachable, add a ret
+    do print("    ret i64 0");
+    do print("}");
+    do print("");
+}
+
 fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] -> Unit {
-    do print("; LLVM IR backend — Stage 3");
+    // Header
+    do print("; Loon compiler output — LLVM IR");
     do print("target triple = \"x86_64-pc-linux-gnu\"");
     do print("");
-    do print("; TODO: implement LLVM IR emission");
-    do print("; For now, use --target nasm (default)");
+    // External declarations
+    do print("declare void @exit(i32) noreturn");
+    do print("declare i64 @write(i32, i8*, i64)");
+    do print("declare i8* @malloc(i64)");
+    do print("");
+    // String literals — walk nodes for STR_LIT (8) and STR_MATCH_ARM (26)
+    el_gs[29] = 0;
+    for el_si in range(0, el_gs[12]) {
+        let el_is_str: Int = match el_gn[el_si * 10] == 8 { true -> 1, false -> match el_gn[el_si * 10] == 26 { true -> 1, false -> 0 } };
+        match el_is_str == 1 {
+            true -> {
+                let el_off: Int = el_gn[el_si * 10 + 2];
+                let el_len: Int = el_gn[el_si * 10 + 3];
+                do print_raw("@_s" + int_to_string(el_gs[29]) + " = private unnamed_addr constant [" + int_to_string(el_len) + " x i8] c\"");
+                for el_sj in range(0, el_len) {
+                    let el_ch: Int = el_gb[el_off + el_sj];
+                    // Printable ASCII except backslash and quote
+                    match el_ch >= 32 {
+                        true -> match el_ch == 34 { true -> do print_raw("\\22"), false -> match el_ch == 92 { true -> do print_raw("\\5C"), false -> do print_byte(el_ch) } },
+                        false -> match el_ch == 10 { true -> do print_raw("\\0A"), false -> match el_ch == 9 { true -> do print_raw("\\09"), false -> do print_raw("\\00") } },
+                    };
+                };
+                do print("\"");
+                el_gn[el_si * 10 + 8] = el_gs[29]; // store string index
+                el_gs[29] = el_gs[29] + 1;
+            },
+            false -> { },
+        };
+    };
+    // Newline constant for print
+    do print("@_nl = private unnamed_addr constant [1 x i8] c\"\\0A\"");
+    do print("");
+    // Functions — walk nodes for FN_DECL (1)
+    for el_fi in range(0, el_gs[12]) {
+        match el_gn[el_fi * 10] == 1 {
+            true -> {
+                el_gs[31] = el_fi;
+                do ll_fn(el_gs, el_gn, el_gb);
+            },
+            false -> { },
+        };
+    };
+    // C main entry point — calls fn_main
+    do print("define i32 @main() {");
+    do print("entry:");
+    do print("    call i64 @fn_main()");
+    do print("    ret i32 0");
+    do print("}");
 }
 
 // Parse --target flag. Returns 1 for llvm, 0 for nasm.
@@ -1986,16 +2270,16 @@ fn main() [IO] -> Unit {
     let gs: Array<Int> = Array(2048);
     let gb: Array<Int> = Array(262144);
     let gt: Array<Int> = Array(200000);
-    let gn: Array<Int> = Array(300000);
+    let gn: Array<Int> = Array(500000);
     gs[910] = match a1len == 6 { true -> 1, false -> 0 };
     gs[915] = mf[0];
     for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
     gs[46] = 0 - 1; gs[121] = 0 - 1; gs[153] = 0 - 1; gs[256] = 0 - 1; gs[900] = 0;
-    for sci in range(0, gs[5]) { gn[130000 + sci] = gb[sci]; };
+    for sci in range(0, gs[5]) { gn[200000 + sci] = gb[sci]; };
     do pp_parse(gs, gt, gn);
-    for sci2 in range(0, gs[5]) { gb[sci2] = gn[130000 + sci2]; };
+    for sci2 in range(0, gs[5]) { gb[sci2] = gn[200000 + sci2]; };
     do tc_check(gs, gn, gb);
     match gs[915] == 1 {
         true -> do cg_emit_llvm(gs, gn, gb),
