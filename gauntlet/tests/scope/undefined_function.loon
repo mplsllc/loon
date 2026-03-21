@@ -1,5 +1,5 @@
 // TEST: undefined_function
-// EXPECT: KNOWN GAP
+// EXPECT: ERROR
 // CATEGORY: scope
 module test;
 fn main() [IO] -> Unit {

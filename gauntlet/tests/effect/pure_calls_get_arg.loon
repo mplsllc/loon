@@ -1,5 +1,5 @@
 // TEST: pure_calls_get_arg
-// EXPECT: KNOWN GAP
+// EXPECT: ERROR
 // CATEGORY: effect
 module test;
 fn bad() [] -> String {

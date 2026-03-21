@@ -1,12 +1,12 @@
 PASS  effect_chain_violation
 PASS  io_calls_print_ok (exit 0)
 PASS  pure_calls_exit
-GAP   pure_calls_get_arg (compiles silently — known gap)
+PASS  pure_calls_get_arg
 PASS  pure_calls_io_fn
 PASS  pure_calls_print
 PASS  pure_calls_print_raw
 PASS  pure_calls_pure_ok (exit 10)
-GAP   pure_calls_read (compiles silently — known gap)
+PASS  pure_calls_read
 PASS  pure_no_calls_ok (exit 42)
 PASS  all_variants_covered (exit 6)
 PASS  bool_both_ok (exit 1)
@@ -24,7 +24,7 @@ PASS  correct_for_loop (exit 10)
 PASS  correct_let_usage (exit 15)
 PASS  correct_match_binding (exit 25)
 PASS  immutable_reassign
-GAP   undefined_function (compiles silently — known gap)
+PASS  undefined_function
 PASS  undefined_var
 PASS  wrong_arg_count_few
 PASS  wrong_arg_count_many
@@ -52,12 +52,12 @@ PASS  string_gets_int
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LOON INTEGRITY GAUNTLET
 Date:   2026-03-21
-Commit: dba12c1
+Commit: ba5f076
 ────────────────────────────────────────
 Total:       50
-Pass:        45
+Pass:        48
 Fail:        0
-Known gaps:  5
+Known gaps:  2
 Deferred:    0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 0 unexpected failures. Every test behaves as documented.
