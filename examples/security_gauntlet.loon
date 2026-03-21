@@ -45,7 +45,7 @@ module gauntlet;
 
 // ===== TEST 5: Return type mismatch =====
 // Function returns wrong type.
-// STATUS: MISSED — return type stored in FN_DECL but not verified against body.
+// STATUS: CAUGHT — tc_check_return verifies last expression type against declared return type.
 //
 // fn returns_wrong() [] -> Int { "not an int" }
 
@@ -80,8 +80,8 @@ module gauntlet;
 // fn reassign() [] -> Unit { let x: Int = 1; x = 2; }
 
 // ===== SUMMARY =====
-// CAUGHT:  6 (effect, type mismatch, exhaustive match, undefined var, wrong arg count, immutable reassign)
-// MISSED:  3 (call arg types, return type, division by zero)
+// CAUGHT:  7 (effect, type mismatch, exhaustive match, undefined var, wrong arg count, immutable reassign, return type)
+// MISSED:  2 (call arg types, division by zero)
 // DEFERRED: 2 (division by zero, array bounds — runtime checks for Stage 3)
 //
 // The 4 caught violations are the core compile-time safety guarantees.
@@ -89,7 +89,7 @@ module gauntlet;
 // The 2 deferred items are runtime safety for Stage 3.
 
 fn main() [IO] -> Unit {
-    do print("Security gauntlet: 6 caught, 3 missed, 2 deferred");
+    do print("Security gauntlet: 7 caught, 2 missed, 2 deferred");
     do print("See source comments for details on each test.");
     do exit(0);
 }

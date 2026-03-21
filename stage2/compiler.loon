@@ -1651,7 +1651,7 @@ fn tc_type_name(tn_t: Int) [] -> String {
 // Report a type error. g[905]=node, g[906]=kind (1=type_mismatch, 2=undeclared_effect), g[907]=expected, g[908]=received
 fn tc_error(te_g: Array<Int>, te_n: Array<Int>, te_s: Array<Int>) [IO] -> Unit {
     te_g[911] = te_g[911] + 1;
-    let te_kind: String = match te_g[906] { 1 -> "type_mismatch", 2 -> "undeclared_effect", 3 -> "undefined_variable", 4 -> "wrong_arg_count", _ -> "error" };
+    let te_kind: String = match te_g[906] { 1 -> "type_mismatch", 2 -> "undeclared_effect", 3 -> "undefined_variable", 4 -> "wrong_arg_count", 5 -> "return_type_mismatch", _ -> "error" };
     match te_g[910] == 1 { true -> {
         // JSON output
         do print_byte(123);
@@ -1690,7 +1690,10 @@ fn tc_error(te_g: Array<Int>, te_n: Array<Int>, te_s: Array<Int>) [IO] -> Unit {
         }, false -> match te_g[906] == 4 { true -> {
             do print_raw("wrong argument count: expected "); do print_raw(int_to_string(te_g[907]));
             do print_raw(", got "); do print(int_to_string(te_g[908]));
-        }, false -> do print("unknown error") } } } };
+        }, false -> match te_g[906] == 5 { true -> {
+            do print_raw("return type mismatch: declared "); do print_raw(tc_type_name(te_g[907]));
+            do print_raw(", returns "); do print(tc_type_name(te_g[908]));
+        }, false -> do print("unknown error") } } } } };
     } };
 }
 
@@ -1871,12 +1874,56 @@ fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> U
     };
 }
 
+// Return type check: verify last expression in body matches declared return type
+fn tc_check_return(tr_g: Array<Int>, tr_n: Array<Int>, tr_s: Array<Int>) [IO] -> Unit {
+    for tr_fi in range(0, tr_g[12]) {
+        match tr_n[tr_fi * 10] == 1 { true -> {
+            let tr_ret_type: Int = tr_n[tr_fi * 10 + 7]; // declared return type (0=Int, 2=String)
+            let tr_body: Int = tr_n[tr_fi * 10 + 8]; // body block node
+            match tr_body >= 1 { true -> {
+                // Find last child of block — that's the return expression
+                let tr_cc: Int = tr_n[tr_body * 10 + 4]; // child count
+                match tr_cc >= 1 { true -> {
+                    // Walk sibling chain to find last child
+                    let tr_cur: Array<Int> = Array(1); tr_cur[0] = tr_n[tr_body * 10 + 5];
+                    for _tr in range(0, tr_cc - 1) {
+                        let tr_ns: Int = tr_n[tr_cur[0] * 10 + 6];
+                        match tr_ns >= 1 { true -> { tr_cur[0] = tr_ns; }, false -> { } };
+                    };
+                    // tr_cur[0] = last child. Check if it's RETURN_EXPR (type 6)
+                    let tr_last: Int = tr_cur[0];
+                    match tr_n[tr_last * 10] == 6 { true -> {
+                        // RETURN_EXPR — check its child's type
+                        let tr_expr: Int = tr_n[tr_last * 10 + 5];
+                        match tr_expr >= 1 { true -> {
+                            let tr_expr_nt: Int = tr_n[tr_expr * 10];
+                            // Only check unambiguous literal returns
+                            let tr_actual: Int = match tr_expr_nt == 8 { true -> 2, false -> match tr_expr_nt == 7 { true -> 0, false -> match tr_expr_nt == 9 { true -> 0, false -> 0 - 1 } } };
+                            match tr_actual >= 0 { true -> {
+                                match tr_ret_type == 0 { true -> match tr_actual == 2 { true -> {
+                                    tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=0; tr_g[908]=2;
+                                    do tc_error(tr_g, tr_n, tr_s);
+                                }, false -> { } }, false -> { } };
+                                match tr_ret_type == 2 { true -> match tr_actual == 0 { true -> {
+                                    tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=2; tr_g[908]=0;
+                                    do tc_error(tr_g, tr_n, tr_s);
+                                }, false -> { } }, false -> { } };
+                            }, false -> { } };
+                        }, false -> { } };
+                    }, false -> { } };
+                }, false -> { } };
+            }, false -> { } };
+        }, false -> { } };
+    };
+}
+
 fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     tc_g[911] = 0;
     do tc_check_effects(tc_g, tc_n, tc_s);
     do tc_check_types(tc_g, tc_n, tc_s);
     do tc_check_undef(tc_g, tc_n, tc_s);
     do tc_check_args(tc_g, tc_n, tc_s);
+    do tc_check_return(tc_g, tc_n, tc_s);
     match tc_g[911] > 0 { true -> do exit(1), false -> { } };
 }
 
