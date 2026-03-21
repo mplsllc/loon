@@ -1949,30 +1949,58 @@ fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     match tc_g[911] > 0 { true -> do exit(1), false -> { } };
 }
 
+// ========== LLVM IR Backend (stub) ==========
+fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] -> Unit {
+    do print("; LLVM IR backend — Stage 3");
+    do print("target triple = \"x86_64-pc-linux-gnu\"");
+    do print("");
+    do print("; TODO: implement LLVM IR emission");
+    do print("; For now, use --target nasm (default)");
+}
 
-// Main
+// Parse --target flag. Returns 1 for llvm, 0 for nasm.
+// If --target is present, sets flags[0]=target, flags[1]=source_arg_offset
+fn ptarg(pt_flags: Array<Int>) [IO] -> Unit {
+    let pt_a1: String = get_arg(1);
+    let pt_len: Int = string_length(pt_a1);
+    match pt_len == 8 {
+        true -> {
+            // --target X: check X starts with 'l' for llvm
+            let pt_a2: String = get_arg(2);
+            match string_char_at(pt_a2, 0) == 108 { true -> { pt_flags[0] = 1; }, false -> { } };
+            pt_flags[1] = 2;
+        },
+        false -> { },
+    };
+}
+
+// Main — gs[910]=json, gs[915]=target(0=nasm,1=llvm)
 fn main() [IO] -> Unit {
-    // Check for --json flag (length 6)
+    // Parse --target flag first
     let arg1: String = get_arg(1);
     let a1len: Int = string_length(arg1);
+    let mf: Array<Int> = Array(1); mf[0] = 0;
+    match a1len == 8 { true -> { let a2t: String = get_arg(2); match string_char_at(a2t, 0) == 108 { true -> { mf[0] = 1; }, false -> { } }; }, false -> { } };
     let source: String = match a1len == 6 { true -> read_file(get_arg(2)), false -> read_file(arg1) };
     let slen: Int = string_length(source);
     let gs: Array<Int> = Array(2048);
     let gb: Array<Int> = Array(262144);
     let gt: Array<Int> = Array(200000);
     let gn: Array<Int> = Array(300000);
-    gs[910] = match a1len == 6 { true -> 1, false -> 0 }; // --json flag
+    gs[910] = match a1len == 6 { true -> 1, false -> 0 };
+    gs[915] = mf[0];
     for ci in range(0, slen) { gb[ci] = string_char_at(source, ci); };
     gs[0] = slen;
     do lex_all(gs, gt, gb);
     gs[46] = 0 - 1; gs[121] = 0 - 1; gs[153] = 0 - 1; gs[256] = 0 - 1; gs[900] = 0;
-    // Copy source + string table into gn[130000+] so parser can do name comparison
     for sci in range(0, gs[5]) { gn[130000 + sci] = gb[sci]; };
     do pp_parse(gs, gt, gn);
-    // Copy new string table entries back to gb (parser may add qualified names to gn[130000+])
     for sci2 in range(0, gs[5]) { gb[sci2] = gn[130000 + sci2]; };
-    // Type check and effect verification
     do tc_check(gs, gn, gb);
-    do cg_emit(gs, gn, gb);
+    match gs[915] == 1 {
+        true -> do cg_emit_llvm(gs, gn, gb),
+        false -> do cg_emit(gs, gn, gb),
+    };
     do exit(0);
 }
+
