@@ -460,17 +460,38 @@ fn pic_zero_vari(pz_g: Array<Int>, pz_n: Array<Int>) [] -> Int {
     } }
 }
 
+// Combine qualified name: module.func → single name in string table
+fn pic_qualify(pq_g: Array<Int>, pq_t: Array<Int>, pq_n: Array<Int>) [] -> Unit {
+    // g[47]=first ident off, g[48]=first ident len, current token=second ident
+    let pq_dst: Int = pq_g[5]; // write combined name at end of string table
+    // Copy first part (module name)
+    for pq_i in range(0, pq_g[48]) { pq_n[130000 + pq_dst + pq_i] = pq_n[130000 + pq_g[47] + pq_i]; };
+    // Add dot
+    pq_n[130000 + pq_dst + pq_g[48]] = 46;
+    // Copy second part (function name)
+    let pq_so2: Int = tsoff(pq_g, pq_t); let pq_sl2: Int = tslen(pq_g, pq_t);
+    for pq_j in range(0, pq_sl2) { pq_n[130000 + pq_dst + pq_g[48] + 1 + pq_j] = pq_n[130000 + pq_so2 + pq_j]; };
+    // Update g[47]/g[48] to point to combined name
+    pq_g[47] = pq_dst; pq_g[48] = pq_g[48] + 1 + pq_sl2;
+    pq_g[5] = pq_g[5] + pq_g[48]; // advance string table
+}
+
 // Ident or call
 fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [] -> Int {
-    let pi_so: Int = tsoff(pi_g, pi_t); let pi_sl: Int = tslen(pi_g, pi_t);
+    pi_g[47] = tsoff(pi_g, pi_t); pi_g[48] = tslen(pi_g, pi_t);
     do teat(pi_g);
-    pi_g[47]=pi_so; pi_g[48]=pi_sl;
+    // Handle qualified name: ident.ident
+    match tcur(pi_g, pi_t) == 43 { true -> {
+        do teat(pi_g); // eat DOT
+        do pic_qualify(pi_g, pi_t, pi_n);
+        do teat(pi_g); // eat second ident
+    }, false -> { } };
     // Check if uppercase (variant constructor)
-    let pi_fc: Int = pi_n[130000 + pi_so];
+    let pi_fc: Int = pi_n[130000 + pi_g[47]];
     let pi_upper: Int = match pi_fc >= 65 { true -> match pi_fc <= 90 { true -> 1, false -> 0 }, false -> 0 };
     match tcur(pi_g, pi_t) == 19 { true -> {
         do teat(pi_g);
-        let pi_ci: Int = nalloc(pi_g, pi_n); pi_n[pi_ci*10]=14; pi_n[pi_ci*10+2]=pi_so; pi_n[pi_ci*10+3]=pi_sl;
+        let pi_ci: Int = nalloc(pi_g, pi_n); pi_n[pi_ci*10]=14; pi_n[pi_ci*10+2]=pi_g[47]; pi_n[pi_ci*10+3]=pi_g[48];
         pi_g[112]=pi_g[23]; pi_g[113]=pi_g[24]; pi_g[114]=pi_g[25];
         pi_g[23]=0-1; pi_g[24]=0-1; pi_g[25]=0;
         for _pia in range(0, 32) { match tcur(pi_g, pi_t) == 20 { true -> { }, false -> {
@@ -486,7 +507,7 @@ fn pic_parse(pi_g: Array<Int>, pi_t: Array<Int>, pi_n: Array<Int>) [] -> Int {
         pi_ci
     }, false -> {
         match pi_upper == 1 { true -> pic_zero_vari(pi_g, pi_n),
-        false -> { let pi_ni: Int = nalloc(pi_g, pi_n); pi_n[pi_ni*10]=10; pi_n[pi_ni*10+2]=pi_so; pi_n[pi_ni*10+3]=pi_sl; pi_ni } }
+        false -> { let pi_ni: Int = nalloc(pi_g, pi_n); pi_n[pi_ni*10]=10; pi_n[pi_ni*10+2]=pi_g[47]; pi_n[pi_ni*10+3]=pi_g[48]; pi_ni } }
     } }
 }
 // ADT match arm helper: VariantName or VariantName(binding, ...) -> expr
@@ -1011,7 +1032,13 @@ fn cg_store_reg(sr_ri: Int, sr_off: Int) [IO] -> Unit {
 
 // Emit a name from source buffer byte by byte
 fn cg_name(cn_s: Array<Int>, cn_off: Int, cn_len: Int) [IO] -> Unit {
-    for cn_i in range(0, cn_len) { do print_byte(cn_s[cn_off + cn_i]); };
+    // Find dot position — if qualified name, emit only the part after the dot
+    let cn_start: Array<Int> = Array(1); cn_start[0] = cn_off;
+    let cn_emit_len: Array<Int> = Array(1); cn_emit_len[0] = cn_len;
+    for cn_i in range(0, cn_len) {
+        match cn_s[cn_off + cn_i] == 46 { true -> { cn_start[0] = cn_off + cn_i + 1; cn_emit_len[0] = cn_len - cn_i - 1; }, false -> { } };
+    };
+    for cn_j in range(0, cn_emit_len[0]) { do print_byte(cn_s[cn_start[0] + cn_j]); };
 }
 
 // Emit a block's children — g[31] = block node index (set before call)
@@ -1783,6 +1810,8 @@ fn main() [IO] -> Unit {
     // Copy source + string table into gn[130000+] so parser can do name comparison
     for sci in range(0, gs[5]) { gn[130000 + sci] = gb[sci]; };
     do pp_parse(gs, gt, gn);
+    // Copy new string table entries back to gb (parser may add qualified names to gn[130000+])
+    for sci2 in range(0, gs[5]) { gb[sci2] = gn[130000 + sci2]; };
     // Type check and effect verification
     do tc_check(gs, gn, gb);
     do cg_emit(gs, gn, gb);
