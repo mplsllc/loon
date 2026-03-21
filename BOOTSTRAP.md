@@ -34,19 +34,16 @@ The lexer was 1,198 lines of hand-written NASM assembly. Every label prefixed wi
 
 **Goal:** Read tokens from stdin, parse into an AST, emit NASM x86-64 assembly to stdout.
 
-Stage 1 was the real compiler — 7,355 lines of hand-written assembly across 10 files:
+Stage 1 was the real compiler — 6,542 lines of hand-written assembly across 7 files:
 
 ```
-compiler.asm       — entry point, _start, .bss buffers
-token_reader.asm   — tok_*: stdin → token array
-parser.asm         — par_*: tokens → AST nodes
-expr_parser.asm    — expr_*: expression precedence climbing
-match_parser.asm   — mpar_*: match arms
-codegen.asm        — cg_*: AST → NASM output
-codegen_expr.asm   — cgx_*: expression codegen
-codegen_match.asm  — cgm_*: match codegen
-codegen_io.asm     — cgio_*: string/print codegen
-strings.asm        — str_*: string runtime
+compiler.asm       — entry point, _start, .bss buffers (236 lines)
+token_reader.asm   — tok_*: stdin → token array (551 lines)
+parser.asm         — par_*: tokens → AST nodes (1,118 lines)
+expr_parser.asm    — expr_*: expression precedence climbing (1,660 lines)
+codegen.asm        — cg_*: AST → NASM output (1,547 lines)
+codegen_expr.asm   — cgx_*: expression codegen (1,181 lines)
+codegen_match.asm  — cgm_*: match codegen (249 lines)
 ```
 
 Every function followed a strict prefix convention. Every register usage was documented. The calling convention: 16 bytes per parameter (ptr + len for strings and arrays, value + unused for integers).
@@ -61,7 +58,18 @@ The AST was a flat array of 10-integer nodes. No pointers, no dynamic allocation
 nasm -f elf64 -o output.o output.asm && ld -o output output.o
 ```
 
-Five syscalls to run a compiled Loon program: `open`, `read`, `close`, `write`, `exit`. That's it. The entire runtime is five Linux system calls.
+After M2.2, the first compiled Loon program ran. `strace` showed:
+
+```
+execve("/tmp/effects", ...)
+write(1, "Sum: 7", 6)
+write(1, "\n", 1)
+write(1, "Hello, Loon", 11)
+write(1, "\n", 1)
+exit(0)
+```
+
+Five syscalls. No hidden allocations. No runtime startup. No dynamic linker. Every byte of output traceable to a `write` syscall the compiler emitted.
 
 ---
 
@@ -202,10 +210,10 @@ Seven compile-time safety checks. The seven most common mistakes AI agents make 
 
 ```
 Stage 0:  1,198 lines of x86-64 assembly (lexer)
-Stage 1:  7,355 lines of x86-64 assembly (compiler)
-Stage 2:  ~1,800 lines of Loon-0 (self-hosting compiler)
+Stage 1:  6,542 lines of x86-64 assembly (compiler)
+Stage 2:  1,956 lines of Loon-0 (self-hosting compiler)
 
-Total assembly written:     8,553 lines
+Total assembly written:     7,740 lines
 Total assembly still used:  0 lines (retired at M2.3)
 
 Bugs found during bootstrap:  20+
