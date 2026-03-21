@@ -80,22 +80,32 @@ fn str2int(si_g: Array<Int>, si_s: Array<Int>) [] -> Int {
 // Check if name at g[40]=offset, g[41]=length matches a builtin.
 // Returns: builtin sub_type (0=none, 1=print, ..., 9=get_arg, 10=print_byte)
 // Builtin detection: uses g[40]=offset, g[41]=length. Returns builtin ID.
+// Full string comparison for builtin name lookup. No more character sampling.
+// g[40]=name offset, g[41]=name length. s=source buffer.
+fn str_eq(se_g: Array<Int>, se_s: Array<Int>, se_target: String) [] -> Bool {
+    match se_g[41] == string_length(se_target) { false -> false, true -> {
+        let se_ok: Array<Int> = Array(1); se_ok[0] = 1;
+        for se_i in range(0, se_g[41]) {
+            match se_s[se_g[40] + se_i] == string_char_at(se_target, se_i) { true -> { }, false -> { se_ok[0] = 0; } };
+        };
+        match se_ok[0] == 1 { true -> true, false -> false }
+    } }
+}
+
 fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
-    bi_g[136]=bi_g[41]; bi_g[137]=bi_s[bi_g[40]];
-    match bi_g[136] == 4 { true -> match bi_g[137]==101 { true -> 8, false -> 0 },
-    false -> match bi_g[136] == 5 { true -> match bi_g[137]==112 { true -> 1, false -> 0 },
-    false -> do chk_bi2(bi_g, bi_s) } }
+    match str_eq(bi_g, bi_s, "print") { true -> 1,
+    false -> match str_eq(bi_g, bi_s, "print_raw") { true -> 2,
+    false -> match str_eq(bi_g, bi_s, "int_to_string") { true -> 3,
+    false -> match str_eq(bi_g, bi_s, "string_length") { true -> 4,
+    false -> do chk_bi2(bi_g, bi_s) } } } }
 }
 fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
-    match b2_g[136]==9 { true -> match b2_g[137]==112 { true -> match b2_s[b2_g[40]+5]==95 { true -> match b2_s[b2_g[40]+6]==114 { true -> 2, false -> 0 }, false -> 0 }, false -> match b2_g[137]==114 { true -> 7, false -> 0 } },
-    false -> match b2_g[136]==7 { true -> match b2_g[137]==103 { true -> 9, false -> 0 },
-    false -> do chk_bi3(b2_g, b2_s) } }
-}
-fn chk_bi3(b3_g: Array<Int>, b3_s: Array<Int>) [] -> Int {
-    match b3_g[136]==13 { true -> match b3_g[137]==105 { true -> 3, false -> match b3_g[137]==115 { true -> match b3_s[b3_g[40]+7]==104 { true -> 6, false -> 4 }, false -> 0 } },
-    false -> match b3_g[136]==14 { true -> match b3_g[137]==115 { true -> 6, false -> 0 },
-    false -> match b3_g[136]==10 { true -> match b3_g[137]==112 { true -> match b3_s[b3_g[40]+5]==95 { true -> match b3_s[b3_g[40]+6]==98 { true -> 10, false -> 0 }, false -> 0 }, false -> 0 },
-    false -> 0 } } }
+    match str_eq(b2_g, b2_s, "string_char_at") { true -> 6,
+    false -> match str_eq(b2_g, b2_s, "read_file") { true -> 7,
+    false -> match str_eq(b2_g, b2_s, "exit") { true -> 8,
+    false -> match str_eq(b2_g, b2_s, "get_arg") { true -> 9,
+    false -> match str_eq(b2_g, b2_s, "print_byte") { true -> 10,
+    false -> 0 } } } } }
 }
 
 // ===== Parser =====
