@@ -1,0 +1,95 @@
+// security_gauntlet.loon — Tests what Loon catches and what it doesn't yet.
+// Every section attempts a class of violation. The compiler should reject each one.
+// Run each section individually to verify the error.
+//
+// STATUS KEY:
+//   CAUGHT   = compiler rejects this (working as designed)
+//   MISSED   = compiler allows this (needs fixing)
+//   DEFERRED = not implemented yet (planned for later)
+
+module gauntlet;
+
+// ===== TEST 1: Effect violation =====
+// A pure function calling an IO function.
+// STATUS: CAUGHT — M2.5 effect checker detects this.
+//
+// fn pure_leak() [] -> Int {
+//     do print("leaking side effect");
+//     42
+// }
+
+// ===== TEST 2: Type mismatch (literal) =====
+// Assigning a string to an Int variable.
+// STATUS: CAUGHT — M2.6 type checker detects this.
+//
+// fn type_violation() [IO] -> Unit {
+//     let x: Int = "not an int";
+//     do exit(0);
+// }
+
+// ===== TEST 3: Non-exhaustive ADT match =====
+// Missing a variant in match.
+// STATUS: CAUGHT — M2.4 exhaustive check detects this.
+//
+// type Color { Red, Green, Blue }
+// fn incomplete(c: Color) [] -> Int {
+//     match c { Red -> 0, Green -> 1 }
+// }
+
+// ===== TEST 4: Type mismatch (function call) =====
+// Passing wrong type to function.
+// STATUS: MISSED — type checker only checks literal initializers, not call args.
+//
+// fn expects_int(x: Int) [] -> Int { x }
+// fn call_mismatch() [] -> Int { expects_int("wrong") }
+
+// ===== TEST 5: Return type mismatch =====
+// Function returns wrong type.
+// STATUS: MISSED — return type stored in FN_DECL but not verified against body.
+//
+// fn returns_wrong() [] -> Int { "not an int" }
+
+// ===== TEST 6: Undefined variable =====
+// Using a variable that was never declared.
+// STATUS: MISSED — cg_find_var returns default offset 8, no error.
+//
+// fn use_undefined() [] -> Int { y }
+
+// ===== TEST 7: Wrong argument count =====
+// Calling a function with wrong number of arguments.
+// STATUS: MISSED — parser accepts any argument count, codegen emits what it gets.
+//
+// fn takes_two(a: Int, b: Int) [] -> Int { a + b }
+// fn wrong_args() [] -> Int { takes_two(1) }
+
+// ===== TEST 8: Division by zero =====
+// Runtime safety check.
+// STATUS: MISSED — no runtime check, hardware fault (SIGFPE).
+// DEFERRED — runtime checks planned for Stage 3.
+
+// ===== TEST 9: Array out of bounds =====
+// Accessing array past its length.
+// STATUS: MISSED — no bounds checking, reads garbage memory.
+// DEFERRED — runtime checks planned for Stage 3.
+
+// ===== TEST 10: Immutable reassignment =====
+// Attempting to reassign a let binding.
+// STATUS: MISSED — parser treats `x = 2;` as an expression statement, no error.
+// Compiles but produces wrong behavior at runtime.
+//
+// fn reassign() [] -> Unit { let x: Int = 1; x = 2; }
+
+// ===== SUMMARY =====
+// CAUGHT:  3 (effect violation, type mismatch literal, non-exhaustive match)
+// MISSED:  6 (call arg types, return type, undefined var, wrong arg count, immutable reassign, division by zero)
+// DEFERRED: 2 (division by zero, array bounds — runtime checks for Stage 3)
+//
+// The 4 caught violations are the core compile-time safety guarantees.
+// The 5 missed items are the M2.7+ type checker improvements needed.
+// The 2 deferred items are runtime safety for Stage 3.
+
+fn main() [IO] -> Unit {
+    do print("Security gauntlet: 3 caught, 6 missed, 2 deferred");
+    do print("See source comments for details on each test.");
+    do exit(0);
+}
