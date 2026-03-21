@@ -87,14 +87,14 @@ fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
     false -> do chk_bi2(bi_g, bi_s) } }
 }
 fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
-    match b2_g[136]==9 { true -> match b2_g[137]==112 { true -> match b2_s[b2_g[40]+5]==95 { true -> 2, false -> 0 }, false -> match b2_g[137]==114 { true -> 7, false -> 0 } },
+    match b2_g[136]==9 { true -> match b2_g[137]==112 { true -> match b2_s[b2_g[40]+5]==95 { true -> match b2_s[b2_g[40]+6]==114 { true -> 2, false -> 0 }, false -> 0 }, false -> match b2_g[137]==114 { true -> 7, false -> 0 } },
     false -> match b2_g[136]==7 { true -> match b2_g[137]==103 { true -> 9, false -> 0 },
     false -> do chk_bi3(b2_g, b2_s) } }
 }
 fn chk_bi3(b3_g: Array<Int>, b3_s: Array<Int>) [] -> Int {
     match b3_g[136]==13 { true -> match b3_g[137]==105 { true -> 3, false -> match b3_g[137]==115 { true -> match b3_s[b3_g[40]+7]==104 { true -> 6, false -> 4 }, false -> 0 } },
     false -> match b3_g[136]==14 { true -> match b3_g[137]==115 { true -> 6, false -> 0 },
-    false -> match b3_g[136]==10 { true -> match b3_g[137]==112 { true -> match b3_s[b3_g[40]+5]==95 { true -> 10, false -> 0 }, false -> 0 },
+    false -> match b3_g[136]==10 { true -> match b3_g[137]==112 { true -> match b3_s[b3_g[40]+5]==95 { true -> match b3_s[b3_g[40]+6]==98 { true -> 10, false -> 0 }, false -> 0 }, false -> 0 },
     false -> 0 } } }
 }
 
@@ -956,10 +956,10 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                 }, false -> { } };
                 // Push next_sibling (processed second = breadth after depth)
                 ws_g[138] = ws_n[ws_g[136] * 10 + 6];
-                match ws_g[138] >= 1 { true -> match ws_g[220] < 700 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
+                match ws_g[138] >= 1 { true -> match ws_g[220] < 900 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
                 // Push first_child (processed first = depth-first)
                 ws_g[138] = ws_n[ws_g[136] * 10 + 5];
-                match ws_g[138] >= 1 { true -> match ws_g[220] < 700 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
+                match ws_g[138] >= 1 { true -> match ws_g[220] < 900 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
             }, false -> { } };
         }, false -> { } };
     };
