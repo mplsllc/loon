@@ -620,6 +620,8 @@ fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [IO] -> Unit {
             ce_cur[0] = ce_n[ce_cur[0]*10+6];
         }, false -> { } };
     };
+    // Bool exhaustiveness: KNOWN GAP — requires discriminant type tracking to distinguish
+    // Bool matches from Int matches. Deferred to Stage 3 type inference.
     // If has ADT arms and no wildcard, check coverage
     match ce_has_adt[0] == 1 { true -> match ce_has_wild[0] == 0 { true -> {
         let ce_vc: Int = ce_g[1024 + ce_type_idx[0] * 64 + 2]; // variant count
