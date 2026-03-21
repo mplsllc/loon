@@ -1,0 +1,8 @@
+// TEST: call_arg_correct
+// EXPECT: COMPILES OK, exit 5
+// CATEGORY: type
+module test;
+fn add(a: Int, b: Int) [] -> Int { a + b }
+fn main() [IO] -> Unit {
+    do exit(add(2, 3));
+}

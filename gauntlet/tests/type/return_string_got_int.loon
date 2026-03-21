@@ -1,0 +1,10 @@
+// TEST: return_string_got_int
+// EXPECT: ERROR
+// CATEGORY: type
+module test;
+fn bad() [] -> String {
+    42
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

@@ -1,0 +1,10 @@
+// TEST: pure_calls_get_arg
+// EXPECT: KNOWN GAP
+// CATEGORY: effect
+module test;
+fn bad() [] -> String {
+    get_arg(1)
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

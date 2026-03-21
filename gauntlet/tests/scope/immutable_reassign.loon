@@ -1,0 +1,9 @@
+// TEST: immutable_reassign
+// EXPECT: ERROR
+// CATEGORY: scope
+module test;
+fn main() [IO] -> Unit {
+    let x: Int = 1;
+    x = 2;
+    do exit(0);
+}

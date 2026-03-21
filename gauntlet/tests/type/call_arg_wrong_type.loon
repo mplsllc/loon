@@ -1,0 +1,9 @@
+// TEST: call_arg_wrong_type
+// EXPECT: KNOWN GAP
+// CATEGORY: type
+// Passing String where Int expected — compiler does not check call arg types yet
+module test;
+fn takes_int(x: Int) [] -> Int { x }
+fn main() [IO] -> Unit {
+    do exit(takes_int("wrong"));
+}

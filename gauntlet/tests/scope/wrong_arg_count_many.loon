@@ -1,0 +1,8 @@
+// TEST: wrong_arg_count_many
+// EXPECT: ERROR
+// CATEGORY: scope
+module test;
+fn add(a: Int, b: Int) [] -> Int { a + b }
+fn main() [IO] -> Unit {
+    do exit(add(1, 2, 3));
+}

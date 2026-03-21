@@ -1,0 +1,10 @@
+// TEST: pure_calls_read
+// EXPECT: KNOWN GAP
+// CATEGORY: effect
+module test;
+fn bad() [] -> String {
+    read_file("x")
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

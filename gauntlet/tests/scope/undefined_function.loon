@@ -1,0 +1,7 @@
+// TEST: undefined_function
+// EXPECT: KNOWN GAP
+// CATEGORY: scope
+module test;
+fn main() [IO] -> Unit {
+    do exit(nonexistent(42));
+}

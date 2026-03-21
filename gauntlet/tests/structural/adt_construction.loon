@@ -1,0 +1,15 @@
+// TEST: adt_construction
+// EXPECT: COMPILES OK, exit 25
+// CATEGORY: structural
+module test;
+type Shape { Circle(r: Int), Point }
+fn area(s: Shape) [] -> Int {
+    match s {
+        Circle(r) -> r * r,
+        Point -> 0,
+    }
+}
+fn main() [IO] -> Unit {
+    let c: Shape = Circle(5);
+    do exit(area(c));
+}

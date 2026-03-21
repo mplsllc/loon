@@ -1,0 +1,13 @@
+// TEST: pure_calls_io_fn
+// EXPECT: ERROR
+// CATEGORY: effect
+module test;
+fn do_io() [IO] -> Unit {
+    do print("io");
+}
+fn bad() [] -> Unit {
+    do do_io();
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

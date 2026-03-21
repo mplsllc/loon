@@ -1,0 +1,15 @@
+// TEST: zero_field_variant
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: exhaustive
+module test;
+type Status { Ok, Err }
+fn check(s: Status) [] -> Int {
+    match s {
+        Ok -> 0,
+        Err -> 1,
+    }
+}
+fn main() [IO] -> Unit {
+    let s: Status = Ok;
+    do exit(check(s));
+}

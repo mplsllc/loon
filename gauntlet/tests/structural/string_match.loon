@@ -1,0 +1,14 @@
+// TEST: string_match
+// EXPECT: COMPILES OK, exit 3
+// CATEGORY: structural
+module test;
+fn classify(s: String) [] -> Int {
+    match s {
+        "hello" -> 1,
+        "world" -> 2,
+        _ -> 0,
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(classify("hello") + classify("world") + classify("other"));
+}

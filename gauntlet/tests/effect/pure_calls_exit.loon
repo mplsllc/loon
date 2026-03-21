@@ -1,0 +1,11 @@
+// TEST: pure_calls_exit
+// EXPECT: ERROR
+// CATEGORY: effect
+module test;
+fn bad() [] -> Int {
+    do exit(1);
+    0
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

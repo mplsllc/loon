@@ -1,0 +1,11 @@
+// TEST: io_calls_print_ok
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: effect
+module test;
+fn greet() [IO] -> Unit {
+    do print("hello");
+}
+fn main() [IO] -> Unit {
+    do greet();
+    do exit(0);
+}

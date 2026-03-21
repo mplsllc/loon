@@ -1,0 +1,9 @@
+// TEST: pure_calls_pure_ok
+// EXPECT: COMPILES OK, exit 10
+// CATEGORY: effect
+module test;
+fn double(x: Int) [] -> Int { x * 2 }
+fn quad(x: Int) [] -> Int { double(double(x)) }
+fn main() [IO] -> Unit {
+    do exit(quad(2) + double(1));
+}

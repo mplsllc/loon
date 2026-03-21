@@ -1,0 +1,15 @@
+// TEST: correct_match_binding
+// EXPECT: COMPILES OK, exit 25
+// CATEGORY: scope
+module test;
+type Shape { Circle(r: Int), Rect(w: Int, h: Int) }
+fn area(s: Shape) [] -> Int {
+    match s {
+        Circle(r) -> r * r,
+        Rect(w, h) -> w * h,
+    }
+}
+fn main() [IO] -> Unit {
+    let c: Shape = Circle(5);
+    do exit(area(c));
+}

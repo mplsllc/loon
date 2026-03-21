@@ -1,0 +1,10 @@
+// TEST: correct_let_usage
+// EXPECT: COMPILES OK, exit 15
+// CATEGORY: scope
+module test;
+fn main() [IO] -> Unit {
+    let a: Int = 5;
+    let b: Int = 10;
+    let c: Int = a + b;
+    do exit(c);
+}

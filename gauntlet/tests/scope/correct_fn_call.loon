@@ -1,0 +1,8 @@
+// TEST: correct_fn_call
+// EXPECT: COMPILES OK, exit 30
+// CATEGORY: scope
+module test;
+fn mul(a: Int, b: Int) [] -> Int { a * b }
+fn main() [IO] -> Unit {
+    do exit(mul(5, 6));
+}

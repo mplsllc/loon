@@ -1,0 +1,8 @@
+// TEST: correct_return_int
+// EXPECT: COMPILES OK, exit 7
+// CATEGORY: type
+module test;
+fn seven() [] -> Int { 7 }
+fn main() [IO] -> Unit {
+    do exit(seven());
+}

@@ -1,0 +1,14 @@
+// TEST: single_variant_adt
+// EXPECT: COMPILES OK, exit 99
+// CATEGORY: exhaustive
+module test;
+type Wrapper { Val(x: Int) }
+fn unwrap(w: Wrapper) [] -> Int {
+    match w {
+        Val(x) -> x,
+    }
+}
+fn main() [IO] -> Unit {
+    let w: Wrapper = Val(99);
+    do exit(unwrap(w));
+}

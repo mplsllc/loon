@@ -1,0 +1,13 @@
+// TEST: recursive_fn
+// EXPECT: COMPILES OK, exit 55
+// CATEGORY: structural
+module test;
+fn fib(n: Int) [] -> Int {
+    match n <= 1 {
+        true -> n,
+        false -> fib(n - 1) + fib(n - 2),
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(fib(10));
+}

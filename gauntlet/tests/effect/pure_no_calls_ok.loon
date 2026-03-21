@@ -1,0 +1,8 @@
+// TEST: pure_no_calls_ok
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: effect
+module test;
+fn add(a: Int, b: Int) [] -> Int { a + b }
+fn main() [IO] -> Unit {
+    do exit(add(20, 22));
+}

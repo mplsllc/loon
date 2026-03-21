@@ -1,0 +1,18 @@
+// TEST: all_variants_covered
+// EXPECT: COMPILES OK, exit 6
+// CATEGORY: exhaustive
+module test;
+type Color { Red, Green, Blue }
+fn val(c: Color) [] -> Int {
+    match c {
+        Red -> 1,
+        Green -> 2,
+        Blue -> 3,
+    }
+}
+fn main() [IO] -> Unit {
+    let r: Color = Red;
+    let g: Color = Green;
+    let b: Color = Blue;
+    do exit(val(r) + val(g) + val(b));
+}

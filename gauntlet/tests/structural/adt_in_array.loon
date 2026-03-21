@@ -1,0 +1,17 @@
+// TEST: adt_in_array
+// EXPECT: COMPILES OK, exit 15
+// CATEGORY: structural
+module test;
+type Val { Num(n: Int) }
+fn unwrap(v: Val) [] -> Int {
+    match v { Num(n) -> n }
+}
+fn main() [IO] -> Unit {
+    let arr: Array<Int> = Array(3);
+    let a: Val = Num(5);
+    let b: Val = Num(10);
+    arr[0] = unwrap(a);
+    arr[1] = unwrap(b);
+    arr[2] = arr[0] + arr[1];
+    do exit(arr[2]);
+}

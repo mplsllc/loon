@@ -1,0 +1,16 @@
+// TEST: nested_match
+// EXPECT: COMPILES OK, exit 7
+// CATEGORY: structural
+module test;
+fn classify(x: Int) [] -> Int {
+    match x > 5 {
+        true -> match x > 10 {
+            true -> 3,
+            false -> 2,
+        },
+        false -> 1,
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(classify(3) + classify(7) + classify(15) + classify(1));
+}

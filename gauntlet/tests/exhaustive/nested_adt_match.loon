@@ -1,0 +1,16 @@
+// TEST: nested_adt_match
+// EXPECT: COMPILES OK, exit 3
+// CATEGORY: exhaustive
+module test;
+type Outer { A(val: Int), B(val: Int) }
+fn get(o: Outer) [] -> Int {
+    match o {
+        A(v) -> match v == 1 { true -> 1, false -> 2 },
+        B(v) -> v,
+    }
+}
+fn main() [IO] -> Unit {
+    let x: Outer = A(1);
+    let y: Outer = B(3);
+    do exit(get(x) + get(y) - 1);
+}

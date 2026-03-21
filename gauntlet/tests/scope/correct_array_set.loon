@@ -1,0 +1,11 @@
+// TEST: correct_array_set
+// EXPECT: COMPILES OK, exit 60
+// CATEGORY: scope
+module test;
+fn main() [IO] -> Unit {
+    let arr: Array<Int> = Array(3);
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
+    do exit(arr[0] + arr[1] + arr[2]);
+}

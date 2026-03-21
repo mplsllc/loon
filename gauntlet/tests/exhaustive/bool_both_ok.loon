@@ -1,0 +1,13 @@
+// TEST: bool_both_ok
+// EXPECT: COMPILES OK, exit 1
+// CATEGORY: exhaustive
+module test;
+fn to_int(b: Bool) [] -> Int {
+    match b {
+        true -> 1,
+        false -> 0,
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(to_int(true));
+}

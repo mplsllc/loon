@@ -1,0 +1,9 @@
+// TEST: pipe_chain
+// EXPECT: COMPILES OK, exit 11
+// CATEGORY: structural
+module test;
+fn double(x: Int) [] -> Int { x * 2 }
+fn increment(x: Int) [] -> Int { x + 1 }
+fn main() [IO] -> Unit {
+    do exit(5 |> double |> increment);
+}

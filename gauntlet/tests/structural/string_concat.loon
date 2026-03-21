@@ -1,0 +1,9 @@
+// TEST: string_concat
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: structural
+module test;
+fn main() [IO] -> Unit {
+    let greeting: String = "hello" + " " + "world";
+    do print(greeting);
+    do exit(0);
+}

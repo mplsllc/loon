@@ -1,0 +1,7 @@
+// TEST: complex_expr
+// EXPECT: COMPILES OK, exit 17
+// CATEGORY: structural
+module test;
+fn main() [IO] -> Unit {
+    do exit((3 + 4) * 2 + 3);
+}

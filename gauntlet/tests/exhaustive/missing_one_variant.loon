@@ -1,0 +1,14 @@
+// TEST: missing_one_variant
+// EXPECT: ERROR
+// CATEGORY: exhaustive
+module test;
+type Color { Red, Green, Blue }
+fn name(c: Color) [] -> Int {
+    match c {
+        Red -> 0,
+        Green -> 1,
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

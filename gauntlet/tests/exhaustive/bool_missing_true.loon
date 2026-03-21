@@ -1,0 +1,13 @@
+// TEST: bool_missing_true
+// EXPECT: KNOWN GAP
+// CATEGORY: exhaustive
+// Bool exhaustive check not implemented — only ADT exhaustiveness is checked
+module test;
+fn bad(b: Bool) [] -> Int {
+    match b {
+        false -> 0,
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

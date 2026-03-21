@@ -1,0 +1,10 @@
+// TEST: pure_calls_print
+// EXPECT: ERROR
+// CATEGORY: effect
+module test;
+fn bad() [] -> Unit {
+    do print("side effect in pure function");
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

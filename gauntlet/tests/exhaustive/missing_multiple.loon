@@ -1,0 +1,13 @@
+// TEST: missing_multiple
+// EXPECT: ERROR
+// CATEGORY: exhaustive
+module test;
+type Dir { North, South, East, West }
+fn go(d: Dir) [] -> Int {
+    match d {
+        North -> 0,
+    }
+}
+fn main() [IO] -> Unit {
+    do exit(0);
+}

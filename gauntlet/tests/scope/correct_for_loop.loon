@@ -1,0 +1,12 @@
+// TEST: correct_for_loop
+// EXPECT: COMPILES OK, exit 10
+// CATEGORY: scope
+module test;
+fn main() [IO] -> Unit {
+    let sum: Array<Int> = Array(1);
+    sum[0] = 0;
+    for i in range(0, 5) {
+        sum[0] = sum[0] + i;
+    };
+    do exit(sum[0]);
+}

@@ -1,0 +1,15 @@
+// TEST: wildcard_covers
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: exhaustive
+module test;
+type Color { Red, Green, Blue }
+fn val(c: Color) [] -> Int {
+    match c {
+        Red -> 1,
+        _ -> 0,
+    }
+}
+fn main() [IO] -> Unit {
+    let g: Color = Green;
+    do exit(val(g));
+}

@@ -1,0 +1,7 @@
+// TEST: undefined_var
+// EXPECT: ERROR
+// CATEGORY: scope
+module test;
+fn main() [IO] -> Unit {
+    do exit(undefined_name);
+}

@@ -1,0 +1,9 @@
+// TEST: correct_string_let
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: type
+module test;
+fn main() [IO] -> Unit {
+    let x: String = "hello";
+    do print(x);
+    do exit(0);
+}

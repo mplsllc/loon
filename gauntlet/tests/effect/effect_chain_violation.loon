@@ -1,0 +1,14 @@
+// TEST: effect_chain_violation
+// EXPECT: ERROR
+// CATEGORY: effect
+module test;
+fn inner() [IO] -> Unit {
+    do print("io");
+}
+fn middle() [] -> Unit {
+    do inner();
+}
+fn main() [IO] -> Unit {
+    do middle();
+    do exit(0);
+}

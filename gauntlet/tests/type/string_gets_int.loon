@@ -1,0 +1,8 @@
+// TEST: string_gets_int
+// EXPECT: ERROR
+// CATEGORY: type
+module test;
+fn main() [IO] -> Unit {
+    let x: String = 42;
+    do exit(0);
+}

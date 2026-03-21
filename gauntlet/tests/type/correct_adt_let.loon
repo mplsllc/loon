@@ -1,0 +1,15 @@
+// TEST: correct_adt_let
+// EXPECT: COMPILES OK, exit 25
+// CATEGORY: type
+module test;
+type Shape { Circle(radius: Int), Square(side: Int) }
+fn area(s: Shape) [] -> Int {
+    match s {
+        Circle(r) -> r * r,
+        Square(s) -> s * s,
+    }
+}
+fn main() [IO] -> Unit {
+    let c: Shape = Circle(5);
+    do exit(area(c));
+}
