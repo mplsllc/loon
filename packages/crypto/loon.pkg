@@ -1,0 +1,9 @@
+// Loon crypto package — official tier
+// Provides secure password hashing and token generation.
+// All sensitive values use privacy types to prevent accidental logging.
+name = "crypto";
+version = "0.1.0";
+author = "mpls";
+license = "MPLS-1.0";
+exports = [hash_password, verify_password, generate_token];
+effects = [IO, Crypto];
