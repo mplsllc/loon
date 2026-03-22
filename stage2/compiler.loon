@@ -2032,6 +2032,17 @@ fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
             match lb_op <= 4 {
                 true -> {
                     let lb_opn: String = match lb_op { 0 -> "add", 1 -> "sub", 2 -> "mul", 3 -> "sdiv", _ -> "srem" };
+                    // Division/modulo: check for zero divisor
+                    match lb_op >= 3 { true -> {
+                        lb_g[39] = ll_tmp(lb_g);
+                        do print("    %t" + int_to_string(lb_g[39]) + " = icmp eq i64 %t" + int_to_string(lb_rt) + ", 0");
+                        lb_g[38] = lb_g[34]; lb_g[34] = lb_g[34] + 1;
+                        do print("    br i1 %t" + int_to_string(lb_g[39]) + ", label %dz_trap_" + int_to_string(lb_g[38]) + ", label %dz_ok_" + int_to_string(lb_g[38]));
+                        do print("dz_trap_" + int_to_string(lb_g[38]) + ":");
+                        match lb_g[916] == 4 { true -> do print("    call void @proc_exit(i32 1)"), false -> do print("    call void @exit(i32 1)") };
+                        do print("    unreachable");
+                        do print("dz_ok_" + int_to_string(lb_g[38]) + ":");
+                    }, false -> { } };
                     do print("    %t" + int_to_string(lb_t) + " = " + lb_opn + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
                 },
                 false -> {
