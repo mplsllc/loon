@@ -586,7 +586,11 @@ cg_als_loop:
     je cg_als_walk_child
     cmp eax, NODE_ARRAY_SET
     je cg_als_next
-    jmp cg_als_next
+    ; Handle FOR, MATCH, BLOCK etc at block level — pass the node itself
+    ; to the expression walker which knows how to handle these types
+    cmp eax, NODE_FOR
+    je cg_als_walk_self
+    jmp cg_als_walk_child           ; default: walk child subtree for any other type
 
 cg_als_let:
     mov eax, [rbx + 24]
@@ -602,6 +606,13 @@ cg_als_let_16:
     add r14d, 16
     mov [rbx + 28], r14d
     jmp cg_als_walk_child
+
+cg_als_walk_self:
+    ; Pass the node itself (r12d) to the expression walker
+    ; Used for FOR/MATCH at block level — the walker knows these types
+    mov edi, r12d
+    call cg_als_walk_expr
+    jmp cg_als_next
 
 cg_als_walk_child:
     ; Depth-first walk of this node's subtree to find nested FOR/MATCH/BLOCK

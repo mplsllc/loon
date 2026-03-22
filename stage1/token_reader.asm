@@ -17,10 +17,10 @@
 ;   12:4 line
 ;   16:4 col
 ;
-; Max tokens: 26214 (524288 / 20)
+; Max tokens: 52428 (1048576 / 20)
 ; Max string table: 131072 bytes
 
-%define MAX_TOKENS 26214
+%define MAX_TOKENS 52428
 %define TOKEN_SIZE 20
 %define MAX_STRINGS 262144
 %define STDIN 0

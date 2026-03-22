@@ -13,7 +13,7 @@
 ; Global buffers and state — shared by all components
 ; ============================================================
 section .bss
-    tokens      resb 524288         ; 512KB — token array (20 bytes each, ~26K max)
+    tokens      resb 1048576        ; 1MB — token array (20 bytes each, ~52K max)
     nodes       resb 1048576        ; 1MB — AST node array (32 bytes each, ~32K max)
     strings     resb 262144         ; 256KB — string table
     bump_heap   resb 1048576        ; 1MB — runtime bump allocator

@@ -2386,7 +2386,7 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
     match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s))); le_t },
-    false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 1])); le_bt },
+    false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8])); le_bt },
     false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
     false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
     false -> match le_nt == 14 { true -> { le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; let le_bi: Int = chk_bi(le_g, le_s); match le_bi > 0 { true -> { le_g[140] = le_bi; le_g[31] = le_ni; ll_builtin(le_g, le_n, le_s) }, false -> { le_g[31] = le_ni; ll_call(le_g, le_n, le_s) } } },
