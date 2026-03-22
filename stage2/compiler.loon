@@ -1,6 +1,37 @@
 // stage2/compiler.loon — The Loon compiler, written in Loon-0
 // Build: ./stage0/lexer stage2/compiler.loon | ./stage1/compiler > /tmp/stage2.asm
 //        nasm -f elf64 -o /tmp/stage2.o /tmp/stage2.asm && ld -o stage2/compiler /tmp/stage2.o
+//
+// g[] slot allocation map — update when adding new regions
+// Collisions between these regions cause silent bugs (see commit 307df8b).
+//
+// [0..14]      Lexer state: src_len, pos, line, col, tok_count, str_pos, etc.
+// [15..19]     Parser scratch: pf_parse, mkbin helpers
+// [20..28]     Parser child linking: pb_parse(20-22), pic_parse(23-25), pm_parse(26-28)
+// [30..31]     Codegen: current fn node(30), current expr node(31)
+// [32]         Label counter / LLVM SSA temp counter
+// [33]         Stack offset accumulator (walker) / has_return flag (codegen)
+// [34..39]     Walker + codegen scratch: node index(34), offset(35), temps(36-39)
+// [40..42]     Name comparison: offset_a(40), offset_b(41), length(42)
+// [46]         Call depth counter
+// [47..49]     Module/import scratch
+// [50]         Variable table entry count
+// [51..849]    Variable table: entries at [51+i*4] = (name_off, name_len, offset, type)
+//              Max ~200 entries. DO NOT use slots 51-849 for other purposes.
+// [850..855]   Match codegen state (was g[115..120] — moved to fix var table collision)
+// [856..857]   Match depth counter(856), save pointer(857) (was g[121..122])
+// [860..920]   Match depth-indexed save stack (was g[200+depth*6])
+// [900]        Type count (for ADTs)
+// [905..911]   Type checker state: current node, error kind, expected, received, json flag, error count
+// [915]        Target backend selector (0=nasm, 1=llvm)
+// [920..999]   Type checker undef var scanning (name pairs)
+// [1024..2047] Type table: per-type data (64 slots × 16 types)
+// [2048..4095] Walker explicit stack (iterative DFS, max 2000 entries)
+//
+// LLVM backend scratch (used only during --target llvm):
+// [700..709]   ll_amatch: discriminant(700), adt_ptr(701), tag(702), match_id(703), arm_count(704), cursor(705-706)
+// [710..749]   ll_amatch: arm result temps (g[710+i] = result of arm i)
+// [750..755]   ll_builtin/ll_stmt scratch (exit trunc, ret/let temps)
 module compiler;
 
 // State: g[0]=src_len [1]=pos [2]=line [3]=col [4]=tok_count [5]=str_pos
