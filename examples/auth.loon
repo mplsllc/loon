@@ -1,0 +1,125 @@
+// auth.loon — The authentication system.
+// The first real program that tests Loon's privacy type mission.
+//
+// This demonstrates:
+// - Sensitive<String> for passwords (cannot be logged)
+// - Hashed<String> for password hashes (safe to store)
+// - Public<String> for usernames (safe to display)
+// - expose() with [Audit] for deliberate downcast
+// - ZeroOnDrop for session tokens
+// - ADTs for error handling (AuthResult)
+// - Effect declarations ([IO], [Audit])
+
+module auth;
+
+// Crypto stubs — in production these come from the crypto package
+// The type signatures ARE the contract: privacy enforced by the compiler
+fn hash_password(hp_pw: Sensitive<String>) [IO] -> Hashed<String> {
+    "argon2id$stub"
+}
+fn verify_password(vp_pw: Sensitive<String>, vp_hash: Hashed<String>) [IO] -> Bool {
+    true
+}
+fn generate_token() [IO] -> Sensitive<String> {
+    "token_stub"
+}
+
+// Auth result — concrete ADT (no generics yet)
+type AuthResult {
+    Success(token: Int),
+    Failure(reason: Int),
+}
+
+// Simulate a user database with arrays
+// In production: backed by actual database calls
+// slots: [0]=username_hash, [1]=password_hash
+fn db_store(db: Array<Int>, username: Public<String>, pw_hash: Hashed<String>) [IO] -> Unit {
+    // Store the hash (Hashed is safe to persist)
+    db[0] = string_length(username);
+    db[1] = string_length(pw_hash);
+    do print("stored credentials for: " + username);
+}
+
+fn db_lookup(db: Array<Int>) [] -> Int {
+    // Return stored password hash length (stub for "found user")
+    db[1]
+}
+
+// Register a new user
+fn register(db: Array<Int>, username: Public<String>, password: Sensitive<String>) [IO] -> AuthResult {
+    // Hash the password — Sensitive in, Hashed out
+    let hash: Hashed<String> = hash_password(password);
+
+    // Store credentials
+    // do print(password);  ← COMPILE ERROR: cannot log Sensitive value
+    // let raw: String = password;  ← COMPILE ERROR: cannot downcast
+    do db_store(db, username, hash);
+
+    // The password is never stored raw, never logged, never leaked
+    Success(1)
+}
+
+// Authenticate a user
+fn login(db: Array<Int>, username: Public<String>, password: Sensitive<String>) [IO] -> AuthResult {
+    let stored_len: Int = db_lookup(db);
+    match stored_len > 0 {
+        true -> {
+            // Verify password against stored hash
+            let hash: Hashed<String> = hash_password(password);
+            match verify_password(password, hash) {
+                true -> {
+                    do print("login success: " + username);
+                    Success(42)
+                },
+                false -> {
+                    do print("login failed: " + username);
+                    Failure(1)
+                },
+            }
+        },
+        false -> {
+            do print("user not found: " + username);
+            Failure(2)
+        },
+    }
+}
+
+// Display login result
+fn show_result(r: AuthResult) [IO] -> Unit {
+    match r {
+        Success(token) -> do print("authenticated — token: " + int_to_string(token)),
+        Failure(reason) -> do print("authentication failed — code: " + int_to_string(reason)),
+    };
+}
+
+// Admin function that can expose credentials for debugging
+// Requires [Audit] — the compiler enforces the audit trail
+fn admin_debug(password: Sensitive<String>) [IO, Audit] -> Unit {
+    let visible: Public<String> = expose(password, "admin debug inspection");
+    do print("debug: password length = " + int_to_string(string_length(visible)));
+}
+
+fn main() [IO, Audit] -> Unit {
+    let db: Array<Int> = Array(8);
+
+    // Register
+    let username: Public<String> = "alice";
+    let password: Sensitive<String> = "hunter2";
+
+    // These lines would be compile errors:
+    // do print(password);           ← cannot log Sensitive
+    // let raw: String = password;   ← cannot downcast
+    // do admin_debug(password);     ← works, but requires [Audit]
+
+    let reg_result: AuthResult = register(db, username, password);
+    do show_result(reg_result);
+
+    // Login
+    let login_result: AuthResult = login(db, username, password);
+    do show_result(login_result);
+
+    // Admin debug — expose with audit trail
+    do admin_debug(password);
+
+    do exit(match login_result { Success(t) -> t, Failure(r) -> r });
+}

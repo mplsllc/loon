@@ -1050,7 +1050,7 @@ fn cg_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [IO] -> Unit {
     let cf_ptype: Array<Int> = Array(1);
     for _cfp in range(0, cf_pc) {
         cf_ptype[0] = cf_n[cf_pi[0] * 10 + 7];
-        match cf_ptype[0] == 2 { true -> { cf_soff[0] = cf_soff[0] + 16; }, false -> match cf_ptype[0] == 4 { true -> { cf_soff[0] = cf_soff[0] + 16; }, false -> { cf_soff[0] = cf_soff[0] + 8; } } };
+        match cf_ptype[0] % 16 == 2 { true -> { cf_soff[0] = cf_soff[0] + 16; }, false -> match cf_ptype[0] % 16 == 4 { true -> { cf_soff[0] = cf_soff[0] + 16; }, false -> { cf_soff[0] = cf_soff[0] + 8; } } };
         cf_g[34] = cf_pi[0]; cf_g[35] = cf_soff[0]; do cg_add_var(cf_g, cf_n, cf_s);
         cf_pi[0] = cf_n[cf_pi[0] * 10 + 6];
     };
@@ -1114,7 +1114,7 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                 ws_g[137] = ws_n[ws_g[136] * 10];
                 match ws_g[137] == 4 { true -> {
                     ws_g[138] = ws_n[ws_g[136] * 10 + 7];
-                    match ws_g[138] == 2 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> match ws_g[138] == 4 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> { ws_g[33] = ws_g[33] + 8; } } };
+                    match ws_g[138] % 16 == 2 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> match ws_g[138] % 16 == 4 { true -> { ws_g[33] = ws_g[33] + 16; }, false -> { ws_g[33] = ws_g[33] + 8; } } };
                     ws_g[34] = ws_g[136]; ws_g[35] = ws_g[33]; do cg_add_var(ws_g, ws_n, ws_s);
                 }, false -> { } };
                 match ws_g[137] == 18 { true -> {
@@ -1257,13 +1257,13 @@ fn cg_var(cv_g: Array<Int>, cv_n: Array<Int>, cv_s: Array<Int>) [IO] -> Unit {
     cv_g[40] = cv_n[cv_ni * 10 + 2]; cv_g[41] = cv_n[cv_ni * 10 + 3];
     let cv_off: Int = cg_find_var(cv_g, cv_s);
     let cv_tp: Int = cg_find_var_type(cv_g, cv_s);
-    match cv_tp == 2 { true -> { // String: load ptr into rax, len into rdx
+    match cv_tp % 16 == 2 { true -> { // String (inc. privacy-wrapped): load ptr + len
         do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
         do print_raw("    mov rdx, qword [rbp-"); do print_raw(int_to_string(cv_off - 8)); do emit_line("]");
-    }, false -> match cv_tp == 4 { true -> { // Array: load ptr into rax, len into rdx
+    }, false -> match cv_tp % 16 == 4 { true -> { // Array (inc. privacy-wrapped): load ptr + len
         do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
         do print_raw("    mov rdx, qword [rbp-"); do print_raw(int_to_string(cv_off - 8)); do emit_line("]");
-    }, false -> { // Int/Bool: load into rax
+    }, false -> { // Int/Bool/other: load into rax
         do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
     } } }
 }
@@ -1545,7 +1545,7 @@ fn cg_binop(bo_g: Array<Int>, bo_n: Array<Int>, bo_s: Array<Int>) [IO] -> Unit {
     let bo_right: Int = bo_n[bo_left * 10 + 6];
     let bo_op: Int = bo_n[bo_ni * 10 + 1];
     // Check if this is string concat: either operand is STR_LIT (type 8) or has string type_info
-    let bo_is_str: Int = match bo_n[bo_left * 10] == 8 { true -> 1, false -> match bo_n[bo_right * 10] == 8 { true -> 1, false -> match bo_n[bo_ni * 10 + 7] == 2 { true -> 1, false -> 0 } } };
+    let bo_is_str: Int = match bo_n[bo_left * 10] == 8 { true -> 1, false -> match bo_n[bo_right * 10] == 8 { true -> 1, false -> match bo_n[bo_ni * 10 + 7] % 16 == 2 { true -> 1, false -> 0 } } };
     match bo_op == 0 { true -> match bo_is_str == 1 { true -> { // String concat
         bo_g[31] = bo_left; do cg_expr(bo_g, bo_n, bo_s);
         // rax=left_ptr, rdx=left_len
@@ -1742,13 +1742,13 @@ fn cg_let(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
     cl_g[40] = cl_n[cl_ni * 10 + 2]; cl_g[41] = cl_n[cl_ni * 10 + 3];
     let cl_off: Int = cg_find_var(cl_g, cl_s);
     let cl_tp: Int = cg_find_var_type(cl_g, cl_s);
-    match cl_tp == 2 { true -> { // String: store ptr and len
+    match cl_tp % 16 == 2 { true -> { // String (inc. privacy-wrapped): store ptr and len
         do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off)); do emit_line("], rax");
         do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off - 8)); do emit_line("], rdx");
-    }, false -> match cl_tp == 4 { true -> { // Array: store ptr and len
+    }, false -> match cl_tp % 16 == 4 { true -> { // Array (inc. privacy-wrapped): store ptr and len
         do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off)); do emit_line("], rax");
         do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off - 8)); do emit_line("], rdx");
-    }, false -> { // Int/Bool: store single value
+    }, false -> { // Int/Bool/other: store single value
         do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(cl_off)); do emit_line("], rax");
     } } }
 }
@@ -2149,11 +2149,11 @@ fn tc_check_return(tr_g: Array<Int>, tr_n: Array<Int>, tr_s: Array<Int>) [IO] ->
                             // Only check unambiguous literal returns
                             let tr_actual: Int = match tr_expr_nt == 8 { true -> 2, false -> match tr_expr_nt == 7 { true -> 0, false -> match tr_expr_nt == 9 { true -> 0, false -> 0 - 1 } } };
                             match tr_actual >= 0 { true -> {
-                                match tr_ret_type == 0 { true -> match tr_actual == 2 { true -> {
+                                match tr_ret_type % 16 == 0 { true -> match tr_actual == 2 { true -> {
                                     tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=0; tr_g[908]=2;
                                     do tc_error(tr_g, tr_n, tr_s);
                                 }, false -> { } }, false -> { } };
-                                match tr_ret_type == 2 { true -> match tr_actual == 0 { true -> {
+                                match tr_ret_type % 16 == 2 { true -> match tr_actual == 0 { true -> {
                                     tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=2; tr_g[908]=0;
                                     do tc_error(tr_g, tr_n, tr_s);
                                 }, false -> { } }, false -> { } };
