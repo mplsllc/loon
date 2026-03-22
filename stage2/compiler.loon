@@ -156,7 +156,8 @@ fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     false -> match str_eq(b2_g, b2_s, "string_concat") { true -> 5,
     false -> match str_eq(b2_g, b2_s, "string_equals") { true -> 13,
     false -> match str_eq(b2_g, b2_s, "float_to_string") { true -> 14,
-    false -> 0 } } } } } } } } } }
+    false -> match str_eq(b2_g, b2_s, "expose") { true -> 15,
+    false -> 0 } } } } } } } } } } }
 }
 
 // ===== Parser =====
@@ -312,7 +313,10 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
     do teat(pf_g); // eat LBRACKET
     pf_n[pf_fi * 10 + 9] = 0;
     for _pfe in range(0, 16) { match tcur(pf_g, pf_t) == 22 { true -> { }, false -> {
-        match tcur(pf_g, pf_t) == 13 { true -> match tslen(pf_g, pf_t) == 2 { true -> { pf_n[pf_fi * 10 + 9] = 1; }, false -> { } }, false -> { } };
+        match tcur(pf_g, pf_t) == 13 { true -> {
+            match tslen(pf_g, pf_t) == 2 { true -> { pf_n[pf_fi * 10 + 9] = pf_n[pf_fi * 10 + 9] + 1; }, false -> { } }; // IO = +1
+            match tslen(pf_g, pf_t) == 5 { true -> { pf_n[pf_fi * 10 + 9] = pf_n[pf_fi * 10 + 9] + 2; }, false -> { } }; // Audit = +2
+        }, false -> { } };
         do teat(pf_g);
     } }; };
     do teat(pf_g); // eat RBRACKET
@@ -1605,7 +1609,20 @@ fn cg_call4(c4_g: Array<Int>, c4_n: Array<Int>, c4_s: Array<Int>) [IO] -> Unit {
     match c4_g[140] == 4 { true -> { c4_g[31]=c4_n[c4_g[139]*10+5]; do cg_expr(c4_g, c4_n, c4_s); do emit_line("    mov rax, rdx"); },
     false -> match c4_g[140] == 6 { true -> do cg_bi_char(c4_g, c4_n, c4_s),
     false -> match c4_g[140] == 10 { true -> { c4_g[31]=c4_n[c4_g[139]*10+5]; do cg_expr(c4_g, c4_n, c4_s); do emit_line("    mov rdi, rax"); do emit_line("    call _rt_print_byte"); },
-    false -> { } } } };
+    false -> match c4_g[140] == 15 { true -> {
+        // expose(sensitive_val, reason_str): write reason to stderr, pass through value
+        // eval arg 1 (sensitive value) → save in r15
+        c4_g[31]=c4_n[c4_g[139]*10+5]; do cg_expr(c4_g, c4_n, c4_s);
+        do emit_line("    push rax"); do emit_line("    push rdx"); // save sensitive value
+        // eval arg 2 (reason string) — next sibling of first arg
+        c4_g[31]=c4_n[c4_n[c4_g[139]*10+5]*10+6]; do cg_expr(c4_g, c4_n, c4_s);
+        // write reason to stderr (fd=2)
+        do emit_line("    mov rsi, rax"); do emit_line("    mov rdi, 2"); do emit_line("    mov rax, 1"); do emit_line("    syscall");
+        // write newline to stderr
+        do emit_line("    lea rsi, [rel _newline_byte]"); do emit_line("    mov rdi, 2"); do emit_line("    mov rdx, 1"); do emit_line("    mov rax, 1"); do emit_line("    syscall");
+        // restore sensitive value as result
+        do emit_line("    pop rdx"); do emit_line("    pop rax");
+    }, false -> { } } } } };
 }
 
 fn cg_bi_char(bc_g: Array<Int>, bc_n: Array<Int>, bc_s: Array<Int>) [IO] -> Unit {
@@ -1833,10 +1850,10 @@ fn tc_fn_effects(fe_g: Array<Int>, fe_n: Array<Int>, fe_s: Array<Int>) [] -> Int
     // Builtins (only if not found as user function): print* exit read_file = IO
     match fe_found[0] == 0 { true -> {
         let fe_fc: Int = fe_s[fe_g[40]];
-        match fe_fc == 112 { true -> { fe_res[0] = 1; }, false -> { } };
-        match fe_fc == 114 { true -> { fe_res[0] = 1; }, false -> { } };
-        match fe_fc == 101 { true -> { fe_res[0] = 1; }, false -> { } };
-        match fe_fc == 103 { true -> { fe_res[0] = 1; }, false -> { } };
+        match fe_fc == 112 { true -> { fe_res[0] = 1; }, false -> { } }; // print* → IO
+        match fe_fc == 114 { true -> { fe_res[0] = 1; }, false -> { } }; // read_file → IO
+        match fe_fc == 101 { true -> match fe_g[41] == 6 { true -> { fe_res[0] = 2; }, false -> { fe_res[0] = 1; } }, false -> { } }; // expose(6)→Audit, exit(4)→IO
+        match fe_fc == 103 { true -> { fe_res[0] = 1; }, false -> { } }; // get_arg → IO
     }, false -> { } };
     fe_res[0]
 }
@@ -1872,6 +1889,25 @@ fn tc_check_effects(ce_g: Array<Int>, ce_n: Array<Int>, ce_s: Array<Int>) [IO] -
                     ce_g[905] = ce_fi; ce_g[906] = 2; ce_g[907] = 0; ce_g[908] = 0;
                     do tc_error(ce_g, ce_n, ce_s);
                 }, false -> { } };
+            }, false -> { } };
+            // Audit effect check: if function doesn't have Audit (bit 1),
+            // check if any call requires it (expose builtin = effect 2)
+            match ce_n[ce_fi * 10 + 9] / 2 % 2 == 0 { true -> {
+                // No Audit declared — scan for expose() calls
+                let ce_end2: Array<Int> = Array(1); ce_end2[0] = ce_g[12];
+                for ce_b2 in range(ce_fi + 1, ce_g[12]) {
+                    match ce_n[ce_b2 * 10] == 1 { true -> match ce_end2[0] == ce_g[12] { true -> { ce_end2[0] = ce_b2; }, false -> { } }, false -> { } };
+                    match ce_n[ce_b2 * 10] == 22 { true -> match ce_end2[0] == ce_g[12] { true -> { ce_end2[0] = ce_b2; }, false -> { } }, false -> { } };
+                };
+                for ce_n2 in range(ce_fi + 1, ce_end2[0]) {
+                    match ce_n[ce_n2 * 10] == 14 { true -> {
+                        ce_g[40] = ce_n[ce_n2 * 10 + 2]; ce_g[41] = ce_n[ce_n2 * 10 + 3];
+                        match tc_fn_effects(ce_g, ce_n, ce_s) == 2 { true -> {
+                            do print("error: undeclared effect: function uses Audit but declares without it");
+                            ce_g[911] = ce_g[911] + 1;
+                        }, false -> { } };
+                    }, false -> { } };
+                };
             }, false -> { } };
         }, false -> { } };
     };
@@ -2106,6 +2142,39 @@ fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -
                         }, false -> { } };
                     }, false -> { } };
                 };
+            }, false -> { } };
+            // expose() arg check: runs for ALL functions (not just ones with sensitive vars)
+            for tp_ei in range(tp_fi + 1, tp_g[4500]) {
+                match tp_n[tp_ei * 10] == 14 { true -> {
+                    tp_g[40] = tp_n[tp_ei * 10 + 2]; tp_g[41] = tp_n[tp_ei * 10 + 3];
+                    match chk_bi(tp_g, tp_s) == 15 { true -> {
+                        tp_g[4506] = tp_n[tp_ei * 10 + 5]; // first arg
+                        tp_g[4507] = 0; // found sensitive flag
+                        match tp_g[4506] >= 0 { true -> match tp_n[tp_g[4506] * 10] == 10 { true -> {
+                            // Check if arg matches any sensitive PARAM or LET
+                            for tp_evi2 in range(tp_fi, tp_g[4500]) {
+                                tp_g[4508] = tp_n[tp_evi2 * 10];
+                                match tp_g[4508] == 2 { true -> match tp_n[tp_evi2 * 10 + 7] / 16 >= 2 { true -> {
+                                    tp_g[40] = tp_n[tp_g[4506] * 10 + 2]; tp_g[42] = tp_n[tp_g[4506] * 10 + 3];
+                                    tp_g[41] = tp_n[tp_evi2 * 10 + 2];
+                                    match tp_g[42] == tp_n[tp_evi2 * 10 + 3] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[4507] = 1; }, false -> { } }, false -> { } };
+                                }, false -> { } }, false -> { } };
+                                match tp_g[4508] == 4 { true -> match tp_n[tp_evi2 * 10 + 7] / 16 >= 2 { true -> {
+                                    tp_g[40] = tp_n[tp_g[4506] * 10 + 2]; tp_g[42] = tp_n[tp_g[4506] * 10 + 3];
+                                    tp_g[41] = tp_n[tp_evi2 * 10 + 2];
+                                    match tp_g[42] == tp_n[tp_evi2 * 10 + 3] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[4507] = 1; }, false -> { } }, false -> { } };
+                                }, false -> { } }, false -> { } };
+                            };
+                            match tp_g[4507] == 0 { true -> {
+                                do print("error: expose() argument must be Sensitive — only use with Sensitive values");
+                                tp_g[911] = tp_g[911] + 1;
+                            }, false -> { } };
+                        }, false -> { } }, false -> { } };
+                    }, false -> { } };
+                }, false -> { } };
+            };
+            // Downcast check (only if function has sensitive vars)
+            match tp_g[4501] > 0 { true -> {
                 // Downcast check: for each LET with lower privacy, check if init is sensitive var
                 for tp_di in range(tp_fi + 1, tp_g[4500]) {
                     match tp_n[tp_di * 10] == 4 { true -> {

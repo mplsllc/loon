@@ -1,0 +1,8 @@
+// TEST: expose_raw_error
+// EXPECT: ERROR
+// CATEGORY: privacy
+module test;
+fn bad(s: String) [IO, Audit] -> Unit {
+    let p: Public<String> = expose(s, "not sensitive");
+}
+fn main() [IO] -> Unit { do exit(0); }

@@ -1,0 +1,13 @@
+// TEST: expose_ok
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn show(pw: Sensitive<String>) [IO, Audit] -> Unit {
+    let hint: Public<String> = expose(pw, "user requested");
+    do print(hint);
+}
+fn main() [IO, Audit] -> Unit {
+    let pw: Sensitive<String> = "secret123";
+    do show(pw);
+    do exit(0);
+}

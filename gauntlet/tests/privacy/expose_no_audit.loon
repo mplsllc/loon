@@ -1,0 +1,9 @@
+// TEST: expose_no_audit
+// EXPECT: ERROR
+// CATEGORY: privacy
+module test;
+fn bad(pw: Sensitive<String>) [IO] -> Unit {
+    let hint: Public<String> = expose(pw, "missing audit");
+    do print(hint);
+}
+fn main() [IO] -> Unit { do exit(0); }
