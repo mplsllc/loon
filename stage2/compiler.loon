@@ -2514,7 +2514,7 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
                 true -> {
                     ls_g[31] = ls_n[ls_ni * 10 + 5];
                     let ls_rt: Int = ll_expr(ls_g, ls_n, ls_s);
-                    match ls_g[762] == 7 { true -> do print("    ret double %t" + int_to_string(ls_rt)),
+                    match ls_g[4120] == 7 { true -> do print("    ret double %t" + int_to_string(ls_rt)),
                     false -> do print("    ret i64 %t" + int_to_string(ls_rt)) };
                     ls_g[33] = 1; // mark has return
                 },
@@ -2558,12 +2558,12 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     lf_g[50] = 0;
     lf_g[32] = 0; // reset SSA counter
     lf_g[33] = 0; // reset has_unreachable flag
-    lf_g[762] = lf_rtype; // store return type for ll_stmt's ret emission
+    // g[4120] set below directly from node
     lf_g[34] = 0; // reset match label counter
     // Emit function header
     // Return type: double for Float, i64 for everything else
-    let lf_rtype: Int = lf_n[lf_ni * 10 + 7];
-    match lf_rtype == 7 { true -> do print_raw("define double @fn_"), false -> do print_raw("define i64 @fn_") };
+    lf_g[4120] = lf_n[lf_ni * 10 + 7]; // return type in g[4120] — survives nested calls
+    match lf_g[4120] == 7 { true -> do print_raw("define double @fn_"), false -> do print_raw("define i64 @fn_") };
     for lf_i in range(0, lf_name_len) { do print_byte(lf_s[lf_name_off + lf_i]); };
     do print_raw("(");
     // Emit params
@@ -2589,7 +2589,7 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     lf_g[31] = lf_body;
     do ll_block(lf_g, lf_n, lf_s);
     // If function didn't end with exit/unreachable, add a ret
-    match lf_g[33] == 0 { true -> match lf_g[762] == 7 { true -> do print("    ret double 0.0"), false -> do print("    ret i64 0") }, false -> { } };
+    match lf_g[33] == 0 { true -> match lf_g[4120] == 7 { true -> do print("    ret double 0.0"), false -> do print("    ret i64 0") }, false -> { } };
     do print("}");
     do print("");
 }
@@ -2697,7 +2697,7 @@ fn main() [IO] -> Unit {
         false -> match a1len == 6 { true -> read_file(get_arg(2)), false -> read_file(arg1) },
     };
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(4096);
+    let gs: Array<Int> = Array(8192);
     let gb: Array<Int> = Array(262144);
     let gt: Array<Int> = Array(300000);
     let gn: Array<Int> = Array(500000);
