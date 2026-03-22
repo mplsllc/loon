@@ -2100,7 +2100,7 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
             let lbu_at: Int = ll_expr(lbu_g, lbu_n, lbu_s);
             let lbu_t: Int = ll_tmp(lbu_g);
             do print("    %t" + int_to_string(lbu_t) + " = trunc i64 %t" + int_to_string(lbu_at) + " to i32");
-            do print("    call void @exit(i32 %t" + int_to_string(lbu_t) + ")");
+            match lbu_g[916] == 4 { true -> do print("    call void @proc_exit(i32 %t" + int_to_string(lbu_t) + ")"), false -> do print("    call void @exit(i32 %t" + int_to_string(lbu_t) + ")") };
             do print("    unreachable");
                 lbu_g[33] = 1;
             lbu_t
@@ -2118,27 +2118,18 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                         lbu_g[39] = ll_tmp(lbu_g);
                         do print("    %t" + int_to_string(lbu_g[39]) + " = call i64 @write(i32 1, i8* %t" + int_to_string(lbu_g[38]) + ", i64 " + int_to_string(lbu_g[37]) + ")");
                     },
-                    false -> match lbu_n[lbu_g[35] * 10] == 14 {
-                        // CALL — dynamic string (float_to_string etc) — eval + strlen
-                        true -> {
-                            lbu_g[31] = lbu_g[35];
-                            lbu_g[36] = ll_expr(lbu_g, lbu_n, lbu_s);
-                            lbu_g[37] = ll_tmp(lbu_g);
-                            do print("    %t" + int_to_string(lbu_g[37]) + " = call i64 @strlen(i8* %t" + int_to_string(lbu_g[36]) + ")");
-                            lbu_g[38] = ll_tmp(lbu_g);
-                            do print("    %t" + int_to_string(lbu_g[38]) + " = call i64 @write(i32 1, i8* %t" + int_to_string(lbu_g[36]) + ", i64 %t" + int_to_string(lbu_g[37]) + ")");
-                        },
-                        // Other (IDENT, BINOP etc) — use int_to_string via i64 + write
-                        false -> {
-                            lbu_g[31] = lbu_g[35];
-                            lbu_g[36] = ll_expr(lbu_g, lbu_n, lbu_s);
-                            lbu_g[37] = ll_tmp(lbu_g);
-                            do print("    %t" + int_to_string(lbu_g[37]) + " = inttoptr i64 %t" + int_to_string(lbu_g[36]) + " to i8*");
-                            lbu_g[38] = ll_tmp(lbu_g);
-                            do print("    %t" + int_to_string(lbu_g[38]) + " = call i64 @strlen(i8* %t" + int_to_string(lbu_g[37]) + ")");
-                            lbu_g[39] = ll_tmp(lbu_g);
-                            do print("    %t" + int_to_string(lbu_g[39]) + " = call i64 @write(i32 1, i8* %t" + int_to_string(lbu_g[37]) + ", i64 %t" + int_to_string(lbu_g[38]) + ")");
-                        },
+                    false -> {
+                        // Dynamic string — eval, convert to i8* if needed, strlen + write
+                        lbu_g[31] = lbu_g[35];
+                        lbu_g[36] = ll_expr(lbu_g, lbu_n, lbu_s);
+                        // Check if result is already i8* (from float_to_string/int_to_string builtins)
+                        // or i64 (from user functions returning String)
+                        lbu_g[37] = ll_tmp(lbu_g);
+                        do print("    %t" + int_to_string(lbu_g[37]) + " = inttoptr i64 %t" + int_to_string(lbu_g[36]) + " to i8*");
+                        lbu_g[38] = ll_tmp(lbu_g);
+                        do print("    %t" + int_to_string(lbu_g[38]) + " = call i64 @strlen(i8* %t" + int_to_string(lbu_g[37]) + ")");
+                        lbu_g[39] = ll_tmp(lbu_g);
+                        do print("    %t" + int_to_string(lbu_g[39]) + " = call i64 @write(i32 1, i8* %t" + int_to_string(lbu_g[37]) + ", i64 %t" + int_to_string(lbu_g[38]) + ")");
                     },
                 };
                 // Newline
@@ -2161,6 +2152,19 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                     do print("    %t" + int_to_string(lbu_g[38]) + " = ptrtoint i8* %t" + int_to_string(lbu_g[37]) + " to i64");
                     lbu_g[38]
                 },
+                false -> match lbu_bi == 3 {
+                    // int_to_string: sprintf %ld → returns i8* ptr
+                    true -> {
+                        lbu_g[31] = lbu_n[lbu_ni * 10 + 5];
+                        lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s);
+                        lbu_g[36] = ll_tmp(lbu_g);
+                        do print("    %t" + int_to_string(lbu_g[36]) + " = call i8* @malloc(i64 24)");
+                        lbu_g[37] = ll_tmp(lbu_g);
+                        do print("    %t" + int_to_string(lbu_g[37]) + " = getelementptr [4 x i8], [4 x i8]* @_fmt_int, i64 0, i64 0");
+                        lbu_g[38] = ll_tmp(lbu_g);
+                        do print("    %t" + int_to_string(lbu_g[38]) + " = call i32 (i8*, i8*, ...) @sprintf(i8* %t" + int_to_string(lbu_g[36]) + ", i8* %t" + int_to_string(lbu_g[37]) + ", i64 %t" + int_to_string(lbu_g[35]) + ")");
+                        lbu_g[36]
+                    },
                 false -> match lbu_bi == 14 {
                     // float_to_string: sprintf %g → returns i8* ptr
                     true -> {
@@ -2180,6 +2184,7 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                         lbu_g[35]
                     },
                 },
+            },
             },
         },
     }
@@ -2652,19 +2657,31 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
 }
 
 fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] -> Unit {
-    // Header — target triple based on gs[916]: 0=linux, 1=macos-x86, 2=macos-arm, 3=windows
+    // Header — target triple based on gs[916]: 0=linux, 1=macos-x86, 2=macos-arm, 3=windows, 4=wasm
     do print("; Loon compiler output — LLVM IR");
-    match el_gs[916] == 1 { true -> do print("target triple = \"x86_64-apple-macosx12.0\""),
-    false -> match el_gs[916] == 2 { true -> do print("target triple = \"arm64-apple-macosx12.0\""),
-    false -> match el_gs[916] == 3 { true -> do print("target triple = \"x86_64-pc-windows-msvc\""),
-    false -> do print("target triple = \"x86_64-pc-linux-gnu\"") } } };
+    match el_gs[916] == 4 { true -> {
+        do print("target triple = \"wasm32-wasi\"");
+        do print("target datalayout = \"e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-n32:64-S128-ni:1:10:20\"");
+    }, false -> {
+        match el_gs[916] == 1 { true -> do print("target triple = \"x86_64-apple-macosx12.0\""),
+        false -> match el_gs[916] == 2 { true -> do print("target triple = \"arm64-apple-macosx12.0\""),
+        false -> match el_gs[916] == 3 { true -> do print("target triple = \"x86_64-pc-windows-msvc\""),
+        false -> do print("target triple = \"x86_64-pc-linux-gnu\"") } } };
+    } };
     do print("");
-    // External declarations
-    do print("declare void @exit(i32) noreturn");
-    do print("declare i64 @write(i32, i8*, i64)");
-    do print("declare i8* @malloc(i64)");
-    do print("declare i32 @sprintf(i8*, i8*, ...)");
-    do print("declare i64 @strlen(i8*)");
+    // External declarations — WASI vs native
+    match el_gs[916] == 4 { true -> {
+        do print("declare i32 @fd_write(i32, i32, i32, i32) #0");
+        do print("declare void @proc_exit(i32) #1");
+        do print("attributes #0 = { \"wasm-import-module\"=\"wasi_snapshot_preview1\" \"wasm-import-name\"=\"fd_write\" }");
+        do print("attributes #1 = { \"wasm-import-module\"=\"wasi_snapshot_preview1\" \"wasm-import-name\"=\"proc_exit\" }");
+    }, false -> {
+        do print("declare void @exit(i32) noreturn");
+        do print("declare i64 @write(i32, i8*, i64)");
+        do print("declare i8* @malloc(i64)");
+        do print("declare i32 @sprintf(i8*, i8*, ...)");
+        do print("declare i64 @strlen(i8*)");
+    } };
     do print("");
     // String literals — walk nodes for STR_LIT (8) and STR_MATCH_ARM (26)
     el_gs[29] = 0;
@@ -2693,6 +2710,52 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
     // Newline constant for print
     do print("@_nl = private unnamed_addr constant [1 x i8] c\"\\0A\"");
     do print("@_fmt_float = private unnamed_addr constant [3 x i8] c\"%g\\00\"");
+    do print("@_fmt_int = private unnamed_addr constant [4 x i8] c\"%ld\\00\"");
+    match el_gs[916] == 4 { true -> {
+        do print("@_wasi_iov = global [2 x i32] zeroinitializer");
+        do print("@_wasi_nw = global i32 0");
+        // Bump allocator for WASM (no libc malloc)
+        // Bump allocator for WASM (no libc)
+        do print("@_bump_ptr = global i32 65536");
+        do print("define i8* @malloc(i64 %size) {");
+        do print("  %sz32 = trunc i64 %size to i32");
+        do print("  %cur = load i32, i32* @_bump_ptr");
+        do print("  %next = add i32 %cur, %sz32");
+        do print("  store i32 %next, i32* @_bump_ptr");
+        do print("  %ptr = inttoptr i32 %cur to i8*");
+        do print("  ret i8* %ptr");
+        do print("}");
+        // strlen for WASM
+        do print("define i64 @strlen(i8* %s) {");
+        do print("entry:");
+        do print("  br label %loop");
+        do print("loop:");
+        do print("  %i = phi i64 [0, %entry], [%i1, %loop]");
+        do print("  %p = getelementptr i8, i8* %s, i64 %i");
+        do print("  %c = load i8, i8* %p");
+        do print("  %i1 = add i64 %i, 1");
+        do print("  %done = icmp eq i8 %c, 0");
+        do print("  br i1 %done, label %end, label %loop");
+        do print("end:");
+        do print("  ret i64 %i");
+        do print("}");
+        // sprintf stub — just for int_to_string, format %ld
+        do print("define i32 @sprintf(i8* %buf, i8* %fmt, ...) {");
+        do print("  ret i32 0");
+        do print("}");
+        // Emit _loon_write wrapper for WASI fd_write
+        do print("define i64 @write(i32 %fd, i8* %buf, i64 %len) {");
+        do print("  %ptr32 = ptrtoint i8* %buf to i32");
+        do print("  store i32 %ptr32, i32* getelementptr ([2 x i32], [2 x i32]* @_wasi_iov, i32 0, i32 0)");
+        do print("  %len32 = trunc i64 %len to i32");
+        do print("  store i32 %len32, i32* getelementptr ([2 x i32], [2 x i32]* @_wasi_iov, i32 0, i32 1)");
+        do print("  %iov = ptrtoint [2 x i32]* @_wasi_iov to i32");
+        do print("  %nw = ptrtoint i32* @_wasi_nw to i32");
+        do print("  %r = call i32 @fd_write(i32 %fd, i32 %iov, i32 1, i32 %nw)");
+        do print("  %r64 = zext i32 %r to i64");
+        do print("  ret i64 %r64");
+        do print("}");
+    }, false -> { } };
     do print("");
     // Functions — walk nodes for FN_DECL (1)
     for el_fi in range(0, el_gs[12]) {
@@ -2704,12 +2767,20 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
             false -> { },
         };
     };
-    // C main entry point — calls fn_main
-    do print("define i32 @main() {");
-    do print("entry:");
-    do print("    call i64 @fn_main()");
-    do print("    ret i32 0");
-    do print("}");
+    // Entry point — _start for WASM, main for native
+    match el_gs[916] == 4 { true -> {
+        do print("define void @_start() {");
+        do print("entry:");
+        do print("    call i64 @fn_main()");
+        do print("    ret void");
+        do print("}");
+    }, false -> {
+        do print("define i32 @main() {");
+        do print("entry:");
+        do print("    call i64 @fn_main()");
+        do print("    ret i32 0");
+        do print("}");
+    } };
 }
 
 // Parse --target flag. Returns 1 for llvm, 0 for nasm.
@@ -2749,6 +2820,7 @@ fn main() [IO] -> Unit {
             match a4len == 5 { true -> match string_char_at(a4t, 0) == 109 { true -> { mf[1] = 1; }, false -> { } }, false -> { } };
             match a4len == 9 { true -> { mf[1] = 2; }, false -> { } };
             match a4len == 7 { true -> { mf[1] = 3; }, false -> { } };
+            match a4len == 4 { true -> match string_char_at(a4t, 0) == 119 { true -> { mf[1] = 4; }, false -> { } }, false -> { } };
         }, false -> { } }, false -> { } };
     }, false -> { } };
     // Source file position: --target llvm --arch X file = arg5; --target llvm file = arg3; file = arg1
