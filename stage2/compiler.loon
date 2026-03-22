@@ -2148,6 +2148,7 @@ fn ll_call(lc_g: Array<Int>, lc_n: Array<Int>, lc_s: Array<Int>) [IO] -> Int {
     let lc_coff: Int = lc_n[lc_ni * 10 + 2];
     let lc_clen: Int = lc_n[lc_ni * 10 + 3];
     let lc_cac: Int = lc_n[lc_ni * 10 + 4];
+    // Evaluate args FIRST (before fn lookup which clobbers array pointers)
     let lc_args: Array<Int> = Array(8);
     let lc_ari: Array<Int> = Array(1); lc_ari[0] = lc_n[lc_ni * 10 + 5];
     for lc_ai in range(0, lc_cac) {
@@ -2155,8 +2156,20 @@ fn ll_call(lc_g: Array<Int>, lc_n: Array<Int>, lc_s: Array<Int>) [IO] -> Int {
         lc_args[lc_ai] = ll_expr(lc_g, lc_n, lc_s);
         lc_ari[0] = lc_n[lc_ari[0] * 10 + 6];
     };
+    // Look up callee FN_DECL for return type + param types (AFTER arg eval)
+    lc_g[40] = lc_coff; lc_g[42] = lc_clen;
+    lc_g[4103] = 0 - 1;
+    for lc_fi in range(0, lc_g[12]) {
+        match lc_n[lc_fi * 10] == 1 { true -> {
+            lc_g[41] = lc_n[lc_fi * 10 + 2];
+            match lc_g[42] == lc_n[lc_fi * 10 + 3] { true -> match cg_name_eq(lc_g, lc_s) { true -> { lc_g[4103] = lc_fi; }, false -> { } }, false -> { } };
+        }, false -> { } };
+    };
+    lc_g[4104] = match lc_g[4103] >= 0 { true -> lc_n[lc_g[4103] * 10 + 7], false -> 0 };
     let lc_t: Int = ll_tmp(lc_g);
-    do print_raw("    %t" + int_to_string(lc_t) + " = call i64 @fn_");
+    // Emit call with correct return type
+    let lc_rty: String = match lc_g[4104] == 7 { true -> "double", false -> "i64" };
+    do print_raw("    %t" + int_to_string(lc_t) + " = call " + lc_rty + " @fn_");
     for lc_ni2 in range(0, lc_clen) { do print_byte(lc_s[lc_coff + lc_ni2]); };
     do print_raw("(");
     for lc_ai2 in range(0, lc_cac) {
@@ -2164,6 +2177,7 @@ fn ll_call(lc_g: Array<Int>, lc_n: Array<Int>, lc_s: Array<Int>) [IO] -> Int {
         do print_raw("i64 %t" + int_to_string(lc_args[lc_ai2]));
     };
     do print(")");
+    lc_g[761] = lc_g[4104];
     lc_t
 }
 
