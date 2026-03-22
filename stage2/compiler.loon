@@ -1030,11 +1030,6 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                         }, false -> { } };
                     };
                 }, false -> { } };
-                // ARRAY_SET scratch slot: allocate 8 bytes for index preservation
-                match ws_g[137] == 21 { true -> {
-                    ws_g[33] = ws_g[33] + 8;
-                    ws_n[ws_g[136] * 10 + 8] = ws_g[33]; // store scratch offset in extra field
-                }, false -> { } };
                 // Push next_sibling (processed second = breadth after depth)
                 ws_g[138] = ws_n[ws_g[136] * 10 + 6];
                 match ws_g[138] >= 1 { true -> match ws_g[220] < 2000 { true -> { ws_g[2048 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
@@ -1637,14 +1632,11 @@ fn cg_aryset(ca_g: Array<Int>, ca_n: Array<Int>, ca_s: Array<Int>) [IO] -> Unit 
     ca_g[40] = ca_n[ca_g[170]*10+2]; ca_g[41] = ca_n[ca_g[170]*10+3];
     ca_g[171] = cg_find_var(ca_g, ca_s);
     do print_raw("    mov r10, qword [rbp-"); do print_raw(int_to_string(ca_g[171])); do emit_line("]");
-    ca_g[172] = ca_n[ca_g[170]*10+8]; // scratch offset from extra field
     do emit_line("    push r10"); // save array ptr (r10 clobbered by value eval)
     ca_g[31] = ca_n[ca_g[170]*10+5]; do cg_expr(ca_g, ca_n, ca_s);
-    // Save index to rbp-relative scratch slot (immune to push/pop misalignment)
-    do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(ca_g[172])); do emit_line("], rax");
+    do emit_line("    push rax"); // save index
     ca_g[31] = ca_n[ca_n[ca_g[170]*10+5]*10+6]; do cg_expr(ca_g, ca_n, ca_s);
-    // Restore index from scratch slot
-    do print_raw("    mov rcx, qword [rbp-"); do print_raw(int_to_string(ca_g[172])); do emit_line("]");
+    do emit_line("    pop rcx"); // index
     do emit_line("    pop r10"); // array ptr
     do emit_line("    mov qword [r10 + rcx*8], rax");
 }
