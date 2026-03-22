@@ -2699,7 +2699,7 @@ fn main() [IO] -> Unit {
     let slen: Int = string_length(source);
     let gs: Array<Int> = Array(4096);
     let gb: Array<Int> = Array(262144);
-    let gt: Array<Int> = Array(200000);
+    let gt: Array<Int> = Array(300000);
     let gn: Array<Int> = Array(500000);
     gs[910] = match a1len == 6 { true -> 1, false -> 0 };
     gs[915] = mf[0];
