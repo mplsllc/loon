@@ -40,46 +40,69 @@ module compiler;
 
 // ===== Character classification =====
 fn is_lower(c: Int) [] -> Bool { match c >= 97 { true -> match c <= 122 { true -> true, false -> false }, false -> false } }
+// is_upper — check if character is uppercase A-Z
 fn is_upper(c: Int) [] -> Bool { match c >= 65 { true -> match c <= 90 { true -> true, false -> false }, false -> false } }
+// is_alpha — check if character is a letter or underscore
 fn is_alpha(c: Int) [] -> Bool { match is_lower(c) { true -> true, false -> match is_upper(c) { true -> true, false -> match c == 95 { true -> true, false -> false } } } }
+// is_digit — check if character is 0-9
 fn is_digit(c: Int) [] -> Bool { match c >= 48 { true -> match c <= 57 { true -> true, false -> false }, false -> false } }
+// is_alnum — check if character is letter, digit, or underscore
 fn is_alnum(c: Int) [] -> Bool { match is_alpha(c) { true -> true, false -> is_digit(c) } }
+// is_ws — check if character is whitespace (space, tab, newline, CR)
 fn is_ws(c: Int) [] -> Bool { match c == 32 { true -> true, false -> match c == 9 { true -> true, false -> match c == 10 { true -> true, false -> match c == 13 { true -> true, false -> false } } } } }
 
 // ===== Lexer primitives =====
 fn xpeek(xg: Array<Int>, xs: Array<Int>) [] -> Int { xs[xg[1]] }
+// xend — check if source position is past end of input
 fn xend(xg: Array<Int>) [] -> Bool { match xg[1] >= xg[0] { true -> true, false -> false } }
+// xadv — advance source position by one byte, track line/col
 fn xadv(xg: Array<Int>, xs: Array<Int>) [] -> Int {
     let xc: Int = xs[xg[1]]; xg[1] = xg[1] + 1;
     match xc == 10 { true -> { xg[2] = xg[2] + 1; xg[3] = 1; xc }, false -> { xg[3] = xg[3] + 1; xc } }
 }
+// xemit — emit a token with no string value (keywords, punctuation)
 fn xemit(xg: Array<Int>, xtk: Array<Int>, xt: Int) [] -> Unit {
     let xb: Int = xg[4] * 5; xtk[xb] = xt; xtk[xb+1] = 0; xtk[xb+2] = 0; xtk[xb+3] = xg[7]; xtk[xb+4] = xg[8]; xg[4] = xg[4] + 1;
 }
+// xemitv — emit a token with string value (identifiers, literals)
 fn xemitv(xg: Array<Int>, xtk: Array<Int>, xt: Int) [] -> Unit {
     let xb: Int = xg[4] * 5; xtk[xb] = xt; xtk[xb+1] = xg[9]; xtk[xb+2] = xg[10]; xtk[xb+3] = xg[7]; xtk[xb+4] = xg[8]; xg[4] = xg[4] + 1;
 }
 
 // ===== Keyword detection =====
+// kw2 — match 2-char keywords: fn, in, do
 fn kw2(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==102 { true -> match ks[ko+1]==110 { true -> 0, false -> 0-1 }, false -> match ks[ko]==105 { true -> match ks[ko+1]==110 { true -> 5, false -> 0-1 }, false -> match ks[ko]==100 { true -> match ks[ko+1]==111 { true -> 6, false -> 0-1 }, false -> 0-1 } } } }
+// kw3 — match 3-char keywords: let, for
 fn kw3(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==108 { true -> match ks[ko+1]==101 { true -> match ks[ko+2]==116 { true -> 1, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko]==102 { true -> match ks[ko+1]==111 { true -> match ks[ko+2]==114 { true -> 4, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } } }
+// kw4 — match 4-char keywords: type, true
 fn kw4(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==116 { true -> match ks[ko+1]==121 { true -> match ks[ko+2]==112 { true -> match ks[ko+3]==101 { true -> 2, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko+1]==114 { true -> match ks[ko+2]==117 { true -> match ks[ko+3]==101 { true -> 11, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }, false -> 0-1 } }
+// kw5 — match 5-char keywords: match, false
 fn kw5(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==109 { true -> match ks[ko+1]==97 { true -> match ks[ko+2]==116 { true -> match ks[ko+3]==99 { true -> match ks[ko+4]==104 { true -> 3, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko]==102 { true -> match ks[ko+1]==97 { true -> match ks[ko+2]==108 { true -> match ks[ko+3]==115 { true -> match ks[ko+4]==101 { true -> 12, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } } }
+// kw6 — match 6-char keyword: module
 fn kw6(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==109 { true -> match ks[ko+1]==111 { true -> match ks[ko+2]==100 { true -> match ks[ko+3]==117 { true -> match ks[ko+4]==108 { true -> match ks[ko+5]==101 { true -> 7, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } }
+// kw7 — match 7-char keywords: imports, exports
 fn kw7(kg: Array<Int>, ks: Array<Int>) [] -> Int { let ko: Int = kg[9]; match ks[ko]==105 { true -> match ks[ko+1]==109 { true -> match ks[ko+2]==112 { true -> match ks[ko+3]==111 { true -> match ks[ko+4]==114 { true -> match ks[ko+5]==116 { true -> match ks[ko+6]==115 { true -> 8, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> match ks[ko]==101 { true -> match ks[ko+1]==120 { true -> match ks[ko+2]==112 { true -> match ks[ko+3]==111 { true -> match ks[ko+4]==114 { true -> match ks[ko+5]==116 { true -> match ks[ko+6]==115 { true -> 9, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 }, false -> 0-1 } } }
+// kwtype — dispatch keyword check by identifier length
 fn kwtype(kg: Array<Int>, ks: Array<Int>) [] -> Int { match kg[10] { 2 -> kw2(kg, ks), 3 -> kw3(kg, ks), 4 -> kw4(kg, ks), 5 -> kw5(kg, ks), 6 -> kw6(kg, ks), 7 -> kw7(kg, ks), _ -> 0-1 } }
 
 // ===== Lexer readers =====
 fn lex_word(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; for _id in range(0, 256) { match xend(lg) { true -> { }, false -> match is_alnum(xpeek(lg, ls)) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } } }; }; lg[10] = lg[5] - lg[9]; let lkt: Int = kwtype(lg, ls); match lkt >= 0 { true -> do xemit(lg, lt, lkt), false -> do xemitv(lg, lt, 13) }; }
+// lex_num — lex integer or float literal (detects decimal point)
 fn lex_num(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { lg[9] = lg[5]; let lisf: Array<Int> = Array(1); lisf[0] = 0; for _ni in range(0, 256) { match xend(lg) { true -> { }, false -> { let lnc: Int = xpeek(lg, ls); match is_digit(lnc) { true -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> match lnc == 46 { true -> match lisf[0] == 0 { true -> { lisf[0] = 1; ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; }, false -> { } }, false -> { } } }; } }; }; lg[10] = lg[5] - lg[9]; match lisf[0] { 0 -> do xemitv(lg, lt, 14), _ -> do xemitv(lg, lt, 15) }; }
+// lex_str — lex string literal with escape sequences
 fn lex_str(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [] -> Unit { let _lq: Int = xadv(lg, ls); lg[9] = lg[5]; for _si in range(0, 65536) { match xend(lg) { true -> { }, false -> { let lsc: Int = xpeek(lg, ls); match lsc == 34 { true -> { }, false -> match lsc == 92 { true -> { let _lbs: Int = xadv(lg, ls); match xend(lg) { true -> { }, false -> { let lec: Int = xadv(lg, ls); match lec { 110 -> { ls[lg[5]] = 10; lg[5] = lg[5] + 1; }, 116 -> { ls[lg[5]] = 9; lg[5] = lg[5] + 1; }, 92 -> { ls[lg[5]] = 92; lg[5] = lg[5] + 1; }, 34 -> { ls[lg[5]] = 34; lg[5] = lg[5] + 1; }, _ -> { ls[lg[5]] = lec; lg[5] = lg[5] + 1; } }; } }; }, false -> { ls[lg[5]] = xadv(lg, ls); lg[5] = lg[5] + 1; } } }; } }; }; lg[10] = lg[5] - lg[9]; match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 34 { true -> { let _lcq: Int = xadv(lg, ls); }, false -> { } } }; do xemitv(lg, lt, 16); }
+// lex_sym — lex operators and punctuation (single/double char)
 fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { let lc: Int = xadv(lg, ls); match lc { 123 -> do xemit(lg, lt, 17), 125 -> do xemit(lg, lt, 18), 40 -> do xemit(lg, lt, 19), 41 -> do xemit(lg, lt, 20), 91 -> do xemit(lg, lt, 21), 93 -> do xemit(lg, lt, 22), 43 -> do xemit(lg, lt, 24), 42 -> do xemit(lg, lt, 26), 47 -> do xemit(lg, lt, 27), 37 -> do xemit(lg, lt, 28), 58 -> do xemit(lg, lt, 40), 59 -> do xemit(lg, lt, 41), 44 -> do xemit(lg, lt, 42), 46 -> do xemit(lg, lt, 43), 45 -> match xend(lg) { true -> do xemit(lg, lt, 25), false -> match xpeek(lg, ls) == 62 { true -> { let _lgt: Int = xadv(lg, ls); do xemit(lg, lt, 38); }, false -> do xemit(lg, lt, 25) } }, 61 -> match xend(lg) { true -> do xemit(lg, lt, 23), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 29); }, false -> do xemit(lg, lt, 23) } }, 33 -> match xend(lg) { true -> do xemit(lg, lt, 37), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 30); }, false -> do xemit(lg, lt, 37) } }, 60 -> match xend(lg) { true -> do xemit(lg, lt, 31), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 33); }, false -> do xemit(lg, lt, 31) } }, 62 -> match xend(lg) { true -> do xemit(lg, lt, 32), false -> match xpeek(lg, ls) == 61 { true -> { let _le: Int = xadv(lg, ls); do xemit(lg, lt, 34); }, false -> do xemit(lg, lt, 32) } }, 38 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 38 { true -> { let _la: Int = xadv(lg, ls); do xemit(lg, lt, 35); }, false -> { } } }, 124 -> match xend(lg) { true -> { }, false -> match xpeek(lg, ls) == 124 { true -> { let _lo: Int = xadv(lg, ls); do xemit(lg, lt, 36); }, false -> match xpeek(lg, ls) == 62 { true -> { let _lp: Int = xadv(lg, ls); do xemit(lg, lt, 39); }, false -> { } } } }, _ -> { do print("error: unexpected char"); do exit(1); } }; }
+// lex_dispatch — route to word/num/str/sym lexer based on first char
 fn lex_dispatch(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[7] = lg[2]; lg[8] = lg[3]; let lc: Int = xpeek(lg, ls); match lc == 47 { true -> match lg[1] + 1 < lg[0] { true -> match ls[lg[1] + 1] == 47 { true -> { let _ls1: Int = xadv(lg, ls); let _ls2: Int = xadv(lg, ls); lg[6] = 1; }, false -> do lex_sym(lg, lt, ls) }, false -> do lex_sym(lg, lt, ls) }, false -> match lc == 34 { true -> do lex_str(lg, lt, ls), false -> match is_alpha(lc) { true -> do lex_word(lg, lt, ls), false -> match is_digit(lc) { true -> do lex_num(lg, lt, ls), false -> do lex_sym(lg, lt, ls) } } } }; }
+// lex_all — tokenize entire source, skip whitespace and comments
 fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = 200000; lg[6] = 0; for _li in range(0, 999999) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
 
 // ===== Token access =====
 fn tcur(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5] }
+// teat — consume current token (advance position)
 fn teat(_g: Array<Int>) [] -> Unit { _g[13] = _g[13] + 1; }
+// tsoff — get current token's string offset
 fn tsoff(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 1] }
 fn tslen(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 2] }
 
