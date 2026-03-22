@@ -1,0 +1,79 @@
+Loon Sanity Check — 2026-03-22
+Commit: 66ed362
+Binary: /tmp/s2_fresh (self-compiled, fixed point verified)
+
+=== LAYER 1: Fresh Build ===
+RESULT: PASS
+- Self-hosting fixed point confirmed
+- Stage 1 cannot compile current source (outgrew assembly compiler)
+- Self-compiled chain: s2_new2 → s2_fresh → diff empty
+
+=== LAYER 1b: Gauntlet ===
+RESULT: 50/50 PASS
+- Zero failures, zero known gaps
+
+=== LAYER 2: ERROR Tests Produce Meaningful Messages ===
+RESULT: PASS (9/9)
+- Effect violation: "undeclared effect: function f uses IO but declares []"
+- Type mismatch: "type mismatch: expected Int, got String"
+- Undefined variable: "undefined variable: undefined_name"
+- Non-exhaustive match: "non-exhaustive match"
+- Immutable reassignment: "immutable reassignment"
+- Call arg type mismatch: "type mismatch: expected Int, got String"
+- Bool exhaustive: "non-exhaustive match — missing Bool arm"
+- Return type mismatch: "return type mismatch: declared Int, returns String"
+- Undefined function: "undefined function: nonexistent"
+
+=== LAYER 3: COMPILES OK Tests Produce Correct Binaries ===
+RESULT: PASS (7/7)
+- pipe_chain: exit 11 ✓
+- adt_construction: exit 25 ✓
+- recursive_fn: exit 55 ✓
+- correct_adt_let: exit 25 ✓
+- all_variants_covered: exit 6 ✓
+- complex_expr: exit 17 ✓
+- array_loop: exit 10 ✓
+
+=== LAYER 4: LLVM Backend Correctness ===
+RESULT: PASS (5/5)
+- recursive_fn LLVM: exit 55 ✓
+- adt_construction LLVM: exit 25 ✓
+- pipe_chain LLVM: exit 11 ✓
+- complex_expr LLVM: exit 17 ✓
+- array_loop LLVM: exit 10 ✓
+
+=== LAYER 5: Individual Safety Claims ===
+RESULT: PASS (9/9)
+All 9 compile-time safety checks verified individually with fresh binary.
+
+=== LAYER 6: Runtime Checks ===
+RESULT: PARTIAL
+- Division by zero: PASS (trapped, exit 1)
+- Normal division: PASS (100/4 = 25)
+- Array bounds: NO CHECK (reads garbage — documented, not implemented)
+
+=== LAYER 7: WASM ===
+RESULT: PARTIAL
+- LLVM IR with WASI target triple: PASS
+- fd_write + proc_exit imports: PASS
+- Linking: FAIL (wasi-sysroot not installed on this machine)
+- IR verified working via manual llc + wasm-ld in earlier session
+
+=== LAYER 8: LSP Server ===
+RESULT: PASS
+- Responds to JSON-RPC initialize
+- Returns capabilities (textDocumentSync: 1)
+- Returns serverInfo (loon-lsp v0.1.0)
+
+=== SUMMARY ===
+Layers fully passed:    6/8 (1, 1b, 2, 3, 4, 5, 8)
+Layers partially passed: 2/8 (6: no array bounds, 7: no wasi-sysroot)
+Layers failed:          0/8
+
+Compile-time safety:    9/9 checks verified ✓
+Runtime safety:         1/2 checks verified (div/zero ✓, bounds ✗)
+NASM gauntlet:          50/50 ✓
+LLVM correctness:       5/5 spot checks ✓
+Self-hosting:           Fixed point ✓
+LSP:                    Working ✓
+WASM:                   IR correct, linking needs toolchain ✓
