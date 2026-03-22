@@ -1,0 +1,9 @@
+// TEST: log_sensitive_error
+// EXPECT: ERROR
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    do print(pw);
+    do exit(0);
+}

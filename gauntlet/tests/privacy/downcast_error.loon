@@ -1,0 +1,9 @@
+// TEST: downcast_error
+// EXPECT: ERROR
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    let s: String = pw;
+    do exit(0);
+}

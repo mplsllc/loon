@@ -1,0 +1,9 @@
+// TEST: upcast_ok
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let raw: String = "hello";
+    let s: Sensitive<String> = raw;
+    do exit(0);
+}

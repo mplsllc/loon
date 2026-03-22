@@ -1,0 +1,9 @@
+// TEST: same_level_ok
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let a: Sensitive<String> = "secret";
+    let b: Sensitive<String> = a;
+    do exit(0);
+}

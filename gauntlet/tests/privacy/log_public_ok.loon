@@ -1,0 +1,9 @@
+// TEST: log_public_ok
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let name: Public<String> = "alice";
+    do print(name);
+    do exit(0);
+}

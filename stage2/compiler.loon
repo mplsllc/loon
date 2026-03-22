@@ -2106,6 +2106,27 @@ fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -
                         }, false -> { } };
                     }, false -> { } };
                 };
+                // Downcast check: for each LET with lower privacy, check if init is sensitive var
+                for tp_di in range(tp_fi + 1, tp_g[4500]) {
+                    match tp_n[tp_di * 10] == 4 { true -> {
+                        tp_g[4504] = tp_n[tp_di * 10 + 7] / 16; // declared privacy level
+                        tp_g[4505] = tp_n[tp_di * 10 + 5]; // init node
+                        match tp_g[4505] >= 0 { true -> match tp_n[tp_g[4505] * 10] == 10 { true -> {
+                            // Init is IDENT_REF — check if it matches a sensitive var
+                            for tp_dvi in range(0, tp_g[4501]) {
+                                tp_g[40] = tp_n[tp_g[4505] * 10 + 2]; tp_g[42] = tp_n[tp_g[4505] * 10 + 3];
+                                tp_g[41] = tp_g[4510 + tp_dvi * 2];
+                                match tp_g[42] == tp_g[4510 + tp_dvi * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                    // Sensitive var found as init — check privacy levels
+                                    match tp_g[4504] < 2 { true -> {
+                                        do print("error: cannot assign Sensitive value to less restrictive type — use expose()");
+                                        tp_g[911] = tp_g[911] + 1;
+                                    }, false -> { } };
+                                }, false -> { } }, false -> { } };
+                            };
+                        }, false -> { } }, false -> { } };
+                    }, false -> { } };
+                };
             }, false -> { } };
         }, false -> { } };
     };
