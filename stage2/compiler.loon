@@ -2035,6 +2035,28 @@ fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> U
                                             ta_g[905] = ta_ni; ta_g[906] = 1; ta_g[907] = ta_g[4202]; ta_g[908] = ta_g[4204];
                                             do tc_error(ta_g, ta_n, ta_s);
                                         } }, false -> { } };
+                                        // Privacy downcast check: if arg is IDENT_REF, compare privacy levels
+                                        match ta_g[4203] == 10 { true -> {
+                                            // Look up arg variable's type_info
+                                            ta_g[4205] = 0 - 1;
+                                            for ta_vi in range(0, ta_ni) {
+                                                ta_g[4206] = ta_n[ta_vi * 10];
+                                                match ta_g[4206] == 4 { true -> {
+                                                    ta_g[40] = ta_n[ta_g[4200] * 10 + 2]; ta_g[42] = ta_n[ta_g[4200] * 10 + 3];
+                                                    ta_g[41] = ta_n[ta_vi * 10 + 2];
+                                                    match ta_g[42] == ta_n[ta_vi * 10 + 3] { true -> match cg_name_eq(ta_g, ta_s) { true -> { ta_g[4205] = ta_n[ta_vi * 10 + 7]; }, false -> { } }, false -> { } };
+                                                }, false -> { } };
+                                                match ta_g[4206] == 2 { true -> {
+                                                    ta_g[40] = ta_n[ta_g[4200] * 10 + 2]; ta_g[42] = ta_n[ta_g[4200] * 10 + 3];
+                                                    ta_g[41] = ta_n[ta_vi * 10 + 2];
+                                                    match ta_g[42] == ta_n[ta_vi * 10 + 3] { true -> match cg_name_eq(ta_g, ta_s) { true -> { ta_g[4205] = ta_n[ta_vi * 10 + 7]; }, false -> { } }, false -> { } };
+                                                }, false -> { } };
+                                            };
+                                            match ta_g[4205] >= 0 { true -> match ta_g[4205] / 16 > ta_g[4202] / 16 { true -> {
+                                                do print("error: cannot pass Sensitive value to less restrictive parameter — use expose()");
+                                                ta_g[911] = ta_g[911] + 1;
+                                            }, false -> { } }, false -> { } };
+                                        }, false -> { } };
                                         ta_g[4200] = ta_n[ta_g[4200] * 10 + 6]; // next arg
                                         ta_g[4201] = ta_n[ta_g[4201] * 10 + 6]; // next param
                                     }, false -> { } }, false -> { } };

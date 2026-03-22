@@ -1,0 +1,12 @@
+// TEST: zero_on_drop_int
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn use_key() [IO] -> Unit {
+    let key: Sensitive<Int, ZeroOnDrop> = 42;
+    do print("key used");
+}
+fn main() [IO] -> Unit {
+    do use_key();
+    do exit(0);
+}

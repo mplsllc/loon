@@ -1,0 +1,8 @@
+// TEST: encrypted_type
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let enc: Encrypted<String> = "aes256$ciphertext";
+    do exit(0);
+}

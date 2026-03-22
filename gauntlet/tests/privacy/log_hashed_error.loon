@@ -1,0 +1,10 @@
+// TEST: log_hashed_error
+// EXPECT: ERROR
+// CATEGORY: privacy
+// Hashed values are also sensitive — cannot be logged
+module test;
+fn main() [IO] -> Unit {
+    let hash: Hashed<String> = "argon2id$stub";
+    do print(hash);
+    do exit(0);
+}

@@ -1,0 +1,13 @@
+// TEST: sensitive_param
+// EXPECT: ERROR
+// CATEGORY: privacy
+// Passing Sensitive to a function expecting raw String is a downcast
+module test;
+fn log_name(name: String) [IO] -> Unit {
+    do print(name);
+}
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    do log_name(pw);
+    do exit(0);
+}

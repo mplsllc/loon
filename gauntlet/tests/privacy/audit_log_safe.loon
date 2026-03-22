@@ -1,0 +1,13 @@
+// TEST: audit_log_safe
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+// Public values can be safely logged
+module test;
+fn log_event(msg: Public<String>) [IO] -> Unit {
+    do print(msg);
+}
+fn main() [IO] -> Unit {
+    let user: Public<String> = "alice";
+    do log_event(user);
+    do exit(0);
+}

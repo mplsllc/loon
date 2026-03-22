@@ -1,0 +1,8 @@
+// TEST: hashed_type
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let hash: Hashed<String> = "argon2id$stub";
+    do exit(0);
+}
