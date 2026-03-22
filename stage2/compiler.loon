@@ -265,7 +265,7 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
             do teat(pf_g); do teat(pf_g); // eat name, colon
             pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1]; // type name len and offset
             do teat(pf_g); // eat type name
-            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }; } };
+            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } }; } };
             match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
             pf_g[15] = pf_g[15] + 1;
             match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); }, false -> { } };
@@ -286,7 +286,7 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
     do teat(pf_g); // eat ARROW
     pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1];
     do teat(pf_g); // eat return type name
-    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }; } };
+    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } }; } };
     // Body
     let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
     pf_n[pf_fi * 10 + 8] = pf_bi;
@@ -390,7 +390,7 @@ fn pl_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [IO] -> Int {
     pl_n[pl_li * 10 + 2] = tsoff(pl_g, pl_t);
     pl_n[pl_li * 10 + 3] = tslen(pl_g, pl_t);
     do teat(pl_g);
-    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; do teat(pl_g); pl_n[pl_li*10+9]=1; match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> 0 }; } }; }, false -> { } };
+    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; pl_g[137]=pl_t[pl_g[13]*5+1]; do teat(pl_g); pl_n[pl_li*10+9]=1; match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> match pl_g[136]==5 { true -> match pl_n[200000+pl_g[137]]==70 { true -> 7, false -> 0 }, false -> 0 } }; } }; }, false -> { } };
     do teat(pl_g);
     let pl_vi: Int = pe_parse(pl_g, pl_t, pl_n);
     pl_n[pl_li * 10 + 4] = 1; pl_n[pl_li * 10 + 5] = pl_vi;
@@ -465,12 +465,13 @@ fn ppf_parse(pf2_g: Array<Int>, pf2_t: Array<Int>, pf2_n: Array<Int>) [IO] -> In
 fn ppri_parse(pr_g: Array<Int>, pr_t: Array<Int>, pr_n: Array<Int>) [IO] -> Int {
     let pr_tt: Int = tcur(pr_g, pr_t);
     match pr_tt == 14 { true -> { let pr_i1: Int = nalloc(pr_g, pr_n); pr_n[pr_i1*10]=7; pr_n[pr_i1*10+2]=tsoff(pr_g,pr_t); pr_n[pr_i1*10+3]=tslen(pr_g,pr_t); do teat(pr_g); pr_i1 },
+    false -> match pr_tt == 15 { true -> { let pr_f1: Int = nalloc(pr_g, pr_n); pr_n[pr_f1*10]=7; pr_n[pr_f1*10+2]=tsoff(pr_g,pr_t); pr_n[pr_f1*10+3]=tslen(pr_g,pr_t); pr_n[pr_f1*10+7]=7; do teat(pr_g); pr_f1 },
     false -> match pr_tt == 16 { true -> { let pr_s1: Int = nalloc(pr_g, pr_n); pr_n[pr_s1*10]=8; pr_n[pr_s1*10+2]=tsoff(pr_g,pr_t); pr_n[pr_s1*10+3]=tslen(pr_g,pr_t); pr_n[pr_s1*10+7]=2; do teat(pr_g); pr_s1 },
     false -> match pr_tt == 11 { true -> { let pr_b1: Int = nalloc(pr_g, pr_n); pr_n[pr_b1*10]=9; pr_n[pr_b1*10+8]=1; do teat(pr_g); pr_b1 },
     false -> match pr_tt == 12 { true -> { let pr_b2: Int = nalloc(pr_g, pr_n); pr_n[pr_b2*10]=9; pr_n[pr_b2*10+8]=0; do teat(pr_g); pr_b2 },
     false -> match pr_tt == 19 { true -> { do teat(pr_g); let pr_ei: Int = pe_parse(pr_g, pr_t, pr_n); do teat(pr_g); pr_ei },
     false -> match pr_tt == 17 { true -> pb_parse(pr_g, pr_t, pr_n),
-    false -> pic_parse(pr_g, pr_t, pr_n) } } } } } }
+    false -> pic_parse(pr_g, pr_t, pr_n) } } } } } } }
 }
 // Convert a CALL node to VARIANT_CONSTRUCT if name matches a variant
 fn pic_to_vari(pv_g: Array<Int>, pv_n: Array<Int>, pv_ci: Int) [] -> Unit {
@@ -710,7 +711,10 @@ fn mkbin(mb_g: Array<Int>, mb_n: Array<Int>, mb_op: Int) [] -> Int {
     let mb_ni: Int = nalloc(mb_g, mb_n);
     mb_n[mb_ni*10]=11; mb_n[mb_ni*10+1]=mb_op; mb_n[mb_ni*10+4]=2;
     mb_n[mb_ni*10+5]=mb_g[18]; mb_n[mb_g[18]*10+6]=mb_g[19];
-    mb_n[mb_ni*10+7]=mb_n[mb_g[18]*10+7]; mb_ni
+    // Propagate type_info: Float (7) wins if either operand is Float
+    mb_n[mb_ni*10+7]=mb_n[mb_g[18]*10+7];
+    match mb_n[mb_g[19]*10+7] == 7 { true -> { mb_n[mb_ni*10+7] = 7; }, false -> { } };
+    mb_ni
 }
 
 // Token name
@@ -2000,20 +2004,42 @@ fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
     let lb_rhs: Int = lb_n[lb_lhs * 10 + 6];
     lb_g[31] = lb_lhs;
     let lb_lt: Int = ll_expr(lb_g, lb_n, lb_s);
+    lb_g[760] = lb_g[761]; // capture left operand type (7=Float) before right overwrites
     lb_g[31] = lb_rhs;
     let lb_rt: Int = ll_expr(lb_g, lb_n, lb_s);
+    // If right is Float, also set g[760]
+    match lb_g[761] == 7 { true -> { lb_g[760] = 7; }, false -> { } };
     let lb_t: Int = ll_tmp(lb_g);
-    // Arithmetic: add/sub/mul/sdiv/srem, Comparison: icmp eq/ne/slt/sgt/sle/sge
-    match lb_op <= 4 {
+    match lb_g[760] == 7 {
         true -> {
-            let lb_opn: String = match lb_op { 0 -> "add", 1 -> "sub", 2 -> "mul", 3 -> "sdiv", _ -> "srem" };
-            do print("    %t" + int_to_string(lb_t) + " = " + lb_opn + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+            // Float arithmetic/comparison
+            match lb_op <= 4 {
+                true -> {
+                    let lb_fop: String = match lb_op { 0 -> "fadd", 1 -> "fsub", 2 -> "fmul", 3 -> "fdiv", _ -> "frem" };
+                    do print("    %t" + int_to_string(lb_t) + " = " + lb_fop + " double %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+                },
+                false -> {
+                    let lb_fcmp: String = match lb_op { 5 -> "oeq", 6 -> "one", 7 -> "olt", 8 -> "ogt", 9 -> "ole", 10 -> "oge", _ -> "oeq" };
+                    let lb_fct: Int = ll_tmp(lb_g);
+                    do print("    %t" + int_to_string(lb_fct) + " = fcmp " + lb_fcmp + " double %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+                    do print("    %t" + int_to_string(lb_t) + " = zext i1 %t" + int_to_string(lb_fct) + " to i64");
+                },
+            };
         },
         false -> {
-            let lb_cmp: String = match lb_op { 5 -> "eq", 6 -> "ne", 7 -> "slt", 8 -> "sgt", 9 -> "sle", 10 -> "sge", 11 -> "eq", _ -> "eq" };
-            let lb_ct: Int = ll_tmp(lb_g);
-            do print("    %t" + int_to_string(lb_ct) + " = icmp " + lb_cmp + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
-            do print("    %t" + int_to_string(lb_t) + " = zext i1 %t" + int_to_string(lb_ct) + " to i64");
+            // Integer arithmetic/comparison
+            match lb_op <= 4 {
+                true -> {
+                    let lb_opn: String = match lb_op { 0 -> "add", 1 -> "sub", 2 -> "mul", 3 -> "sdiv", _ -> "srem" };
+                    do print("    %t" + int_to_string(lb_t) + " = " + lb_opn + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+                },
+                false -> {
+                    let lb_cmp: String = match lb_op { 5 -> "eq", 6 -> "ne", 7 -> "slt", 8 -> "sgt", 9 -> "sle", 10 -> "sge", 11 -> "eq", _ -> "eq" };
+                    let lb_ct: Int = ll_tmp(lb_g);
+                    do print("    %t" + int_to_string(lb_ct) + " = icmp " + lb_cmp + " i64 %t" + int_to_string(lb_lt) + ", %t" + int_to_string(lb_rt));
+                    do print("    %t" + int_to_string(lb_t) + " = zext i1 %t" + int_to_string(lb_ct) + " to i64");
+                },
+            };
         },
     };
     lb_t
@@ -2035,14 +2061,21 @@ fn ll_ident(li_g: Array<Int>, li_n: Array<Int>, li_s: Array<Int>) [IO] -> Int {
         true -> match li_g[51 + li_vf[0] * 4 + 2] == 1 {
             // Param — reference directly
             true -> {
-                do print_raw("    %t" + int_to_string(li_t) + " = add i64 %p_");
+                let li_vt: Int = li_g[51 + li_vf[0] * 4 + 3]; // type_info
+                let li_pty: String = match li_vt == 7 { true -> "fadd double", false -> "add i64" };
+                let li_psf: String = match li_vt == 7 { true -> ", 0.0", false -> ", 0" };
+                do print_raw("    %t" + int_to_string(li_t) + " = " + li_pty + " %p_");
                 let li_po: Int = li_g[51 + li_vf[0] * 4];
                 let li_pl: Int = li_g[51 + li_vf[0] * 4 + 1];
                 for li_pk in range(0, li_pl) { do print_byte(li_s[li_po + li_pk]); };
-                do print(", 0");
+                do print(li_psf);
             },
             // Local — load from alloca
-            false -> do print("    %t" + int_to_string(li_t) + " = load i64, i64* %v" + int_to_string(li_vf[0])),
+            false -> {
+                let li_lt: Int = li_g[51 + li_vf[0] * 4 + 3];
+                match li_lt == 7 { true -> do print("    %t" + int_to_string(li_t) + " = load double, double* %v" + int_to_string(li_vf[0])),
+                false -> do print("    %t" + int_to_string(li_t) + " = load i64, i64* %v" + int_to_string(li_vf[0])) };
+            },
         },
         false -> {
             do print_raw("    %t" + int_to_string(li_t) + " = add i64 %p_");
@@ -2050,6 +2083,8 @@ fn ll_ident(li_g: Array<Int>, li_n: Array<Int>, li_s: Array<Int>) [IO] -> Int {
             do print(", 0");
         },
     };
+    // Set g[761] to the variable's type (7=Float) for callers like ll_binop
+    match li_vf[0] >= 0 { true -> { li_g[761] = li_g[51 + li_vf[0] * 4 + 3]; }, false -> { li_g[761] = 0; } };
     li_t
 }
 
@@ -2416,7 +2451,17 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
 fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
-    match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s))); le_t },
+    match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
+        match le_n[le_ni * 10 + 7] == 7 { true -> {
+            // Float literal — emit as double constant
+            do print_raw("    %t" + int_to_string(le_t) + " = fadd double 0.0, ");
+            for _lfi in range(0, le_g[41]) { do print_byte(le_s[le_g[40] + _lfi]); };
+            do print("");
+            le_g[761] = 7; // mark as Float for callers
+        }, false -> {
+            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s)));
+            le_g[761] = 0; // Int
+        } }; le_t },
     false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8])); le_bt },
     false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
     false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
@@ -2448,11 +2493,15 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
             ls_g[51 + ls_vi * 4] = ls_n[ls_ni * 10 + 2];
             ls_g[51 + ls_vi * 4 + 1] = ls_n[ls_ni * 10 + 3];
             ls_g[51 + ls_vi * 4 + 2] = 0; // local var (not param)
+            ls_g[51 + ls_vi * 4 + 3] = ls_n[ls_ni * 10 + 7]; // store type_info
             ls_g[50] = ls_vi + 1;
-            do print("    %v" + int_to_string(ls_vi) + " = alloca i64");
+            let ls_is_f: Int = ls_n[ls_ni * 10 + 7];
+            match ls_is_f == 7 { true -> do print("    %v" + int_to_string(ls_vi) + " = alloca double"),
+            false -> do print("    %v" + int_to_string(ls_vi) + " = alloca i64") };
             ls_g[31] = ls_n[ls_ni * 10 + 5];
             let ls_vt: Int = ll_expr(ls_g, ls_n, ls_s);
-            do print("    store i64 %t" + int_to_string(ls_vt) + ", i64* %v" + int_to_string(ls_vi));
+            match ls_is_f == 7 { true -> do print("    store double %t" + int_to_string(ls_vt) + ", double* %v" + int_to_string(ls_vi)),
+            false -> do print("    store i64 %t" + int_to_string(ls_vt) + ", i64* %v" + int_to_string(ls_vi)) };
         },
         false -> match ls_nt == 5 {
             // EXPR_STMT (type 5) — evaluate child, discard result
@@ -2465,7 +2514,8 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
                 true -> {
                     ls_g[31] = ls_n[ls_ni * 10 + 5];
                     let ls_rt: Int = ll_expr(ls_g, ls_n, ls_s);
-                    do print("    ret i64 %t" + int_to_string(ls_rt));
+                    match ls_g[762] == 7 { true -> do print("    ret double %t" + int_to_string(ls_rt)),
+                    false -> do print("    ret i64 %t" + int_to_string(ls_rt)) };
                     ls_g[33] = 1; // mark has return
                 },
                 false -> match ls_nt == 15 {
@@ -2508,16 +2558,20 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     lf_g[50] = 0;
     lf_g[32] = 0; // reset SSA counter
     lf_g[33] = 0; // reset has_unreachable flag
+    lf_g[762] = lf_rtype; // store return type for ll_stmt's ret emission
     lf_g[34] = 0; // reset match label counter
     // Emit function header
-    do print_raw("define i64 @fn_");
+    // Return type: double for Float, i64 for everything else
+    let lf_rtype: Int = lf_n[lf_ni * 10 + 7];
+    match lf_rtype == 7 { true -> do print_raw("define double @fn_"), false -> do print_raw("define i64 @fn_") };
     for lf_i in range(0, lf_name_len) { do print_byte(lf_s[lf_name_off + lf_i]); };
     do print_raw("(");
     // Emit params
     let lf_pn: Array<Int> = Array(1); lf_pn[0] = lf_n[lf_ni * 10 + 5];
     for lf_j in range(0, lf_pc) {
         match lf_j > 0 { true -> do print_raw(", "), false -> { } };
-        do print_raw("i64 %p_");
+        let lf_pty: Int = lf_n[lf_pn[0] * 10 + 7]; // param type_info
+        match lf_pty == 7 { true -> do print_raw("double %p_"), false -> do print_raw("i64 %p_") };
         let lf_poff: Int = lf_n[lf_pn[0] * 10 + 2];
         let lf_plen: Int = lf_n[lf_pn[0] * 10 + 3];
         for lf_k in range(0, lf_plen) { do print_byte(lf_s[lf_poff + lf_k]); };
@@ -2525,6 +2579,7 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
         lf_g[51 + lf_g[50] * 4] = lf_poff;
         lf_g[51 + lf_g[50] * 4 + 1] = lf_plen;
         lf_g[51 + lf_g[50] * 4 + 2] = 1;
+        lf_g[51 + lf_g[50] * 4 + 3] = lf_pty; // store type_info for Float detection
         lf_g[50] = lf_g[50] + 1;
         lf_pn[0] = lf_n[lf_pn[0] * 10 + 6]; // next sibling
     };
@@ -2534,7 +2589,7 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     lf_g[31] = lf_body;
     do ll_block(lf_g, lf_n, lf_s);
     // If function didn't end with exit/unreachable, add a ret
-    match lf_g[33] == 0 { true -> do print("    ret i64 0"), false -> { } };
+    match lf_g[33] == 0 { true -> match lf_g[762] == 7 { true -> do print("    ret double 0.0"), false -> do print("    ret i64 0") }, false -> { } };
     do print("}");
     do print("");
 }
