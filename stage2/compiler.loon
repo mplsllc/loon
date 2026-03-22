@@ -83,6 +83,18 @@ fn teat(_g: Array<Int>) [] -> Unit { _g[13] = _g[13] + 1; }
 fn tsoff(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 1] }
 fn tslen(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 2] }
 
+// ===== Privacy type detection =====
+// Check if name at g[40]/g[41] (offset/length) is a privacy wrapper.
+// Returns privacy_level (1-5) or -1 if not a privacy type.
+// Uses full string comparison via str_eq — no character sampling.
+fn chk_priv(cp_g: Array<Int>, cp_s: Array<Int>) [] -> Int {
+    match str_eq(cp_g, cp_s, "Public") { true -> 1,
+    false -> match str_eq(cp_g, cp_s, "Sensitive") { true -> 2,
+    false -> match str_eq(cp_g, cp_s, "Hashed") { true -> 4,
+    false -> match str_eq(cp_g, cp_s, "Encrypted") { true -> 5,
+    false -> 0 - 1 } } } }
+}
+
 // ===== Node helpers =====
 fn nalloc(_g: Array<Int>, _n: Array<Int>) [] -> Int {
     let _i: Int = _g[12]; let _b: Int = _i * 10;
@@ -266,7 +278,25 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
             do teat(pf_g); do teat(pf_g); // eat name, colon
             pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1]; // type name len and offset
             do teat(pf_g); // eat type name
-            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
+            // Type resolution: check for Array<T>, privacy wrappers, or plain types
+            pf_g[40] = pf_g[137]; pf_g[41] = pf_g[136]; // set up name for chk_priv
+            pf_g[4300] = chk_priv(pf_g, pf_n); // check if privacy wrapper (-1 if not)
+            match tcur(pf_g, pf_t) == 31 { true -> match pf_g[4300] >= 0 {
+                // Privacy wrapper: Sensitive<String>, Public<Int>, etc.
+                true -> {
+                    do teat(pf_g); // eat <
+                    // Resolve inner base type
+                    pf_g[4301] = pf_t[pf_g[13] * 5 + 2]; pf_g[4302] = pf_t[pf_g[13] * 5 + 1]; // inner type len, offset
+                    do teat(pf_g); // eat inner type name
+                    pf_g[4303] = match pf_g[4301] == 6 { true -> 2, false -> match pf_g[4301] == 5 { true -> match pf_n[200000 + pf_g[4302]] == 70 { true -> 7, false -> 0 }, false -> match pf_g[4301] == 4 { true -> match pf_n[200000 + pf_g[4302]] == 66 { true -> 1, false -> 0 }, false -> 0 } } }; // base type
+                    // Check for , ZeroOnDrop before >
+                    match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); do teat(pf_g); pf_g[4300] = 3; }, false -> { } }; // comma + ZeroOnDrop → level 3
+                    do teat(pf_g); // eat >
+                    pf_n[pf_pi * 10 + 7] = pf_g[4300] * 16 + pf_g[4303]; // compound encoding
+                },
+                // Array<T>
+                false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }
+            }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
             match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
             pf_g[15] = pf_g[15] + 1;
             match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); }, false -> { } };
@@ -287,7 +317,21 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
     do teat(pf_g); // eat ARROW
     pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1];
     do teat(pf_g); // eat return type name
-    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
+    // Return type resolution (same pattern as param types)
+    pf_g[40] = pf_g[137]; pf_g[41] = pf_g[136];
+    pf_g[4300] = chk_priv(pf_g, pf_n);
+    match tcur(pf_g, pf_t) == 31 { true -> match pf_g[4300] >= 0 {
+        true -> {
+            do teat(pf_g);
+            pf_g[4301] = pf_t[pf_g[13] * 5 + 2]; pf_g[4302] = pf_t[pf_g[13] * 5 + 1];
+            do teat(pf_g);
+            pf_g[4303] = match pf_g[4301] == 6 { true -> 2, false -> match pf_g[4301] == 5 { true -> match pf_n[200000 + pf_g[4302]] == 70 { true -> 7, false -> 0 }, false -> match pf_g[4301] == 4 { true -> match pf_n[200000 + pf_g[4302]] == 66 { true -> 1, false -> 0 }, false -> 0 } } };
+            match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); do teat(pf_g); pf_g[4300] = 3; }, false -> { } };
+            do teat(pf_g);
+            pf_n[pf_fi * 10 + 7] = pf_g[4300] * 16 + pf_g[4303];
+        },
+        false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }
+    }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
     // Body
     let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
     pf_n[pf_fi * 10 + 8] = pf_bi;
