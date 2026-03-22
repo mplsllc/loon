@@ -108,6 +108,18 @@ cg_as_store_idx_ptr:
     db "    pop r10", 10
     db "    mov qword [r10 + rcx*8], rax", 10
 cg_as_store_idx_ptr_len equ $ - cg_as_store_idx_ptr
+cg_as_save_idx_pre:     db "    mov qword [rbp-"
+cg_as_save_idx_pre_len  equ $ - cg_as_save_idx_pre
+cg_as_save_idx_post:    db "], rax", 10
+cg_as_save_idx_post_len equ $ - cg_as_save_idx_post
+cg_as_load_idx_pre:     db "    mov rcx, qword [rbp-"
+cg_as_load_idx_pre_len  equ $ - cg_as_load_idx_pre
+cg_as_load_idx_post:    db "]", 10
+cg_as_load_idx_post_len equ $ - cg_as_load_idx_post
+cg_as_store_r10_rax:    db "    mov qword [r10 + rcx*8], rax", 10
+cg_as_store_r10_rax_len equ $ - cg_as_store_r10_rax
+cg_as_pop_r10:          db "    pop r10", 10
+cg_as_pop_r10_len       equ $ - cg_as_pop_r10
 
 ; Section headers
 cg_section_data:    db "section .data", 10
@@ -585,7 +597,7 @@ cg_als_loop:
     cmp eax, NODE_RETURN_EXPR
     je cg_als_walk_child
     cmp eax, NODE_ARRAY_SET
-    je cg_als_next
+    je cg_als_aryset
     ; Handle FOR, MATCH, BLOCK etc at block level — pass the node itself
     ; to the expression walker which knows how to handle these types
     cmp eax, NODE_FOR
@@ -613,6 +625,13 @@ cg_als_walk_self:
     mov edi, r12d
     call cg_als_walk_expr
     jmp cg_als_next
+
+cg_als_aryset:
+    ; Allocate scratch slot for ARRAY_SET index preservation
+    ; Stores index in [rbp - offset] instead of push/pop (fixes cg_aryset clobber)
+    add r14d, 8
+    mov [rbx + 28], r14d           ; store scratch offset in extra field
+    jmp cg_als_walk_child
 
 cg_als_walk_child:
     ; Depth-first walk of this node's subtree to find nested FOR/MATCH/BLOCK
@@ -661,6 +680,8 @@ cg_als_walk_expr:
     je cg_alw_match
     cmp eax, NODE_BLOCK
     je cg_alw_block
+    cmp eax, NODE_ARRAY_SET
+    je cg_alw_aryset
 
     ; Walk first_child only for expression nodes
     ; (next_sibling handled by parent block/for/match iteration)
@@ -723,6 +744,15 @@ cg_alw_block:
     ; Found a nested BLOCK — recurse with the BLOCK walker
     mov edi, r12d
     call cg_assign_let_slots
+    jmp cg_alw_done
+
+cg_alw_aryset:
+    ; Allocate scratch slot for ARRAY_SET index preservation
+    add r14d, 8
+    mov [rbx + 28], r14d           ; store scratch offset in extra field
+    ; Walk children (index + value exprs may contain nested blocks)
+    mov edi, [rbx + 16]            ; first_child
+    call cg_als_walk_expr
     jmp cg_alw_done
 
 cg_alw_done:
@@ -940,9 +970,19 @@ cg_eb_array_set:
     push rbx
     call cgx_emit_expr              ; index in rax
 
-    ; Push index
-    lea rsi, [rel cgm_push_rax]
-    mov rdx, cgm_push_rax_len
+    ; Save index to rbp-relative scratch slot (from node extra field)
+    ; Emit: mov qword [rbp-SCRATCH], rax
+    pop rbx
+    push rbx
+    lea rsi, [rel cg_as_save_idx_pre]
+    mov rdx, cg_as_save_idx_pre_len
+    call cg_write
+    pop rbx
+    push rbx
+    mov eax, [rbx + 28]           ; extra = scratch offset
+    call cg_write_int
+    lea rsi, [rel cg_as_save_idx_post]
+    mov rdx, cg_as_save_idx_post_len
     call cg_write
 
     ; Get second child (value) — sibling of index
@@ -955,10 +995,25 @@ cg_eb_array_set:
     call cgx_emit_expr              ; value in rax
     pop rbx
 
-    ; Stack state: [top] index_value, target_ptr [bottom]
-    ; Emit: pop rcx (index); pop r10 (target ptr); mov [r10+rcx*8], rax
-    lea rsi, [rel cg_as_store_idx_ptr]
-    mov rdx, cg_as_store_idx_ptr_len
+    ; Restore index from rbp-relative scratch slot
+    ; Emit: mov rcx, qword [rbp-SCRATCH]
+    push rbx
+    lea rsi, [rel cg_as_load_idx_pre]
+    mov rdx, cg_as_load_idx_pre_len
+    call cg_write
+    pop rbx
+    mov eax, [rbx + 28]           ; extra = scratch offset
+    call cg_write_int
+    lea rsi, [rel cg_as_load_idx_post]
+    mov rdx, cg_as_load_idx_post_len
+    call cg_write
+
+    ; Emit: pop r10; mov [r10+rcx*8], rax
+    lea rsi, [rel cg_as_pop_r10]
+    mov rdx, cg_as_pop_r10_len
+    call cg_write
+    lea rsi, [rel cg_as_store_r10_rax]
+    mov rdx, cg_as_store_r10_rax_len
     call cg_write
 
     jmp cg_eb_next
