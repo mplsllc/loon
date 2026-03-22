@@ -84,15 +84,18 @@ fn tsoff(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 1] }
 fn tslen(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 2] }
 
 // ===== Privacy type detection =====
-// Check if name at g[40]/g[41] (offset/length) is a privacy wrapper.
+// Check if type name is a privacy wrapper. Uses g[136]=length, g[137]=offset.
+// Reads source bytes from n[200000+offset] (parser's source copy).
 // Returns privacy_level (1-5) or -1 if not a privacy type.
-// Uses full string comparison via str_eq — no character sampling.
-fn chk_priv(cp_g: Array<Int>, cp_s: Array<Int>) [] -> Int {
-    match str_eq(cp_g, cp_s, "Public") { true -> 1,
-    false -> match str_eq(cp_g, cp_s, "Sensitive") { true -> 2,
-    false -> match str_eq(cp_g, cp_s, "Hashed") { true -> 4,
-    false -> match str_eq(cp_g, cp_s, "Encrypted") { true -> 5,
-    false -> 0 - 1 } } } }
+fn chk_priv(cp_g: Array<Int>, cp_n: Array<Int>) [] -> Int {
+    // Match by length + first 2 chars from source copy at n[200000+offset]
+    // Public(6,'P'=80,'u'=117)→1, Sensitive(9,'S'=83,'e'=101)→2,
+    // Hashed(6,'H'=72,'a'=97)→4, Encrypted(9,'E'=69,'n'=110)→5
+    let cp_len: Int = cp_g[136]; let cp_fc: Int = cp_n[200000 + cp_g[137]];
+    let cp_sc: Int = cp_n[200000 + cp_g[137] + 1];
+    match cp_len == 9 { true -> match cp_fc == 83 { true -> match cp_sc == 101 { true -> 2, false -> 0 - 1 }, false -> match cp_fc == 69 { true -> match cp_sc == 110 { true -> 5, false -> 0 - 1 }, false -> 0 - 1 } },
+    false -> match cp_len == 6 { true -> match cp_fc == 80 { true -> match cp_sc == 117 { true -> 1, false -> 0 - 1 }, false -> match cp_fc == 72 { true -> match cp_sc == 97 { true -> 4, false -> 0 - 1 }, false -> 0 - 1 } },
+    false -> 0 - 1 } }
 }
 
 // ===== Node helpers =====
@@ -435,7 +438,7 @@ fn pl_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [IO] -> Int {
     pl_n[pl_li * 10 + 2] = tsoff(pl_g, pl_t);
     pl_n[pl_li * 10 + 3] = tslen(pl_g, pl_t);
     do teat(pl_g);
-    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; pl_g[137]=pl_t[pl_g[13]*5+1]; do teat(pl_g); pl_n[pl_li*10+9]=1; match tcur(pl_g, pl_t) == 31 { true -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> match pl_g[136]==5 { true -> match pl_n[200000+pl_g[137]]==70 { true -> 7, false -> 0 }, false -> 0 } }; } }; }, false -> { } };
+    match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); pl_g[136]=pl_t[pl_g[13]*5+2]; pl_g[137]=pl_t[pl_g[13]*5+1]; do teat(pl_g); pl_n[pl_li*10+9]=1; pl_g[40]=pl_g[137]; pl_g[41]=pl_g[136]; pl_g[4300]=chk_priv(pl_g, pl_n); match tcur(pl_g, pl_t) == 31 { true -> match pl_g[4300] >= 0 { true -> { do teat(pl_g); pl_g[4301]=pl_t[pl_g[13]*5+2]; pl_g[4302]=pl_t[pl_g[13]*5+1]; do teat(pl_g); pl_g[4303]=match pl_g[4301]==6 { true -> 2, false -> match pl_g[4301]==5 { true -> match pl_n[200000+pl_g[4302]]==70 { true -> 7, false -> 0 }, false -> match pl_g[4301]==4 { true -> match pl_n[200000+pl_g[4302]]==66 { true -> 1, false -> 0 }, false -> 0 } } }; match tcur(pl_g, pl_t)==42 { true -> { do teat(pl_g); do teat(pl_g); pl_g[4300]=3; }, false -> { } }; do teat(pl_g); pl_n[pl_li*10+7]=pl_g[4300]*16+pl_g[4303]; }, false -> { do teat(pl_g); do teat(pl_g); do teat(pl_g); pl_n[pl_li*10+7]=4; } }, false -> { pl_n[pl_li*10+7] = match pl_g[136]==6 { true -> 2, false -> match pl_g[136]==5 { true -> match pl_n[200000+pl_g[137]]==70 { true -> 7, false -> 0 }, false -> match pl_g[136]==4 { true -> match pl_n[200000+pl_g[137]]==66 { true -> 1, false -> 0 }, false -> 0 } } }; } }; }, false -> { } };
     do teat(pl_g);
     let pl_vi: Int = pe_parse(pl_g, pl_t, pl_n);
     pl_n[pl_li * 10 + 4] = 1; pl_n[pl_li * 10 + 5] = pl_vi;
@@ -2047,6 +2050,67 @@ fn tc_check_return(tr_g: Array<Int>, tr_n: Array<Int>, tr_s: Array<Int>) [IO] ->
     };
 }
 
+// Privacy check: cannot log Sensitive values via print/print_raw
+fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -> Unit {
+    for tp_fi in range(0, tp_g[12]) {
+        match tp_n[tp_fi * 10] == 1 { true -> {
+            tp_g[4500] = tp_g[12];
+            for tp_bi in range(tp_fi + 1, tp_g[12]) {
+                match tp_n[tp_bi * 10] == 1 { true -> match tp_g[4500] == tp_g[12] { true -> { tp_g[4500] = tp_bi; }, false -> { } }, false -> { } };
+                match tp_n[tp_bi * 10] == 22 { true -> match tp_g[4500] == tp_g[12] { true -> { tp_g[4500] = tp_bi; }, false -> { } }, false -> { } };
+            };
+            // Collect sensitive variable names: g[4510+i*2] = (str_off, str_len)
+            tp_g[4501] = 0;
+            for tp_ni in range(tp_fi, tp_g[4500]) {
+                match tp_n[tp_ni * 10] == 4 { true -> match tp_n[tp_ni * 10 + 7] / 16 >= 2 { true -> {
+                    tp_g[4510 + tp_g[4501] * 2] = tp_n[tp_ni * 10 + 2];
+                    tp_g[4510 + tp_g[4501] * 2 + 1] = tp_n[tp_ni * 10 + 3];
+                    tp_g[4501] = tp_g[4501] + 1;
+                }, false -> { } }, false -> { } };
+                match tp_n[tp_ni * 10] == 2 { true -> match tp_n[tp_ni * 10 + 7] / 16 >= 2 { true -> {
+                    tp_g[4510 + tp_g[4501] * 2] = tp_n[tp_ni * 10 + 2];
+                    tp_g[4510 + tp_g[4501] * 2 + 1] = tp_n[tp_ni * 10 + 3];
+                    tp_g[4501] = tp_g[4501] + 1;
+                }, false -> { } }, false -> { } };
+            };
+            match tp_g[4501] > 0 { true -> {
+                for tp_ci in range(tp_fi + 1, tp_g[4500]) {
+                    match tp_n[tp_ci * 10] == 14 { true -> {
+                        tp_g[40] = tp_n[tp_ci * 10 + 2]; tp_g[41] = tp_n[tp_ci * 10 + 3];
+                        tp_g[4502] = chk_bi(tp_g, tp_s);
+                        match tp_g[4502] == 1 { true -> {
+                            tp_g[4503] = tp_n[tp_ci * 10 + 5];
+                            match tp_g[4503] >= 0 { true -> match tp_n[tp_g[4503] * 10] == 10 { true -> {
+                                for tp_vi in range(0, tp_g[4501]) {
+                                    tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
+                                    tp_g[41] = tp_g[4510 + tp_vi * 2];
+                                    match tp_g[42] == tp_g[4510 + tp_vi * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                        do print("error: cannot log Sensitive value — use expose() with audit context");
+                                        tp_g[911] = tp_g[911] + 1;
+                                    }, false -> { } }, false -> { } };
+                                };
+                            }, false -> { } }, false -> { } };
+                        }, false -> { } };
+                        match tp_g[4502] == 2 { true -> {
+                            tp_g[4503] = tp_n[tp_ci * 10 + 5];
+                            match tp_g[4503] >= 0 { true -> match tp_n[tp_g[4503] * 10] == 10 { true -> {
+                                for tp_vi2 in range(0, tp_g[4501]) {
+                                    tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
+                                    tp_g[41] = tp_g[4510 + tp_vi2 * 2];
+                                    match tp_g[42] == tp_g[4510 + tp_vi2 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                        do print("error: cannot log Sensitive value — use expose() with audit context");
+                                        tp_g[911] = tp_g[911] + 1;
+                                    }, false -> { } }, false -> { } };
+                                };
+                            }, false -> { } }, false -> { } };
+                        }, false -> { } };
+                    }, false -> { } };
+                };
+            }, false -> { } };
+        }, false -> { } };
+    };
+}
+
 fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     tc_g[911] = 0;
     do tc_check_effects(tc_g, tc_n, tc_s);
@@ -2054,6 +2118,7 @@ fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     do tc_check_undef(tc_g, tc_n, tc_s);
     do tc_check_args(tc_g, tc_n, tc_s);
     do tc_check_return(tc_g, tc_n, tc_s);
+    do tc_check_privacy(tc_g, tc_n, tc_s);
     match tc_g[911] > 0 { true -> do exit(1), false -> { } };
 }
 
