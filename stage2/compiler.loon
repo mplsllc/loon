@@ -1039,6 +1039,17 @@ fn cg_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [IO] -> Unit {
     do cg_store_params(cf_g, cf_n, cf_s);
     // Emit body
     match cf_body >= 0 { true -> { cf_g[31] = cf_body; do cg_block(cf_g, cf_n, cf_s); }, false -> { } };
+    // ZeroOnDrop: zero sensitive variables before function return
+    for cf_zi in range(0, cf_g[50]) {
+        match cf_g[51 + cf_zi * 4 + 3] / 16 == 3 { true -> {
+            // Zero the stack slot(s) for this variable
+            do emit_line("    mov qword [rbp-" + int_to_string(cf_g[51 + cf_zi * 4 + 2]) + "], 0");
+            // If String (16 bytes), zero the second slot too
+            match cf_g[51 + cf_zi * 4 + 3] % 16 == 2 { true -> {
+                do emit_line("    mov qword [rbp-" + int_to_string(cf_g[51 + cf_zi * 4 + 2] - 8) + "], 0");
+            }, false -> { } };
+        }, false -> { } };
+    };
     do emit_line("    mov rsp, rbp");
     do emit_line("    pop rbp");
     do emit_line("    ret");
@@ -2923,6 +2934,12 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     // Emit body from extra field
     lf_g[31] = lf_body;
     do ll_block(lf_g, lf_n, lf_s);
+    // ZeroOnDrop: zero sensitive variables before function return (LLVM)
+    for lf_zi in range(0, lf_g[50]) {
+        match lf_g[51 + lf_zi * 4 + 3] / 16 == 3 { true -> {
+            do print("    store i64 0, i64* %v" + int_to_string(lf_zi));
+        }, false -> { } };
+    };
     // If function didn't end with exit/unreachable, add a ret
     match lf_g[33] == 0 { true -> match lf_g[4120] == 7 { true -> do print("    ret double 0.0"), false -> do print("    ret i64 0") }, false -> { } };
     do print("}");
