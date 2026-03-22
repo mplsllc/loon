@@ -2174,7 +2174,7 @@ fn ll_call(lc_g: Array<Int>, lc_n: Array<Int>, lc_s: Array<Int>) [IO] -> Int {
     do print_raw("(");
     for lc_ai2 in range(0, lc_cac) {
         match lc_ai2 > 0 { true -> do print_raw(", "), false -> { } };
-        do print_raw("i64 %t" + int_to_string(lc_args[lc_ai2]));
+        match lc_g[4104] == 7 { true -> do print_raw("double %t" + int_to_string(lc_args[lc_ai2])), false -> do print_raw("i64 %t" + int_to_string(lc_args[lc_ai2])) };
     };
     do print(")");
     lc_g[761] = lc_g[4104];
