@@ -198,6 +198,8 @@ Free for commercial use under $1M revenue / 100K users. Prohibited uses: surveil
 
 Loon is developed by [MPLS LLC](https://mp.ls). Contributions welcome under the MPLS License.
 
+**Website:** [loonlang.org](https://loonlang.org)
+
 ```bash
 # Run the test suite
 ./gauntlet/run.sh
