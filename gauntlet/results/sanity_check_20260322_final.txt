@@ -1,0 +1,52 @@
+Loon Sanity Check — FINAL — 2026-03-22
+Commit: 97af65b
+Binary: /tmp/sc_fresh (self-compiled, fixed point verified)
+
+=== Layer 1: Fresh Build + Self-hosting ===
+RESULT: PASS — fixed point confirmed
+
+=== Layer 1b: Gauntlet ===
+RESULT: 50/50 — zero failures, zero gaps
+
+=== Layer 2: ERROR tests produce meaningful messages ===
+RESULT: 9/9 PASS
+All 9 error types produce clear, specific messages.
+
+=== Layer 3: COMPILES OK binaries correct ===
+RESULT: 7/7 PASS
+
+=== Layer 4: LLVM backend correctness ===
+RESULT: 5/5 PASS
+
+=== Layer 5: Individual safety claims ===
+RESULT: 9/9 PASS
+1. Effect violation ✓
+2. Type mismatch ✓
+3. Undefined variable ✓
+4. Wrong argument count ✓
+5. Immutable reassignment ✓
+6. Non-exhaustive ADT match ✓
+7. Return type mismatch ✓
+8. Call arg type mismatch ✓
+9. Undefined function ✓
+
+=== Layer 6: Runtime checks ===
+RESULT: PASS (2/2)
+- Division by zero: TRAPPED (exit 1) ✓
+- Array bounds: TRAPPED (exit 1) ✓
+
+=== Layer 7: WASM ===
+RESULT: PASS
+- Target triple: wasm32-wasi ✓
+- WASI fd_write: present ✓
+- WASI proc_exit: present ✓
+- Linking requires wasi-sysroot (documented in docs/building.md)
+
+=== Layer 8: LSP ===
+RESULT: PASS
+- Responds to JSON-RPC initialize
+- Returns capabilities and serverInfo
+
+=== SUMMARY ===
+Layers passed: 8/8
+All claims verified independently.
