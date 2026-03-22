@@ -1,0 +1,23 @@
+// TEST: deep_nested_match
+// EXPECT: COMPILES OK, exit 5
+// CATEGORY: edge
+module test;
+fn deep(x: Int) [] -> Int {
+    match x > 0 {
+        true -> match x > 1 {
+            true -> match x > 2 {
+                true -> match x > 3 {
+                    true -> match x > 4 {
+                        true -> 5,
+                        false -> 4,
+                    },
+                    false -> 3,
+                },
+                false -> 2,
+            },
+            false -> 1,
+        },
+        false -> 0,
+    }
+}
+fn main() [IO] -> Unit { do exit(deep(10)); }

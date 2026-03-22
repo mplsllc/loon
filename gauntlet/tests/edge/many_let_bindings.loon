@@ -1,0 +1,17 @@
+// TEST: many_let_bindings
+// EXPECT: COMPILES OK, exit 16
+// CATEGORY: edge
+module test;
+fn main() [IO] -> Unit {
+    let a: Int = 1;
+    let b: Int = 2;
+    let c: Int = 3;
+    let d: Int = 4;
+    let e: Int = 5;
+    let f: Int = a + b;
+    let g: Int = c + d;
+    let h: Int = e + f;
+    let i: Int = g + h;
+    let j: Int = a + i;
+    do exit(j);
+}

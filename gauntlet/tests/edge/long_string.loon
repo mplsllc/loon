@@ -1,0 +1,9 @@
+// TEST: long_string
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: edge
+module test;
+fn main() [IO] -> Unit {
+    let s: String = "This is a fairly long string literal that tests the compiler's ability to handle string constants that are longer than typical identifiers or short messages used in most test programs.";
+    do print(s);
+    do exit(0);
+}

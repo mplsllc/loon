@@ -1,0 +1,6 @@
+// TEST: empty_fn_body
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: edge
+module test;
+fn nothing() [IO] -> Unit { do exit(0); }
+fn main() [IO] -> Unit { do nothing(); }

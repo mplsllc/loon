@@ -1,0 +1,6 @@
+// TEST: unicode_comment
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: edge
+// This comment has unicode: café, naïve, résumé, 日本語, 🦆
+module test;
+fn main() [IO] -> Unit { do exit(42); }

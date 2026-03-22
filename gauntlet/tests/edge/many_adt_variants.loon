@@ -1,0 +1,9 @@
+// TEST: many_adt_variants
+// EXPECT: COMPILES OK, exit 7
+// CATEGORY: edge
+module test;
+type Big { A, B, C, D, E, F, G, H }
+fn val(b: Big) [] -> Int {
+    match b { A -> 0, B -> 1, C -> 2, D -> 3, E -> 4, F -> 5, G -> 6, H -> 7 }
+}
+fn main() [IO] -> Unit { let h: Big = H; do exit(val(h)); }
