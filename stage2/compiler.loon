@@ -2213,8 +2213,127 @@ fn ll_aryset(las_g: Array<Int>, las_n: Array<Int>, las_s: Array<Int>) [IO] -> Un
 }
 
 // LLVM: emit match expression
+// LLVM: emit variant constructor (type 24)
+fn ll_vnew(lv_g: Array<Int>, lv_n: Array<Int>, lv_s: Array<Int>) [IO] -> Int {
+    let lv_ni: Int = lv_g[31];
+    let lv_tag: Int = lv_n[lv_ni * 10 + 1];
+    let lv_ac: Int = lv_n[lv_ni * 10 + 4];
+    let lv_sz: Int = (1 + lv_ac) * 8;
+    lv_g[35] = ll_tmp(lv_g);
+    do print("    %t" + int_to_string(lv_g[35]) + " = call i8* @malloc(i64 " + int_to_string(lv_sz) + ")");
+    lv_g[36] = ll_tmp(lv_g);
+    do print("    %t" + int_to_string(lv_g[36]) + " = bitcast i8* %t" + int_to_string(lv_g[35]) + " to i64*");
+    lv_g[37] = ll_tmp(lv_g);
+    do print("    %t" + int_to_string(lv_g[37]) + " = getelementptr i64, i64* %t" + int_to_string(lv_g[36]) + ", i64 0");
+    do print("    store i64 " + int_to_string(lv_tag) + ", i64* %t" + int_to_string(lv_g[37]));
+    // Store fields
+    lv_g[703] = lv_n[lv_ni * 10 + 5]; // first child
+    for lv_fi in range(0, lv_ac) {
+        lv_g[31] = lv_g[703];
+        lv_g[38] = ll_expr(lv_g, lv_n, lv_s);
+        lv_g[39] = ll_tmp(lv_g);
+        do print("    %t" + int_to_string(lv_g[39]) + " = getelementptr i64, i64* %t" + int_to_string(lv_g[36]) + ", i64 " + int_to_string(lv_fi + 1));
+        do print("    store i64 %t" + int_to_string(lv_g[38]) + ", i64* %t" + int_to_string(lv_g[39]));
+        lv_g[703] = lv_n[lv_g[703] * 10 + 6];
+    };
+    lv_g[38] = ll_tmp(lv_g);
+    do print("    %t" + int_to_string(lv_g[38]) + " = ptrtoint i64* %t" + int_to_string(lv_g[36]) + " to i64");
+    lv_g[38]
+}
+
+// LLVM: ADT match — emit comparison chain only (no bodies)
+// g[700]=match_ni, g[701]=adt_ptr_temp, g[702]=tag_temp, g[703]=match_id, g[704]=arm_count
+fn ll_amcmp(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit {
+    let ac_ac: Int = ac_g[704];
+    ac_g[705] = ac_n[ac_g[700] * 10 + 5]; // first arm node
+    for ac_ai in range(0, ac_ac) {
+        let ac_atag: Int = ac_n[ac_g[705] * 10 + 1];
+        ac_g[38] = ll_tmp(ac_g);
+        do print("    %t" + int_to_string(ac_g[38]) + " = icmp eq i64 %t" + int_to_string(ac_g[702]) + ", " + int_to_string(ac_atag));
+        let ac_nxt: String = match ac_ai == ac_ac - 1 { true -> "am" + int_to_string(ac_g[703]) + "_b" + int_to_string(ac_ai), false -> "am" + int_to_string(ac_g[703]) + "_c" + int_to_string(ac_ai + 1) };
+        do print("    br i1 %t" + int_to_string(ac_g[38]) + ", label %am" + int_to_string(ac_g[703]) + "_b" + int_to_string(ac_ai) + ", label %" + ac_nxt);
+        match ac_ai + 1 < ac_ac { true -> do print("am" + int_to_string(ac_g[703]) + "_c" + int_to_string(ac_ai + 1) + ":"), false -> { } };
+        ac_g[705] = ac_n[ac_g[705] * 10 + 6];
+    };
+}
+
+// LLVM: ADT match — emit arm bodies
+// g[700]=match_ni, g[701]=adt_ptr_temp, g[703]=match_id, g[704]=arm_count
+// g[710+i]=result temp for arm i
+fn ll_ambod(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
+    let ab_ac: Int = ab_g[704];
+    ab_g[705] = ab_n[ab_g[700] * 10 + 5]; // first arm
+    for ab_ai in range(0, ab_ac) {
+        let ab_an: Int = ab_g[705];
+        let ab_fc: Int = ab_n[ab_an * 10 + 8]; // field count
+        do print("am" + int_to_string(ab_g[703]) + "_b" + int_to_string(ab_ai) + ":");
+        // Bind fields
+        ab_g[706] = ab_n[ab_an * 10 + 5]; // first child (binding or body)
+        for ab_bi in range(0, ab_fc) {
+            let ab_bvi: Int = ab_g[50];
+            ab_g[51 + ab_bvi * 4] = ab_n[ab_g[706] * 10 + 2];
+            ab_g[51 + ab_bvi * 4 + 1] = ab_n[ab_g[706] * 10 + 3];
+            ab_g[51 + ab_bvi * 4 + 2] = 0;
+            ab_g[50] = ab_bvi + 1;
+            do print("    %v" + int_to_string(ab_bvi) + " = alloca i64");
+            ab_g[38] = ll_tmp(ab_g);
+            do print("    %t" + int_to_string(ab_g[38]) + " = getelementptr i64, i64* %t" + int_to_string(ab_g[701]) + ", i64 " + int_to_string(ab_bi + 1));
+            ab_g[39] = ll_tmp(ab_g);
+            do print("    %t" + int_to_string(ab_g[39]) + " = load i64, i64* %t" + int_to_string(ab_g[38]));
+            do print("    store i64 %t" + int_to_string(ab_g[39]) + ", i64* %v" + int_to_string(ab_bvi));
+            ab_g[706] = ab_n[ab_g[706] * 10 + 6];
+        };
+        // Body
+        ab_g[31] = ab_g[706];
+        ab_g[710 + ab_ai] = ll_expr(ab_g, ab_n, ab_s);
+        do print("    br label %am" + int_to_string(ab_g[703]) + "_j" + int_to_string(ab_ai));
+        do print("am" + int_to_string(ab_g[703]) + "_j" + int_to_string(ab_ai) + ":");
+        do print("    br label %am" + int_to_string(ab_g[703]) + "_end");
+        ab_g[705] = ab_n[ab_an * 10 + 6];
+    };
+}
+
+// LLVM: ADT match — emit phi + end label
+fn ll_amphi(ap_g: Array<Int>, ap_n: Array<Int>, ap_s: Array<Int>) [IO] -> Int {
+    do print("am" + int_to_string(ap_g[703]) + "_end:");
+    ap_g[38] = ll_tmp(ap_g);
+    do print_raw("    %t" + int_to_string(ap_g[38]) + " = phi i64 ");
+    for ap_pi in range(0, ap_g[704]) {
+        match ap_pi > 0 { true -> do print_raw(", "), false -> { } };
+        do print_raw("[%t" + int_to_string(ap_g[710 + ap_pi]) + ", %am" + int_to_string(ap_g[703]) + "_j" + int_to_string(ap_pi) + "]");
+    };
+    do print("");
+    ap_g[38]
+}
+
+// LLVM: ADT match — entry point
+fn ll_amatch(la_g: Array<Int>, la_n: Array<Int>, la_s: Array<Int>) [IO] -> Int {
+    let la_ni: Int = la_g[31];
+    la_g[700] = la_ni; // match node
+    la_g[704] = la_n[la_ni * 10 + 4]; // arm count
+    la_g[703] = la_g[34]; la_g[34] = la_g[34] + 1; // match ID
+    // Evaluate discriminant
+    la_g[31] = la_n[la_ni * 10 + 8];
+    la_g[35] = ll_expr(la_g, la_n, la_s);
+    // Cast to i64* and load tag
+    la_g[701] = ll_tmp(la_g);
+    do print("    %t" + int_to_string(la_g[701]) + " = inttoptr i64 %t" + int_to_string(la_g[35]) + " to i64*");
+    la_g[702] = ll_tmp(la_g);
+    do print("    %t" + int_to_string(la_g[702]) + " = load i64, i64* %t" + int_to_string(la_g[701]));
+    // Comparison chain
+    do ll_amcmp(la_g, la_n, la_s);
+    // Arm bodies
+    do ll_ambod(la_g, la_n, la_s);
+    // Phi
+    ll_amphi(la_g, la_n, la_s)
+}
+
+// LLVM: match expression — detects ADT arms and dispatches
 fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     let lm_ni: Int = lm_g[31];
+    let lm_fa: Int = lm_n[lm_ni * 10 + 5]; // first arm
+    match lm_n[lm_fa * 10] == 25 { true -> { lm_g[31] = lm_ni; ll_amatch(lm_g, lm_n, lm_s) },
+    false -> {
     let lm_ac: Int = lm_n[lm_ni * 10 + 4];
     let lm_disc: Int = lm_n[lm_ni * 10 + 8];
     let lm_mid: Int = lm_g[34]; lm_g[34] = lm_g[34] + 1;
@@ -2240,6 +2359,9 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
         do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ":");
         lm_g[31] = lm_n[lm_an * 10 + 5];
         lm_res[lm_ai] = ll_expr(lm_g, lm_n, lm_s);
+        // Join block — predictable predecessor for phi
+        do print("    br label %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai));
+        do print("m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai) + ":");
         do print("    br label %m" + int_to_string(lm_mid) + "_end");
         match lm_ai + 1 < lm_ac {
             true -> match lm_sub == 1 { true -> { }, false -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":") },
@@ -2252,10 +2374,11 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     do print_raw("    %t" + int_to_string(lm_rt) + " = phi i64 ");
     for lm_pi in range(0, lm_ac) {
         match lm_pi > 0 { true -> do print_raw(", "), false -> { } };
-        do print_raw("[%t" + int_to_string(lm_res[lm_pi]) + ", %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_pi) + "]");
+        do print_raw("[%t" + int_to_string(lm_res[lm_pi]) + ", %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_pi) + "]");
     };
     do print("");
     lm_rt
+    } }
 }
 
 // Emit LLVM IR for an expression. Dispatches by node type.
@@ -2263,6 +2386,7 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
     match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s))); le_t },
+    false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 1])); le_bt },
     false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
     false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
     false -> match le_nt == 14 { true -> { le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; let le_bi: Int = chk_bi(le_g, le_s); match le_bi > 0 { true -> { le_g[140] = le_bi; le_g[31] = le_ni; ll_builtin(le_g, le_n, le_s) }, false -> { le_g[31] = le_ni; ll_call(le_g, le_n, le_s) } } },
@@ -2276,9 +2400,11 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     false -> match le_nt == 20 { true -> ll_aryget(le_g, le_n, le_s),
     false -> match le_nt == 18 { true -> { do ll_for(le_g, le_n, le_s); let le_ft: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_ft) + " = add i64 0, 0"); le_ft },
     false -> match le_nt == 21 { true -> { do ll_aryset(le_g, le_n, le_s); let le_st: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_st) + " = add i64 0, 0"); le_st },
+    false -> match le_nt == 24 { true -> ll_vnew(le_g, le_n, le_s),
     false -> { let le_t2: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt)); le_t2 }
-    } } } } } } } } } } } } } }
+    } } } } } } } } } } } } } } } }
 }
+
 
 // Emit LLVM IR for a statement node
 fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
@@ -2293,8 +2419,7 @@ fn ll_stmt(ls_g: Array<Int>, ls_n: Array<Int>, ls_s: Array<Int>) [IO] -> Unit {
             ls_g[51 + ls_vi * 4 + 2] = 0; // local var (not param)
             ls_g[50] = ls_vi + 1;
             do print("    %v" + int_to_string(ls_vi) + " = alloca i64");
-            let ls_init: Int = ls_n[ls_ni * 10 + 5];
-            ls_g[31] = ls_init;
+            ls_g[31] = ls_n[ls_ni * 10 + 5];
             let ls_vt: Int = ll_expr(ls_g, ls_n, ls_s);
             do print("    store i64 %t" + int_to_string(ls_vt) + ", i64* %v" + int_to_string(ls_vi));
         },
