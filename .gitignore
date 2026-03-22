@@ -5,4 +5,20 @@ stage0/keywords
 stage0/lexer
 stage1/compiler
 stage2/compiler
+loon
 *.o
+
+# Build artifacts
+build/
+*.asm
+!stage0/*.asm
+!stage1/*.asm
+
+# Editor
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
