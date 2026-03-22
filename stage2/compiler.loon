@@ -2179,17 +2179,26 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                 lbu_g[39]
             },
             false -> match lbu_bi == 11 {
-                // Array(n) — malloc n*8 bytes, return as i64 (pointer cast)
+                // Array(n) — malloc (n+1)*8 bytes, store length at slot 0, return slot 1
                 true -> {
                     lbu_g[31] = lbu_n[lbu_ni * 10 + 5];
-                    lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s); // save size temp in g[35]
-                    lbu_g[36] = ll_tmp(lbu_g); // mul temp
-                    do print("    %t" + int_to_string(lbu_g[36]) + " = mul i64 %t" + int_to_string(lbu_g[35]) + ", 8");
-                    lbu_g[37] = ll_tmp(lbu_g); // malloc temp
-                    do print("    %t" + int_to_string(lbu_g[37]) + " = call i8* @malloc(i64 %t" + int_to_string(lbu_g[36]) + ")");
-                    lbu_g[38] = ll_tmp(lbu_g); // ptrtoint temp
-                    do print("    %t" + int_to_string(lbu_g[38]) + " = ptrtoint i8* %t" + int_to_string(lbu_g[37]) + " to i64");
-                    lbu_g[38]
+                    lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s); // size temp
+                    lbu_g[36] = ll_tmp(lbu_g);
+                    do print("    %t" + int_to_string(lbu_g[36]) + " = add i64 %t" + int_to_string(lbu_g[35]) + ", 1");
+                    lbu_g[37] = ll_tmp(lbu_g);
+                    do print("    %t" + int_to_string(lbu_g[37]) + " = mul i64 %t" + int_to_string(lbu_g[36]) + ", 8");
+                    lbu_g[38] = ll_tmp(lbu_g);
+                    do print("    %t" + int_to_string(lbu_g[38]) + " = call i8* @malloc(i64 %t" + int_to_string(lbu_g[37]) + ")");
+                    lbu_g[39] = ll_tmp(lbu_g);
+                    do print("    %t" + int_to_string(lbu_g[39]) + " = bitcast i8* %t" + int_to_string(lbu_g[38]) + " to i64*");
+                    // Store length at slot 0
+                    do print("    store i64 %t" + int_to_string(lbu_g[35]) + ", i64* %t" + int_to_string(lbu_g[39]));
+                    // Return pointer to slot 1 (data start)
+                    lbu_g[750] = ll_tmp(lbu_g);
+                    do print("    %t" + int_to_string(lbu_g[750]) + " = getelementptr i64, i64* %t" + int_to_string(lbu_g[39]) + ", i64 1");
+                    lbu_g[751] = ll_tmp(lbu_g);
+                    do print("    %t" + int_to_string(lbu_g[751]) + " = ptrtoint i64* %t" + int_to_string(lbu_g[750]) + " to i64");
+                    lbu_g[751]
                 },
                 false -> match lbu_bi == 3 {
                     // int_to_string: sprintf %ld → returns i8* ptr
@@ -2344,6 +2353,19 @@ fn ll_aryget(lag_g: Array<Int>, lag_n: Array<Int>, lag_s: Array<Int>) [IO] -> In
     // Eval index
     lag_g[31] = lag_n[lag_ni * 10 + 5];
     let lag_it: Int = ll_expr(lag_g, lag_n, lag_s);
+    // Bounds check: load length from ptr[-1]
+    lag_g[750] = ll_tmp(lag_g);
+    do print("    %t" + int_to_string(lag_g[750]) + " = getelementptr i64, i64* %t" + int_to_string(lag_apt) + ", i64 -1");
+    lag_g[751] = ll_tmp(lag_g);
+    do print("    %t" + int_to_string(lag_g[751]) + " = load i64, i64* %t" + int_to_string(lag_g[750]));
+    lag_g[752] = ll_tmp(lag_g);
+    do print("    %t" + int_to_string(lag_g[752]) + " = icmp ult i64 %t" + int_to_string(lag_it) + ", %t" + int_to_string(lag_g[751]));
+    lag_g[753] = lag_g[34]; lag_g[34] = lag_g[34] + 1;
+    do print("    br i1 %t" + int_to_string(lag_g[752]) + ", label %bnd_ok_" + int_to_string(lag_g[753]) + ", label %bnd_fail_" + int_to_string(lag_g[753]));
+    do print("bnd_fail_" + int_to_string(lag_g[753]) + ":");
+    do print("    call void @__loon_bounds_panic(i64 %t" + int_to_string(lag_it) + ", i64 %t" + int_to_string(lag_g[751]) + ")");
+    do print("    unreachable");
+    do print("bnd_ok_" + int_to_string(lag_g[753]) + ":");
     // GEP + load
     let lag_pt: Int = ll_tmp(lag_g);
     do print("    %t" + int_to_string(lag_pt) + " = getelementptr i64, i64* %t" + int_to_string(lag_apt) + ", i64 %t" + int_to_string(lag_it));
@@ -2370,6 +2392,19 @@ fn ll_aryset(las_g: Array<Int>, las_n: Array<Int>, las_s: Array<Int>) [IO] -> Un
     // Eval index (first child)
     las_g[31] = las_n[las_ni * 10 + 5];
     let las_it: Int = ll_expr(las_g, las_n, las_s);
+    // Bounds check: load length from ptr[-1]
+    las_g[750] = ll_tmp(las_g);
+    do print("    %t" + int_to_string(las_g[750]) + " = getelementptr i64, i64* %t" + int_to_string(las_apt) + ", i64 -1");
+    las_g[751] = ll_tmp(las_g);
+    do print("    %t" + int_to_string(las_g[751]) + " = load i64, i64* %t" + int_to_string(las_g[750]));
+    las_g[752] = ll_tmp(las_g);
+    do print("    %t" + int_to_string(las_g[752]) + " = icmp ult i64 %t" + int_to_string(las_it) + ", %t" + int_to_string(las_g[751]));
+    las_g[753] = las_g[34]; las_g[34] = las_g[34] + 1;
+    do print("    br i1 %t" + int_to_string(las_g[752]) + ", label %bnd_ok_" + int_to_string(las_g[753]) + ", label %bnd_fail_" + int_to_string(las_g[753]));
+    do print("bnd_fail_" + int_to_string(las_g[753]) + ":");
+    do print("    call void @__loon_bounds_panic(i64 %t" + int_to_string(las_it) + ", i64 %t" + int_to_string(las_g[751]) + ")");
+    do print("    unreachable");
+    do print("bnd_ok_" + int_to_string(las_g[753]) + ":");
     // Eval value (second child = next sibling of index)
     las_g[31] = las_n[las_n[las_ni * 10 + 5] * 10 + 6];
     let las_vt: Int = ll_expr(las_g, las_n, las_s);
@@ -2750,6 +2785,20 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
     do print("@_nl = private unnamed_addr constant [1 x i8] c\"\\0A\"");
     do print("@_fmt_float = private unnamed_addr constant [3 x i8] c\"%g\\00\"");
     do print("@_fmt_int = private unnamed_addr constant [4 x i8] c\"%ld\\00\"");
+    do print("@_bounds_msg = private constant [34 x i8] c\"error: array index out of bounds\\0A\\00\"");
+    // Bounds panic function
+    do print("define void @__loon_bounds_panic(i64 %idx, i64 %len) noreturn {");
+    do print("entry:");
+    do print("    %msg = getelementptr [34 x i8], [34 x i8]* @_bounds_msg, i64 0, i64 0");
+    match el_gs[916] == 4 {
+        true -> do print("    call void @proc_exit(i32 1)"),
+        false -> {
+            do print("    call i64 @write(i32 2, i8* %msg, i64 32)");
+            do print("    call void @exit(i32 1)");
+        },
+    };
+    do print("    unreachable");
+    do print("}");
     match el_gs[916] == 4 { true -> {
         do print("@_wasi_iov = global [2 x i32] zeroinitializer");
         do print("@_wasi_nw = global i32 0");
