@@ -6,59 +6,79 @@ Self-hosting compiler with 9/11 safety checks. 48/50 gauntlet. Assembly retired.
 
 ## Stage 3 — In Progress
 
-### What's done
-- `cg_emit_llvm` stub function exists in compiler.loon
-- `--target llvm file.loon` dispatches to stub (prints LLVM IR header)
+### LLVM Backend: 25/30 tests pass
+
+Working through LLVM IR → llc → gcc pipeline:
+- Arithmetic, let bindings, variable references
+- User function calls, recursive functions (simple cases)
+- Print + string literals, string concatenation
+- Match expressions with join blocks (phi nodes)
+- For loops with alloca counters
+- Arrays (malloc, GEP, load/store)
+- ADTs: variant construction (malloc + tag + fields)
+- ADT match: split into ll_amcmp + ll_ambod + ll_amphi (avoids frame clobbering)
+- Bool literals (fixed: extra field, not sub_type)
+- Pipe operator (desugared by parser)
+
+### 5 Remaining LLVM Failures
+
+All same root cause: **return value clobbering in cg_aryset**
+
+When `ll_stmt` or `ll_builtin` calls `ll_expr` and the expression is a match, the return value (rax) is clobbered before being stored. This is a Stage 1 NASM codegen bug in how `arr[i] = fn_call()` patterns handle the push/pop sequence around function calls.
+
+Affected tests:
+- `bool_both_ok` — ret uses wrong SSA temp after match (LLC_FAIL)
+- `string_match` — same LLC error (LLC_FAIL)
+- `nested_match` — inner match result not propagated (wrong result)
+- `nested_adt_match` — same (wrong result)
+- `recursive_fn` — recursive call result lost (returns 0)
+
+### Stage 1 Fixes Applied
+
+- `cg_assign_let_slots`: FOR nodes at block level now walk children via `cg_als_walk_self` (was skipped entirely — root cause of many earlier bugs)
+- Token buffer increased from 512KB to 1MB (52K tokens max)
+- `MAX_TOKENS` constant updated in `token_reader.asm`
+
+### What's Done
+- `cg_emit_llvm` with full function walker
+- `--target llvm file.loon` dispatches correctly
 - `gs[915]` = target backend selector (0=nasm, 1=llvm)
-- `--target` flag detection works via `mf` array pattern in main()
-- Default path (`./loon file.loon`) unchanged — NASM output
-- `ptarg` helper function declared but not called (ready for future use)
-- Boot binary: `/tmp/s2_new2` (copy of `/tmp/stage2_tgt`)
-
-### What's blocked
-- `--target nasm file.loon` doesn't shift source file arg position. Adding extra variables to main() triggers type checker `g[920..999]` name table collision. Workaround: use default path for nasm.
-- Source file position for `--target llvm file.loon` is hardcoded to arg3. No `--json` support with `--target` yet.
-
-**Why:** The type checker stores declared names at `g[920..999]` (40 name slots). Adding variables + nested matches to main() pushes the name count or causes the type checker to see stale data. Not a parser corruption bug — it's a g[] slot collision between the target flag (`gs[915]`) and the undef checker's name table (`g[920+]`).
-
-**How to apply:** gs[915] is safe (below 920). The issue is purely about main() complexity hitting the undef checker's scanning limits.
-
-### Next step
-Fill in `cg_emit_llvm` with actual LLVM IR. Start with hello world that `llc` accepts.
+- All LLVM helper functions: ll_expr, ll_stmt, ll_block, ll_fn, ll_match, ll_amatch, ll_vnew, ll_builtin, ll_call, ll_binop, ll_ident, ll_for, ll_arynew, ll_aryget, ll_aryset, ll_amphi, ll_ambod, ll_amcmp
+- Join blocks (m{N}_j{I}) fix phi predecessor mismatch for nested matches
+- Bool literal handler (type 9, extra field)
+- ADT detection in ll_match dispatches to ll_amatch
 
 ### Key files
-- `stage2/compiler.loon` — the compiler (2004 lines, 129 functions)
+- `stage2/compiler.loon` — the compiler (~2500 lines, ~145 functions)
+- `stage1/codegen.asm` — Stage 1 walker (FOR fix applied)
+- `stage1/compiler.asm` — token buffer size
+- `stage1/token_reader.asm` — MAX_TOKENS constant
 - `gauntlet/run.sh` — integrity gauntlet runner
-- `docs/known-issues.md` — 10 issues documented
-- `docs/BOOTSTRAP.md` — bootstrap story writeup
+- `docs/known-issues.md` — issues documented
 
 ### Gauntlet baseline
-48/50 pass, 0 failures, 2 known gaps (call arg types, bool exhaustive)
+- NASM: 48/50 pass, 0 failures, 2 known gaps
+- LLVM: 25/30 COMPILES OK tests pass, 5 failures (all same root cause)
 
-### Git state
-Branch: main, 20 commits ahead of origin
-Latest: `03893ae feat: dual backend scaffolding`
+### Next steps
+1. Fix cg_aryset return value clobbering in Stage 1 assembly → 30/30 LLVM
+2. Cross-platform (change target triple, test on macOS/Windows)
+3. Float type via LLVM
+4. WASM target
 
 ### Boot binary rebuild procedure
 ```bash
-# If /tmp/s2_new2 is lost, rebuild from git:
-./stage0/lexer stage2/compiler.loon | ./stage1/compiler > /tmp/stage2.asm
-nasm -f elf64 -o /tmp/stage2.o /tmp/stage2.asm && ld -o /tmp/s2_boot /tmp/stage2.o
-# Then self-compile:
-/tmp/s2_boot stage2/compiler.loon > /tmp/s2_self.asm
-nasm -f elf64 -o /tmp/s2_self.o /tmp/s2_self.asm && ld -o /tmp/s2_new2 /tmp/s2_self.o
-# NOTE: Stage 1 may no longer compile the full compiler.loon.
-# If it fails, use the last known working boot binary from a backup.
+# If /tmp/s2_new2 is lost, self-compile from git:
+# (Stage 1 can no longer compile the full compiler.loon due to size)
+# Use the last known working binary or rebuild chain:
+# 1. Build Stage 1 from assembly
+cd stage1 && nasm -f elf64 -o /tmp/s1.o compiler.asm && ld -o /tmp/s1 /tmp/s1.o
+cd ..
+# 2. Compile a SMALLER version of compiler.loon that Stage 1 can handle
+# (may require temporarily reducing the source)
+# 3. Self-compile to get the full binary
 ```
 
-### Stage 3 roadmap
-```
-S3.1  LLVM IR backend    — replace NASM codegen with LLVM IR
-S3.2  Cross-platform     — Linux, macOS, Windows
-S3.3  WebAssembly        — browsers, edge, serverless
-S3.4  Float type         — Float64 via LLVM
-S3.5  Runtime checks     — div/zero, array bounds → 50/50
-S3.6  Type inference     — call arg types → closes last gap
-S3.7  LSP server         — editor support, inline errors
-S3.8  Package manager    — official tier, community tier
-```
+### Git state
+Branch: main
+Latest: `45f5b56 fix: Stage 1 walker + Bool literal + token buffer`
