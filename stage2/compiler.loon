@@ -104,6 +104,7 @@ fn tcur(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5] }
 fn teat(_g: Array<Int>) [] -> Unit { _g[13] = _g[13] + 1; }
 // tsoff — get current token's string offset
 fn tsoff(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 1] }
+// tslen — get current token's string length
 fn tslen(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5 + 2] }
 
 // ===== Privacy type detection =====
@@ -128,7 +129,9 @@ fn nalloc(_g: Array<Int>, _n: Array<Int>) [] -> Int {
     _n[_b+5]=0-1; _n[_b+6]=0-1; _n[_b+7]=0; _n[_b+8]=0; _n[_b+9]=0;
     _g[12] = _g[12] + 1; _i
 }
+// blink — placeholder (dead code, historical)
 fn blink(_n: Array<Int>, _fc: Array<Int>, _lc: Array<Int>, _cc: Array<Int>) [] -> Unit {
+// blink — placeholder function (dead code, historical)
     // Uses _g[18] as the node to link (set before calling)
     // This avoids >3 params
     0 - 1 // placeholder — need different approach
@@ -161,13 +164,16 @@ fn str_eq(se_g: Array<Int>, se_s: Array<Int>, se_target: String) [] -> Bool {
     } }
 }
 
+// chk_bi — check if name is a builtin, return ID or 0
 fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
+// chk_bi — check if name is a builtin, return builtin ID or 0
     match str_eq(bi_g, bi_s, "print") { true -> 1,
     false -> match str_eq(bi_g, bi_s, "print_raw") { true -> 2,
     false -> match str_eq(bi_g, bi_s, "int_to_string") { true -> 3,
     false -> match str_eq(bi_g, bi_s, "string_length") { true -> 4,
     false -> do chk_bi2(bi_g, bi_s) } } } }
 }
+// chk_bi2 — check builtins with longer names
 fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     match str_eq(b2_g, b2_s, "string_char_at") { true -> 6,
     false -> match str_eq(b2_g, b2_s, "read_file") { true -> 7,
@@ -186,6 +192,7 @@ fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
 // ===== Parser =====
 // All parser functions use prefixed param names to avoid Stage 1 scoping bug #12
 
+// pp_parse — two-pass program parser: collect fns, then parse bodies
 fn pp_parse(pp_g: Array<Int>, pp_t: Array<Int>, pp_n: Array<Int>) [IO] -> Unit {
     pp_g[12] = 0; pp_g[13] = 0;
     match tcur(pp_g, pp_t) == 7 { true -> { do teat(pp_g); }, false -> { } };
@@ -286,6 +293,7 @@ fn chk_vari(cv_g: Array<Int>, cv_n: Array<Int>) [] -> Int {
     cv_res[0]
 }
 
+// pf_parse — parse function declaration (params, effects, return type, body)
 fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
     do teat(pf_g); // KW_FN
     let pf_fi: Int = nalloc(pf_g, pf_n);
@@ -458,6 +466,7 @@ fn pas_parse(as_g: Array<Int>, as_t: Array<Int>, as_n: Array<Int>) [IO] -> Int {
     as_ai
 }
 
+// pl_parse — parse let binding with type annotation and initializer
 fn pl_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [IO] -> Int {
     do teat(pl_g);
     let pl_li: Int = nalloc(pl_g, pl_n);
@@ -503,6 +512,7 @@ fn por_parse(po_g: Array<Int>, po_t: Array<Int>, po_n: Array<Int>) [IO] -> Int {
     let po_l: Array<Int> = Array(1); po_l[0] = pand_parse(po_g, po_t, po_n);
     for _po in range(0, 256) { match tcur(po_g, po_t) == 36 { true -> { do teat(po_g); po_g[134] = pand_parse(po_g, po_t, po_n); po_g[18] = po_l[0]; po_g[19] = po_g[134]; po_l[0] = mkbin(po_g, po_n, 12); }, false -> { } }; }; po_l[0]
 }
+// pand_parse — parse AND/OR boolean operators (lowest precedence)
 fn pand_parse(pa_g: Array<Int>, pa_t: Array<Int>, pa_n: Array<Int>) [IO] -> Int {
     let pa_l: Array<Int> = Array(1); pa_l[0] = pcmp_parse(pa_g, pa_t, pa_n);
     for _pa in range(0, 256) { match tcur(pa_g, pa_t) == 35 { true -> { do teat(pa_g); pa_g[135] = pcmp_parse(pa_g, pa_t, pa_n); pa_g[18] = pa_l[0]; pa_g[19] = pa_g[135]; pa_l[0] = mkbin(pa_g, pa_n, 11); }, false -> { } }; }; pa_l[0]
@@ -788,6 +798,7 @@ fn pfor_parse(pfo_g: Array<Int>, pfo_t: Array<Int>, pfo_n: Array<Int>) [IO] -> I
     pfo_n[pfo_start*10+6]=pfo_end; pfo_n[pfo_end*10+6]=pfo_body; pfo_fi
 }
 
+// mkbin — create a BINOP node linking left and right children
 fn mkbin(mb_g: Array<Int>, mb_n: Array<Int>, mb_op: Int) [] -> Int {
     // mb_g[18]=left, mb_g[19]=right (set before calling)
     let mb_ni: Int = nalloc(mb_g, mb_n);
@@ -1297,12 +1308,14 @@ fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
         do print_raw(".Lm"); do print_raw(int_to_string(cm_g[852])); do emit_line("_end:");
     } } };
 }
+// cg_mpass — emit match comparison chain (icmp + branch per arm)
 fn cg_mpass(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
     for _mp in range(0, mp_g[851]) {
         match mp_g[855]==0 { true -> do cg_marm_c(mp_g, mp_n, mp_s), false -> do cg_marm_b(mp_g, mp_n, mp_s) };
         mp_g[854]=mp_g[854]+1; mp_g[853]=mp_n[mp_g[853]*10+6];
     };
 }
+// cg_marm_c — emit match arm comparison label
 fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit {
     match ac_n[ac_g[853]*10+1]==1 { true -> {
         do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
@@ -1313,6 +1326,7 @@ fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit 
         do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     } };
 }
+// cg_marm_b — emit match arm body block
 fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
     do print_raw(".Lm"); do print_raw(int_to_string(ab_g[852])); do print_raw("_a"); do print_raw(int_to_string(ab_g[854])); do emit_line(":");
     ab_g[856]=ab_g[856]+1; ab_g[857]=860+ab_g[856]*6;
@@ -1368,6 +1382,7 @@ fn cg_match_adt(ma_g: Array<Int>, ma_n: Array<Int>, ma_s: Array<Int>) [IO] -> Un
     do emit_line("    add rsp, 8"); // discard saved ADT pointer
 }
 
+// cg_mpass_adt — emit ADT match: tag load, comparison, field binding
 fn cg_mpass_adt(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
     for _mp in range(0, mp_g[851]) {
         match mp_g[855]==0 { true -> do cg_marm_adt_c(mp_g, mp_n, mp_s), false -> do cg_marm_adt_b(mp_g, mp_n, mp_s) };
@@ -1464,6 +1479,7 @@ fn cg_match_str(ms_g: Array<Int>, ms_n: Array<Int>, ms_s: Array<Int>) [IO] -> Un
     do emit_line("    add rsp, 16");
 }
 
+// cg_arynew — emit Array(n) allocation with bounds header
 fn cg_arynew(an_g: Array<Int>, an_n: Array<Int>, an_s: Array<Int>) [IO] -> Unit {
     do cg_expr(an_g, an_n, an_s); // g[31] already set to size expr by caller
     do emit_line("    mov rcx, rax"); // save count
@@ -1562,6 +1578,7 @@ fn cg_binop_int(bi_g: Array<Int>, bi_n: Array<Int>, bi_s: Array<Int>) [IO] -> Un
     false -> do cg_binop_int2(bi_op) } } } };
 }
 
+// cg_binop_int2 — emit integer binop instruction (add/sub/mul/div)
 fn cg_binop_int2(b2_op: Int) [IO] -> Unit {
     match b2_op == 4 { true -> { do emit_line("    cqo"); do emit_line("    idiv rcx"); do emit_line("    mov rax, rdx"); },
     false -> match b2_op >= 5 { true -> match b2_op <= 10 { true -> do cg_cmp(b2_op), false -> { } },
@@ -1570,6 +1587,7 @@ fn cg_binop_int2(b2_op: Int) [IO] -> Unit {
     false -> { } } } } };
 }
 
+// cg_cmp — emit comparison operation (eq/ne/lt/gt/le/ge)
 fn cg_cmp(cc_op: Int) [IO] -> Unit {
     do emit_line("    cmp rax, rcx");
     match cc_op == 5 { true -> do emit_line("    sete al"),
@@ -1590,6 +1608,7 @@ fn cg_call(cc_g: Array<Int>, cc_n: Array<Int>, cc_s: Array<Int>) [IO] -> Unit {
     match cc_g[41] == 5 { true -> match cc_s[cc_g[40]] == 65 { true -> { cc_g[31]=cc_n[cc_ni*10+5]; do cg_arynew(cc_g, cc_n, cc_s); cc_g[160]=1; }, false -> { cc_g[160]=0; } }, false -> { cc_g[160]=0; } };
     match cc_g[160] == 0 { true -> do cg_call_inner(cc_g, cc_n, cc_s), false -> { } };
 }
+// cg_call_inner — dispatch call to builtin or user function
 fn cg_call_inner(ci2_g: Array<Int>, ci2_n: Array<Int>, ci2_s: Array<Int>) [IO] -> Unit {
     let ci2_ni: Int = ci2_g[31];
     let cc_sub: Int = chk_bi(ci2_g, ci2_s);
@@ -1639,6 +1658,7 @@ fn cg_call3(c3_g: Array<Int>, c3_n: Array<Int>, c3_s: Array<Int>) [IO] -> Unit {
     false -> match c3_g[140] == 7 { true -> { c3_g[31]=c3_n[c3_g[139]*10+5]; do cg_expr(c3_g, c3_n, c3_s); do emit_line("    mov rdi, rax"); do emit_line("    mov rsi, rdx"); do emit_line("    call _rt_read_file"); },
     false -> do cg_call4(c3_g, c3_n, c3_s) } } };
 }
+// cg_call4 — handle builtins: string_length, string_char_at, print_byte
 fn cg_call4(c4_g: Array<Int>, c4_n: Array<Int>, c4_s: Array<Int>) [IO] -> Unit {
     match c4_g[140] == 4 { true -> { c4_g[31]=c4_n[c4_g[139]*10+5]; do cg_expr(c4_g, c4_n, c4_s); do emit_line("    mov rax, rdx"); },
     false -> match c4_g[140] == 6 { true -> do cg_bi_char(c4_g, c4_n, c4_s),
@@ -1659,12 +1679,14 @@ fn cg_call4(c4_g: Array<Int>, c4_n: Array<Int>, c4_s: Array<Int>) [IO] -> Unit {
     }, false -> { } } } } };
 }
 
+// cg_bi_char — emit string_char_at builtin
 fn cg_bi_char(bc_g: Array<Int>, bc_n: Array<Int>, bc_s: Array<Int>) [IO] -> Unit {
     bc_g[31]=bc_n[bc_g[139]*10+5]; do cg_expr(bc_g, bc_n, bc_s);
     do emit_line("    push rax");
     bc_g[31]=bc_n[bc_n[bc_g[139]*10+5]*10+6]; do cg_expr(bc_g, bc_n, bc_s);
     do emit_line("    pop rdi"); do emit_line("    movzx rax, byte [rdi + rax]");
 }
+// cg_user_call — emit call to user-defined function
 fn cg_user_call(uc_g: Array<Int>, uc_n: Array<Int>, uc_s: Array<Int>) [IO] -> Unit {
     let uc_ni: Int = uc_g[31];
     let uc_ac: Int = uc_n[uc_ni * 10 + 4]; // arg count
@@ -1763,6 +1785,7 @@ fn cg_find_var(fv_g: Array<Int>, fv_s: Array<Int>) [] -> Int {
     fv_res[0]
 }
 
+// cg_find_var_type — look up variable type in var table
 fn cg_find_var_type(ft_g: Array<Int>, ft_s: Array<Int>) [] -> Int {
     let ft_o: Int = ft_g[40]; let ft_l: Int = ft_g[41];
     let ft_res: Array<Int> = Array(1); ft_res[0] = 0;
@@ -1791,6 +1814,7 @@ fn cg_name_eq(ne_g: Array<Int>, ne_s: Array<Int>) [] -> Bool {
 // ===== Type Checker + Effect Verifier =====
 // gs[910] = --json flag, gs[911] = error count
 
+// tc_type_name — convert type_info to human-readable name
 fn tc_type_name(tn_t: Int) [] -> String {
     match tn_t { 0 -> "Int", 2 -> "String", 4 -> "Array", 6 -> "ADT", _ -> "Unknown" }
 }
@@ -2276,6 +2300,7 @@ fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -
     };
 }
 
+// tc_check — run all type/effect/scope checks on the AST
 fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
     tc_g[911] = 0;
     do tc_check_effects(tc_g, tc_n, tc_s);
@@ -2293,6 +2318,7 @@ fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {
 // gs[31] = current node index
 // Node layout: [type, sub_type, str_off, str_len, child_count, first_child, next_sibling, type_info, extra, padding]
 
+// ll_tmp — allocate next LLVM SSA temp number
 fn ll_tmp(ll_g: Array<Int>) [] -> Int {
     let ll_n: Int = ll_g[32];
     ll_g[32] = ll_n + 1;
@@ -3010,6 +3036,7 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     do print("");
 }
 
+// cg_emit_llvm — LLVM IR backend entry point
 fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] -> Unit {
     // Header — target triple based on gs[916]: 0=linux, 1=macos-x86, 2=macos-arm, 3=windows, 4=wasm
     do print("; Loon compiler output — LLVM IR");
