@@ -2210,6 +2210,25 @@ fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -
             }, false -> { } };
         }, false -> { } };
     };
+    // Forbidden algorithm check: scan ALL CALL nodes for md5, sha1, des, rc4
+    for tp_fa in range(0, tp_g[12]) {
+        match tp_n[tp_fa * 10] == 14 { true -> {
+            tp_g[40] = tp_n[tp_fa * 10 + 2]; tp_g[41] = tp_n[tp_fa * 10 + 3];
+            match str_eq(tp_g, tp_s, "md5") { true -> {
+                do print("error: forbidden algorithm — MD5 is broken, not available in Loon");
+                tp_g[911] = tp_g[911] + 1;
+            }, false -> match str_eq(tp_g, tp_s, "sha1") { true -> {
+                do print("error: forbidden algorithm — SHA1 is broken, not available in Loon");
+                tp_g[911] = tp_g[911] + 1;
+            }, false -> match str_eq(tp_g, tp_s, "des") { true -> {
+                do print("error: forbidden algorithm — DES is broken, not available in Loon");
+                tp_g[911] = tp_g[911] + 1;
+            }, false -> match str_eq(tp_g, tp_s, "rc4") { true -> {
+                do print("error: forbidden algorithm — RC4 is broken, not available in Loon");
+                tp_g[911] = tp_g[911] + 1;
+            }, false -> { } } } } };
+        }, false -> { } };
+    };
 }
 
 fn tc_check(tc_g: Array<Int>, tc_n: Array<Int>, tc_s: Array<Int>) [IO] -> Unit {

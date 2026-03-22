@@ -1,0 +1,8 @@
+// TEST: forbidden_md5
+// EXPECT: ERROR
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let h: String = md5("data");
+    do exit(0);
+}

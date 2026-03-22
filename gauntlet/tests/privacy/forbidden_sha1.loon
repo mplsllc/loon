@@ -1,0 +1,8 @@
+// TEST: forbidden_sha1
+// EXPECT: ERROR
+// CATEGORY: privacy
+module test;
+fn main() [IO] -> Unit {
+    let h: String = sha1("data");
+    do exit(0);
+}

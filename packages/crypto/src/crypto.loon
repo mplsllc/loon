@@ -1,31 +1,28 @@
-// Loon crypto package — stub implementation
-// Full implementation requires Stage 4 privacy types.
-// This defines the API shape for the package ecosystem.
+// Loon crypto package — privacy-typed API
+// Stub implementations — real crypto requires native bindings.
+// The type signatures are the contract: privacy enforced by the compiler.
 module crypto {
     exports [hash_password, verify_password, generate_token]
 }
 
 // Hash a password using Argon2id.
-// Returns an opaque hash string.
-// Stage 4: returns Sensitive<PasswordHash> — cannot be logged or serialized.
-fn hash_password(password: String) [IO] -> String {
-    // Stub — real implementation requires native crypto bindings
-    "argon2id$stub$" + password
+// Input: Sensitive<String> (the raw password — cannot be logged)
+// Output: Hashed<String> (the hash — safe to store, not reversible)
+fn hash_password(password: Sensitive<String>) [IO] -> Hashed<String> {
+    // Stub — real implementation requires native Argon2id bindings
+    "argon2id$stub$hash"
 }
 
-// Verify a password against a hash.
-// Returns true if the password matches.
-fn verify_password(password: String, hash: String) [IO] -> Bool {
-    // Stub — compares against stub hash format
-    match hash == "argon2id$stub$" + password {
-        true -> true,
-        false -> false,
-    }
+// Verify a password against a stored hash.
+// Both inputs are privacy-typed. Returns plain Bool (safe for control flow).
+fn verify_password(password: Sensitive<String>, hash: Hashed<String>) [IO] -> Bool {
+    // Stub — real implementation uses timing-safe comparison
+    true
 }
 
 // Generate a cryptographically secure session token.
-// Stage 4: returns Sensitive<SessionToken> — auto-zeroed on scope exit.
-fn generate_token() [IO] -> String {
+// Output: Sensitive<String, ZeroOnDrop> — auto-zeroed when scope exits.
+fn generate_token() [IO] -> Sensitive<String, ZeroOnDrop> {
     // Stub — real implementation requires OS random source
-    "session_token_stub_" + int_to_string(42)
+    "session_token_stub_42"
 }
