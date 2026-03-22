@@ -1157,11 +1157,11 @@ fn cg_store_params(sp_g: Array<Int>, sp_n: Array<Int>, sp_s: Array<Int>) [IO] ->
     for _spp in range(0, sp_pc) {
         sp_pt[0] = sp_n[sp_pi[0] * 10 + 7];
         sp_vi[0] = sp_g[51 + (_spp) * 4 + 2];
-        match sp_pt[0] == 2 { true -> {
+        match sp_pt[0] % 16 == 2 { true -> { // String (inc. privacy-wrapped)
             do cg_store_reg(sp_ri[0], sp_vi[0]);
             do cg_store_reg(sp_ri[0] + 1, sp_vi[0] - 8);
             sp_ri[0] = sp_ri[0] + 2;
-        }, false -> match sp_pt[0] == 4 { true -> {
+        }, false -> match sp_pt[0] % 16 == 4 { true -> { // Array (inc. privacy-wrapped)
             do cg_store_reg(sp_ri[0], sp_vi[0]);
             do cg_store_reg(sp_ri[0] + 1, sp_vi[0] - 8);
             sp_ri[0] = sp_ri[0] + 2;
@@ -1545,7 +1545,8 @@ fn cg_binop(bo_g: Array<Int>, bo_n: Array<Int>, bo_s: Array<Int>) [IO] -> Unit {
     let bo_right: Int = bo_n[bo_left * 10 + 6];
     let bo_op: Int = bo_n[bo_ni * 10 + 1];
     // Check if this is string concat: either operand is STR_LIT (type 8) or has string type_info
-    let bo_is_str: Int = match bo_n[bo_left * 10] == 8 { true -> 1, false -> match bo_n[bo_right * 10] == 8 { true -> 1, false -> match bo_n[bo_ni * 10 + 7] % 16 == 2 { true -> 1, false -> 0 } } };
+    // Detect string concat: STR_LIT operand, or BINOP type_info is String, or operand variable is String
+    let bo_is_str: Int = match bo_n[bo_left * 10] == 8 { true -> 1, false -> match bo_n[bo_right * 10] == 8 { true -> 1, false -> match bo_n[bo_ni * 10 + 7] % 16 == 2 { true -> 1, false -> match bo_n[bo_left * 10] == 10 { true -> { bo_g[40] = bo_n[bo_left * 10 + 2]; bo_g[41] = bo_n[bo_left * 10 + 3]; match cg_find_var_type(bo_g, bo_s) % 16 == 2 { true -> 1, false -> 0 } }, false -> 0 } } } };
     match bo_op == 0 { true -> match bo_is_str == 1 { true -> { // String concat
         bo_g[31] = bo_left; do cg_expr(bo_g, bo_n, bo_s);
         // rax=left_ptr, rdx=left_len
