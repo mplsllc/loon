@@ -963,14 +963,14 @@ fn cg_add_var(av_g: Array<Int>, av_n: Array<Int>, av_s: Array<Int>) [] -> Unit {
     av_g[50] = av_idx + 1;
 }
 
-// Iterative slot walker — explicit stack in g[220..280], no recursion
+// Iterative slot walker — explicit stack in g[2048..4095], var table at g[51..2047]
 fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Unit {
     ws_g[220] = 0;
-    ws_g[221] = ws_g[31]; ws_g[220] = 1;
+    ws_g[2048] = ws_g[31]; ws_g[220] = 1;
     for _ws in range(0, 65536) {
         match ws_g[220] > 0 { true -> {
             ws_g[220] = ws_g[220] - 1;
-            ws_g[136] = ws_g[221 + ws_g[220]];
+            ws_g[136] = ws_g[2048 + ws_g[220]];
             match ws_g[136] >= 1 { true -> {
                 ws_g[137] = ws_n[ws_g[136] * 10];
                 match ws_g[137] == 4 { true -> {
@@ -997,10 +997,10 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
                 }, false -> { } };
                 // Push next_sibling (processed second = breadth after depth)
                 ws_g[138] = ws_n[ws_g[136] * 10 + 6];
-                match ws_g[138] >= 1 { true -> match ws_g[220] < 900 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
+                match ws_g[138] >= 1 { true -> match ws_g[220] < 2000 { true -> { ws_g[2048 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
                 // Push first_child (processed first = depth-first)
                 ws_g[138] = ws_n[ws_g[136] * 10 + 5];
-                match ws_g[138] >= 1 { true -> match ws_g[220] < 900 { true -> { ws_g[221 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
+                match ws_g[138] >= 1 { true -> match ws_g[220] < 2000 { true -> { ws_g[2048 + ws_g[220]] = ws_g[138]; ws_g[220] = ws_g[220] + 1; }, false -> { } }, false -> { } };
             }, false -> { } };
         }, false -> { } };
     };
@@ -2589,7 +2589,7 @@ fn main() [IO] -> Unit {
     // Source file: --target (8 chars) shifts source to arg3, --json (6 chars) to arg2
     let source: String = match a1len == 8 { true -> read_file(get_arg(3)), false -> match a1len == 6 { true -> read_file(get_arg(2)), false -> read_file(arg1) } };
     let slen: Int = string_length(source);
-    let gs: Array<Int> = Array(2048);
+    let gs: Array<Int> = Array(4096);
     let gb: Array<Int> = Array(262144);
     let gt: Array<Int> = Array(200000);
     let gn: Array<Int> = Array(500000);
