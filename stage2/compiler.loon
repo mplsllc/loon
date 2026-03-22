@@ -1159,43 +1159,43 @@ fn cg_match(cm_g: Array<Int>, cm_n: Array<Int>, cm_s: Array<Int>) [IO] -> Unit {
     match cm_arm_type == 25 { true -> do cg_match_adt(cm_g, cm_n, cm_s),
     false -> match cm_arm_type == 26 { true -> do cg_match_str(cm_g, cm_n, cm_s),
     false -> {
-        cm_g[115]=cm_g[31]; cm_g[116]=cm_n[cm_g[115]*10+4]; cm_g[117]=cm_g[32]; cm_g[32]=cm_g[32]+1;
-        cm_g[31]=cm_n[cm_g[115]*10+8]; do cg_expr(cm_g, cm_n, cm_s);
+        cm_g[850]=cm_g[31]; cm_g[851]=cm_n[cm_g[850]*10+4]; cm_g[852]=cm_g[32]; cm_g[32]=cm_g[32]+1;
+        cm_g[31]=cm_n[cm_g[850]*10+8]; do cg_expr(cm_g, cm_n, cm_s);
         do emit_line("    mov r15, rax");
-        cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=0;
+        cm_g[853]=cm_n[cm_g[850]*10+5]; cm_g[854]=0; cm_g[855]=0;
         do cg_mpass(cm_g, cm_n, cm_s);
-        cm_g[118]=cm_n[cm_g[115]*10+5]; cm_g[119]=0; cm_g[120]=1;
+        cm_g[853]=cm_n[cm_g[850]*10+5]; cm_g[854]=0; cm_g[855]=1;
         do cg_mpass(cm_g, cm_n, cm_s);
-        do print_raw(".Lm"); do print_raw(int_to_string(cm_g[117])); do emit_line("_end:");
+        do print_raw(".Lm"); do print_raw(int_to_string(cm_g[852])); do emit_line("_end:");
     } } };
 }
 fn cg_mpass(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
-    for _mp in range(0, mp_g[116]) {
-        match mp_g[120]==0 { true -> do cg_marm_c(mp_g, mp_n, mp_s), false -> do cg_marm_b(mp_g, mp_n, mp_s) };
-        mp_g[119]=mp_g[119]+1; mp_g[118]=mp_n[mp_g[118]*10+6];
+    for _mp in range(0, mp_g[851]) {
+        match mp_g[855]==0 { true -> do cg_marm_c(mp_g, mp_n, mp_s), false -> do cg_marm_b(mp_g, mp_n, mp_s) };
+        mp_g[854]=mp_g[854]+1; mp_g[853]=mp_n[mp_g[853]*10+6];
     };
 }
 fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit {
-    match ac_n[ac_g[118]*10+1]==1 { true -> {
-        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+    match ac_n[ac_g[853]*10+1]==1 { true -> {
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     }, false -> {
-        ac_g[40]=ac_n[ac_g[118]*10+2]; ac_g[41]=ac_n[ac_g[118]*10+3];
+        ac_g[40]=ac_n[ac_g[853]*10+2]; ac_g[41]=ac_n[ac_g[853]*10+3];
         match ac_g[41] > 0 { true -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(str2int(ac_g, ac_s))); },
-        false -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[118]*10+8])); } };
-        do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+        false -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[853]*10+8])); } };
+        do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     } };
 }
 fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
-    do print_raw(".Lm"); do print_raw(int_to_string(ab_g[117])); do print_raw("_a"); do print_raw(int_to_string(ab_g[119])); do emit_line(":");
-    ab_g[121]=ab_g[121]+1; ab_g[122]=200+ab_g[121]*6;
-    ab_g[ab_g[122]]=ab_g[115]; ab_g[ab_g[122]+1]=ab_g[116]; ab_g[ab_g[122]+2]=ab_g[117];
-    ab_g[ab_g[122]+3]=ab_g[118]; ab_g[ab_g[122]+4]=ab_g[119]; ab_g[ab_g[122]+5]=ab_g[120];
-    ab_g[31]=ab_n[ab_g[118]*10+5]; do cg_expr(ab_g, ab_n, ab_s);
-    ab_g[122]=200+ab_g[121]*6;
-    ab_g[115]=ab_g[ab_g[122]]; ab_g[116]=ab_g[ab_g[122]+1]; ab_g[117]=ab_g[ab_g[122]+2];
-    ab_g[118]=ab_g[ab_g[122]+3]; ab_g[119]=ab_g[ab_g[122]+4]; ab_g[120]=ab_g[ab_g[122]+5];
-    ab_g[121]=ab_g[121]-1;
-    do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[117])); do emit_line("_end");
+    do print_raw(".Lm"); do print_raw(int_to_string(ab_g[852])); do print_raw("_a"); do print_raw(int_to_string(ab_g[854])); do emit_line(":");
+    ab_g[856]=ab_g[856]+1; ab_g[857]=860+ab_g[856]*6;
+    ab_g[ab_g[857]]=ab_g[850]; ab_g[ab_g[857]+1]=ab_g[851]; ab_g[ab_g[857]+2]=ab_g[852];
+    ab_g[ab_g[857]+3]=ab_g[853]; ab_g[ab_g[857]+4]=ab_g[854]; ab_g[ab_g[857]+5]=ab_g[855];
+    ab_g[31]=ab_n[ab_g[853]*10+5]; do cg_expr(ab_g, ab_n, ab_s);
+    ab_g[857]=860+ab_g[856]*6;
+    ab_g[850]=ab_g[ab_g[857]]; ab_g[851]=ab_g[ab_g[857]+1]; ab_g[852]=ab_g[ab_g[857]+2];
+    ab_g[853]=ab_g[ab_g[857]+3]; ab_g[854]=ab_g[ab_g[857]+4]; ab_g[855]=ab_g[ab_g[857]+5];
+    ab_g[856]=ab_g[856]-1;
+    do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[852])); do emit_line("_end");
 }
 
 // Variant constructor: Circle(5) → bump-allocate [tag, field0, field1, ...]
@@ -1223,52 +1223,52 @@ fn cg_variant_new(vn_g: Array<Int>, vn_n: Array<Int>, vn_s: Array<Int>) [IO] -> 
 
 // ADT match: evaluate discriminant, load tag, dispatch by variant
 fn cg_match_adt(ma_g: Array<Int>, ma_n: Array<Int>, ma_s: Array<Int>) [IO] -> Unit {
-    ma_g[115]=ma_g[31]; ma_g[116]=ma_n[ma_g[115]*10+4]; ma_g[117]=ma_g[32]; ma_g[32]=ma_g[32]+1;
+    ma_g[850]=ma_g[31]; ma_g[851]=ma_n[ma_g[850]*10+4]; ma_g[852]=ma_g[32]; ma_g[32]=ma_g[32]+1;
     // Evaluate discriminant → rax = ADT pointer
-    ma_g[31]=ma_n[ma_g[115]*10+8]; do cg_expr(ma_g, ma_n, ma_s);
+    ma_g[31]=ma_n[ma_g[850]*10+8]; do cg_expr(ma_g, ma_n, ma_s);
     // Save ADT pointer and load tag
     do emit_line("    push rax");
     do emit_line("    mov r15, [rax]");
     // Comparison pass
-    ma_g[118]=ma_n[ma_g[115]*10+5]; ma_g[119]=0; ma_g[120]=0;
+    ma_g[853]=ma_n[ma_g[850]*10+5]; ma_g[854]=0; ma_g[855]=0;
     do cg_mpass_adt(ma_g, ma_n, ma_s);
     // Body pass
-    ma_g[118]=ma_n[ma_g[115]*10+5]; ma_g[119]=0; ma_g[120]=1;
+    ma_g[853]=ma_n[ma_g[850]*10+5]; ma_g[854]=0; ma_g[855]=1;
     do cg_mpass_adt(ma_g, ma_n, ma_s);
     // End label + cleanup
-    do print_raw(".Lm"); do print_raw(int_to_string(ma_g[117])); do emit_line("_end:");
+    do print_raw(".Lm"); do print_raw(int_to_string(ma_g[852])); do emit_line("_end:");
     do emit_line("    add rsp, 8"); // discard saved ADT pointer
 }
 
 fn cg_mpass_adt(mp_g: Array<Int>, mp_n: Array<Int>, mp_s: Array<Int>) [IO] -> Unit {
-    for _mp in range(0, mp_g[116]) {
-        match mp_g[120]==0 { true -> do cg_marm_adt_c(mp_g, mp_n, mp_s), false -> do cg_marm_adt_b(mp_g, mp_n, mp_s) };
-        mp_g[119]=mp_g[119]+1; mp_g[118]=mp_n[mp_g[118]*10+6];
+    for _mp in range(0, mp_g[851]) {
+        match mp_g[855]==0 { true -> do cg_marm_adt_c(mp_g, mp_n, mp_s), false -> do cg_marm_adt_b(mp_g, mp_n, mp_s) };
+        mp_g[854]=mp_g[854]+1; mp_g[853]=mp_n[mp_g[853]*10+6];
     };
 }
 
 // ADT match arm comparison: cmp r15, TAG / je .label (or jmp for wildcard)
 fn cg_marm_adt_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit {
-    match ac_n[ac_g[118]*10] == 17 { true -> {
+    match ac_n[ac_g[853]*10] == 17 { true -> {
         // Wildcard arm (NODE_MATCH_ARM with sub_type=1)
-        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     }, false -> {
         // ADT arm (NODE_MATCH_ARM_ADT)
-        do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[118]*10+1])); // tag
-        do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[117])); do print_raw("_a"); do emit_line(int_to_string(ac_g[119]));
+        do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[853]*10+1])); // tag
+        do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     } };
 }
 
 // ADT match arm body: extract fields, register bindings, evaluate body
 fn cg_marm_adt_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
-    do print_raw(".Lm"); do print_raw(int_to_string(ab_g[117])); do print_raw("_a"); do print_raw(int_to_string(ab_g[119])); do emit_line(":");
+    do print_raw(".Lm"); do print_raw(int_to_string(ab_g[852])); do print_raw("_a"); do print_raw(int_to_string(ab_g[854])); do emit_line(":");
     // Save match state (depth-indexed)
-    ab_g[121]=ab_g[121]+1; ab_g[122]=200+ab_g[121]*6;
-    ab_g[ab_g[122]]=ab_g[115]; ab_g[ab_g[122]+1]=ab_g[116]; ab_g[ab_g[122]+2]=ab_g[117];
-    ab_g[ab_g[122]+3]=ab_g[118]; ab_g[ab_g[122]+4]=ab_g[119]; ab_g[ab_g[122]+5]=ab_g[120];
+    ab_g[856]=ab_g[856]+1; ab_g[857]=860+ab_g[856]*6;
+    ab_g[ab_g[857]]=ab_g[850]; ab_g[ab_g[857]+1]=ab_g[851]; ab_g[ab_g[857]+2]=ab_g[852];
+    ab_g[ab_g[857]+3]=ab_g[853]; ab_g[ab_g[857]+4]=ab_g[854]; ab_g[ab_g[857]+5]=ab_g[855];
     // Get field count and first child
-    let ab_fc: Int = ab_n[ab_g[118]*10+8]; // extra = field count
-    let ab_ci: Array<Int> = Array(1); ab_ci[0] = ab_n[ab_g[118]*10+5]; // first child
+    let ab_fc: Int = ab_n[ab_g[853]*10+8]; // extra = field count
+    let ab_ci: Array<Int> = Array(1); ab_ci[0] = ab_n[ab_g[853]*10+5]; // first child
     // Extract fields: load ADT pointer from stack, read fields, store to binding stack slots
     let ab_sv50: Int = ab_g[50]; // save var count before adding bindings
     for ab_fi in range(0, ab_fc) {
@@ -1284,55 +1284,55 @@ fn cg_marm_adt_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> U
     // ab_ci[0] is now the body expression
     ab_g[31] = ab_ci[0]; do cg_expr(ab_g, ab_n, ab_s);
     // Restore match state
-    ab_g[122]=200+ab_g[121]*6;
-    ab_g[115]=ab_g[ab_g[122]]; ab_g[116]=ab_g[ab_g[122]+1]; ab_g[117]=ab_g[ab_g[122]+2];
-    ab_g[118]=ab_g[ab_g[122]+3]; ab_g[119]=ab_g[ab_g[122]+4]; ab_g[120]=ab_g[ab_g[122]+5];
-    ab_g[121]=ab_g[121]-1;
+    ab_g[857]=860+ab_g[856]*6;
+    ab_g[850]=ab_g[ab_g[857]]; ab_g[851]=ab_g[ab_g[857]+1]; ab_g[852]=ab_g[ab_g[857]+2];
+    ab_g[853]=ab_g[ab_g[857]+3]; ab_g[854]=ab_g[ab_g[857]+4]; ab_g[855]=ab_g[ab_g[857]+5];
+    ab_g[856]=ab_g[856]-1;
     // Restore var count (remove bindings from scope)
     ab_g[50] = ab_sv50;
-    do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[117])); do emit_line("_end");
+    do print_raw("    jmp .Lm"); do print_raw(int_to_string(ab_g[852])); do emit_line("_end");
 }
 
 // Array(N): allocate N*8 bytes from bump heap, return (ptr, len) in rax/rdx
 // String match: compare discriminant with string literal per arm
 fn cg_match_str(ms_g: Array<Int>, ms_n: Array<Int>, ms_s: Array<Int>) [IO] -> Unit {
-    ms_g[115]=ms_g[31]; ms_g[116]=ms_n[ms_g[115]*10+4]; ms_g[117]=ms_g[32]; ms_g[32]=ms_g[32]+1;
+    ms_g[850]=ms_g[31]; ms_g[851]=ms_n[ms_g[850]*10+4]; ms_g[852]=ms_g[32]; ms_g[32]=ms_g[32]+1;
     // Evaluate discriminant → rax=ptr, rdx=len (String)
-    ms_g[31]=ms_n[ms_g[115]*10+8]; do cg_expr(ms_g, ms_n, ms_s);
+    ms_g[31]=ms_n[ms_g[850]*10+8]; do cg_expr(ms_g, ms_n, ms_s);
     do emit_line("    push rdx"); do emit_line("    push rax"); // save string on stack
     // Comparison pass
-    ms_g[118]=ms_n[ms_g[115]*10+5]; ms_g[119]=0;
-    for _msc in range(0, ms_g[116]) {
-        match ms_n[ms_g[118]*10] == 26 { true -> {
-            let ms_idx: Int = ms_n[ms_g[118]*10+8]; // _sN index
+    ms_g[853]=ms_n[ms_g[850]*10+5]; ms_g[854]=0;
+    for _msc in range(0, ms_g[851]) {
+        match ms_n[ms_g[853]*10] == 26 { true -> {
+            let ms_idx: Int = ms_n[ms_g[853]*10+8]; // _sN index
             do emit_line("    mov rdi, [rsp]"); do emit_line("    mov rsi, [rsp+8]");
             do print_raw("    lea rdx, [rel _s"); do print_raw(int_to_string(ms_idx)); do emit_line("]");
             do print_raw("    mov rcx, _s"); do print_raw(int_to_string(ms_idx)); do emit_line("_len");
             do emit_line("    call _rt_string_equals");
             do print_raw("    cmp rax, 1"); do emit_line("");
-            do print_raw("    je .Lm"); do print_raw(int_to_string(ms_g[117])); do print_raw("_a"); do emit_line(int_to_string(ms_g[119]));
+            do print_raw("    je .Lm"); do print_raw(int_to_string(ms_g[852])); do print_raw("_a"); do emit_line(int_to_string(ms_g[854]));
         }, false -> {
             // Wildcard arm
-            do print_raw("    jmp .Lm"); do print_raw(int_to_string(ms_g[117])); do print_raw("_a"); do emit_line(int_to_string(ms_g[119]));
+            do print_raw("    jmp .Lm"); do print_raw(int_to_string(ms_g[852])); do print_raw("_a"); do emit_line(int_to_string(ms_g[854]));
         } };
-        ms_g[119]=ms_g[119]+1; ms_g[118]=ms_n[ms_g[118]*10+6];
+        ms_g[854]=ms_g[854]+1; ms_g[853]=ms_n[ms_g[853]*10+6];
     };
     // Body pass
-    ms_g[118]=ms_n[ms_g[115]*10+5]; ms_g[119]=0;
-    for _msb in range(0, ms_g[116]) {
-        do print_raw(".Lm"); do print_raw(int_to_string(ms_g[117])); do print_raw("_a"); do print_raw(int_to_string(ms_g[119])); do emit_line(":");
-        ms_g[121]=ms_g[121]+1; ms_g[122]=200+ms_g[121]*6;
-        ms_g[ms_g[122]]=ms_g[115]; ms_g[ms_g[122]+1]=ms_g[116]; ms_g[ms_g[122]+2]=ms_g[117];
-        ms_g[ms_g[122]+3]=ms_g[118]; ms_g[ms_g[122]+4]=ms_g[119]; ms_g[ms_g[122]+5]=0;
-        ms_g[31]=ms_n[ms_g[118]*10+5]; do cg_expr(ms_g, ms_n, ms_s);
-        ms_g[122]=200+ms_g[121]*6;
-        ms_g[115]=ms_g[ms_g[122]]; ms_g[116]=ms_g[ms_g[122]+1]; ms_g[117]=ms_g[ms_g[122]+2];
-        ms_g[118]=ms_g[ms_g[122]+3]; ms_g[119]=ms_g[ms_g[122]+4];
-        ms_g[121]=ms_g[121]-1;
-        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ms_g[117])); do emit_line("_end");
-        ms_g[119]=ms_g[119]+1; ms_g[118]=ms_n[ms_g[118]*10+6];
+    ms_g[853]=ms_n[ms_g[850]*10+5]; ms_g[854]=0;
+    for _msb in range(0, ms_g[851]) {
+        do print_raw(".Lm"); do print_raw(int_to_string(ms_g[852])); do print_raw("_a"); do print_raw(int_to_string(ms_g[854])); do emit_line(":");
+        ms_g[856]=ms_g[856]+1; ms_g[857]=860+ms_g[856]*6;
+        ms_g[ms_g[857]]=ms_g[850]; ms_g[ms_g[857]+1]=ms_g[851]; ms_g[ms_g[857]+2]=ms_g[852];
+        ms_g[ms_g[857]+3]=ms_g[853]; ms_g[ms_g[857]+4]=ms_g[854]; ms_g[ms_g[857]+5]=0;
+        ms_g[31]=ms_n[ms_g[853]*10+5]; do cg_expr(ms_g, ms_n, ms_s);
+        ms_g[857]=860+ms_g[856]*6;
+        ms_g[850]=ms_g[ms_g[857]]; ms_g[851]=ms_g[ms_g[857]+1]; ms_g[852]=ms_g[ms_g[857]+2];
+        ms_g[853]=ms_g[ms_g[857]+3]; ms_g[854]=ms_g[ms_g[857]+4];
+        ms_g[856]=ms_g[856]-1;
+        do print_raw("    jmp .Lm"); do print_raw(int_to_string(ms_g[852])); do emit_line("_end");
+        ms_g[854]=ms_g[854]+1; ms_g[853]=ms_n[ms_g[853]*10+6];
     };
-    do print_raw(".Lm"); do print_raw(int_to_string(ms_g[117])); do emit_line("_end:");
+    do print_raw(".Lm"); do print_raw(int_to_string(ms_g[852])); do emit_line("_end:");
     do emit_line("    add rsp, 16");
 }
 
