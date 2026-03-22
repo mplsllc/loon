@@ -1,5 +1,5 @@
 // TEST: call_arg_wrong_type
-// EXPECT: KNOWN GAP
+// EXPECT: ERROR
 // CATEGORY: type
 // Passing String where Int expected — compiler does not check call arg types yet
 module test;

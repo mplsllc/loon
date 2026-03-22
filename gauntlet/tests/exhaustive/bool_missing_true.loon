@@ -1,5 +1,5 @@
 // TEST: bool_missing_true
-// EXPECT: KNOWN GAP
+// EXPECT: ERROR
 // CATEGORY: exhaustive
 // Bool exhaustive check not implemented — only ADT exhaustiveness is checked
 module test;

@@ -266,7 +266,7 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
             do teat(pf_g); do teat(pf_g); // eat name, colon
             pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1]; // type name len and offset
             do teat(pf_g); // eat type name
-            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } }; } };
+            match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
             match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
             pf_g[15] = pf_g[15] + 1;
             match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); }, false -> { } };
@@ -287,7 +287,7 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
     do teat(pf_g); // eat ARROW
     pf_g[136] = pf_t[pf_g[13] * 5 + 2]; pf_g[137] = pf_t[pf_g[13] * 5 + 1];
     do teat(pf_g); // eat return type name
-    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } }; } };
+    match tcur(pf_g, pf_t) == 31 { true -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
     // Body
     let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
     pf_n[pf_fi * 10 + 8] = pf_bi;
@@ -653,8 +653,15 @@ fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [IO] -> Unit {
             ce_cur[0] = ce_n[ce_cur[0]*10+6];
         }, false -> { } };
     };
-    // Bool exhaustiveness: KNOWN GAP — requires discriminant type tracking to distinguish
-    // Bool matches from Int matches. Deferred to Stage 3 type inference.
+    // Bool exhaustiveness: if only 1 Bool arm (true/false) and no wildcard → error
+    match ce_has_adt[0] == 0 { true -> match ce_has_wild[0] == 0 { true -> match ce_g[28] == 1 { true -> {
+        // Single arm, no wildcard, no ADT — check if it's a Bool arm
+        let ce_arm1: Int = ce_g[26];
+        match ce_arm1 >= 0 { true -> match ce_n[ce_arm1 * 10] == 17 { true -> match ce_n[ce_arm1 * 10 + 1] <= 1 { true -> {
+            do print("error: non-exhaustive match — missing Bool arm");
+            do exit(1);
+        }, false -> { } }, false -> { } }, false -> { } };
+    }, false -> { } }, false -> { } }, false -> { } };
     // If has ADT arms and no wildcard, check coverage
     match ce_has_adt[0] == 1 { true -> match ce_has_wild[0] == 0 { true -> {
         let ce_vc: Int = ce_g[1024 + ce_type_idx[0] * 64 + 2]; // variant count
@@ -1917,6 +1924,27 @@ fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> U
                                     do tc_error(ta_g, ta_n, ta_s);
                                 } };
                                 ta_found[0] = 1;
+                                // Check arg types against param types
+                                ta_g[4200] = ta_n[ta_ni * 10 + 5]; // first arg node
+                                ta_g[4201] = ta_n[ta_fi * 10 + 5]; // first param node
+                                for _tca in range(0, ta_expected) {
+                                    match ta_g[4200] >= 1 { true -> match ta_g[4201] >= 1 { true -> {
+                                        ta_g[4202] = ta_n[ta_g[4201] * 10 + 7]; // param declared type
+                                        // Infer arg type: 7=INT_LIT→0, 8=STR_LIT→2, 9=BOOL_LIT→1
+                                        ta_g[4203] = ta_n[ta_g[4200] * 10]; // arg node type
+                                        ta_g[4204] = 0 - 1; // inferred type, -1 = unknown
+                                        match ta_g[4203] == 7 { true -> { ta_g[4204] = 0; }, false -> { } };
+                                        match ta_g[4203] == 8 { true -> { ta_g[4204] = 2; }, false -> { } };
+                                        match ta_g[4203] == 9 { true -> { ta_g[4204] = 1; }, false -> { } };
+                                        // Check mismatch (only when both types known)
+                                        match ta_g[4204] >= 0 { true -> match ta_g[4204] == ta_g[4202] { true -> { }, false -> {
+                                            ta_g[905] = ta_ni; ta_g[906] = 1; ta_g[907] = ta_g[4202]; ta_g[908] = ta_g[4204];
+                                            do tc_error(ta_g, ta_n, ta_s);
+                                        } }, false -> { } };
+                                        ta_g[4200] = ta_n[ta_g[4200] * 10 + 6]; // next arg
+                                        ta_g[4201] = ta_n[ta_g[4201] * 10 + 6]; // next param
+                                    }, false -> { } }, false -> { } };
+                                };
                             }, false -> { } };
                             ta_g[41] = ta_sv41;
                         }, false -> { } };
