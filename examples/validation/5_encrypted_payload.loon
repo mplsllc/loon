@@ -1,0 +1,18 @@
+// Validation Program 5: Send encrypted payload
+// Sensitive data must be encrypted before transmission.
+// The encrypted result carries Encrypted<String> type.
+module transmit;
+
+fn send_secure(data: Sensitive<String>, key: Sensitive<String>) [IO, Crypto] -> Unit {
+    let encrypted: Encrypted<String> = encrypt(data, key);
+    // do print(data);       ← COMPILE ERROR: cannot log Sensitive
+    // do print(key);        ← COMPILE ERROR: cannot log Sensitive
+    do print("payload sent");
+}
+
+fn main() [IO, Crypto] -> Unit {
+    let record: Sensitive<String> = "SSN: 123-45-6789";
+    let key: Sensitive<String> = "encryption_key_256";
+    do send_secure(record, key);
+    do exit(0);
+}

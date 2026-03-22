@@ -1,0 +1,16 @@
+// Validation Program 6: Write audit log without secrets
+// Public values can be logged. Sensitive values cannot.
+// The audit trail records what happened without exposing secrets.
+module logging;
+
+fn log_login(username: Public<String>, success: Bool) [IO] -> Unit {
+    do print("login: " + username + match success { true -> " OK", false -> " FAIL" });
+}
+
+fn main() [IO] -> Unit {
+    let user: Public<String> = "alice";
+    let pw: Sensitive<String> = "hunter2";
+    do log_login(user, true);
+    // do log_login(pw, true);  ← COMPILE ERROR: Sensitive<String> where Public<String> expected
+    do exit(0);
+}

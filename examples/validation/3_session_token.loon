@@ -1,0 +1,15 @@
+// Validation Program 3: Issue a session token
+// generate_token returns Sensitive<String>.
+// The token cannot be logged — only stored or transmitted securely.
+module auth;
+
+fn issue_token(user_id: Int) [IO, Crypto] -> Sensitive<String> {
+    generate_token()
+}
+
+fn main() [IO, Crypto] -> Unit {
+    let token: Sensitive<String> = issue_token(42);
+    // do print(token);  ← COMPILE ERROR: cannot log Sensitive value
+    do print("token issued");
+    do exit(0);
+}

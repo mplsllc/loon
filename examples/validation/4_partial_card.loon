@@ -1,0 +1,15 @@
+// Validation Program 4: Display partial card number
+// expose() is the escape hatch — requires reason + Audit effect.
+// The exposed value becomes Public and can be printed.
+module payment;
+
+fn confirm_card(card: Sensitive<String>) [IO, Audit] -> Unit {
+    let visible: Public<String> = expose(card, "user identity confirmation during checkout");
+    do print("Card: " + visible);
+}
+
+fn main() [IO, Audit] -> Unit {
+    let card: Sensitive<String> = "4111111111111234";
+    do confirm_card(card);
+    do exit(0);
+}
