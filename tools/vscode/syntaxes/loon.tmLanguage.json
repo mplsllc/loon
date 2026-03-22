@@ -1,0 +1,74 @@
+{
+  "scopeName": "source.loon",
+  "patterns": [
+    {"include": "#comments"},
+    {"include": "#keywords"},
+    {"include": "#types"},
+    {"include": "#strings"},
+    {"include": "#numbers"},
+    {"include": "#operators"},
+    {"include": "#constructors"},
+    {"include": "#functions"}
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [{
+        "name": "comment.line.double-slash.loon",
+        "match": "//.*$"
+      }]
+    },
+    "keywords": {
+      "patterns": [{
+        "name": "keyword.control.loon",
+        "match": "\\b(fn|let|type|match|for|in|do|module|imports|exports|sequential|true|false)\\b"
+      }, {
+        "name": "keyword.operator.arrow.loon",
+        "match": "->|\\|>"
+      }]
+    },
+    "types": {
+      "patterns": [{
+        "name": "entity.name.type.loon",
+        "match": "\\b(Int|Bool|String|Float|Unit|Array|Option|Result)\\b"
+      }, {
+        "name": "storage.modifier.effect.loon",
+        "match": "\\[IO\\]|\\[\\]"
+      }]
+    },
+    "strings": {
+      "patterns": [{
+        "name": "string.quoted.double.loon",
+        "begin": "\"",
+        "end": "\"",
+        "patterns": [{"name": "constant.character.escape.loon", "match": "\\\\."}]
+      }]
+    },
+    "numbers": {
+      "patterns": [{
+        "name": "constant.numeric.float.loon",
+        "match": "\\b[0-9]+\\.[0-9]+\\b"
+      }, {
+        "name": "constant.numeric.integer.loon",
+        "match": "\\b[0-9]+\\b"
+      }]
+    },
+    "operators": {
+      "patterns": [{
+        "name": "keyword.operator.loon",
+        "match": "==|!=|<=|>=|&&|\\|\\||[+\\-*/%<>=!]"
+      }]
+    },
+    "constructors": {
+      "patterns": [{
+        "name": "entity.name.tag.loon",
+        "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+      }]
+    },
+    "functions": {
+      "patterns": [{
+        "name": "entity.name.function.loon",
+        "match": "\\b([a-z_][a-zA-Z0-9_]*)\\s*(?=\\()"
+      }]
+    }
+  }
+}

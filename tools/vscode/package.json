@@ -1,0 +1,24 @@
+{
+  "name": "loon-language",
+  "displayName": "Loon Language",
+  "description": "Language support for the Loon programming language",
+  "version": "0.1.0",
+  "publisher": "mplsllc",
+  "engines": {"vscode": "^1.80.0"},
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "loon",
+      "aliases": ["Loon", "loon"],
+      "extensions": [".loon"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "loon",
+      "scopeName": "source.loon",
+      "path": "./syntaxes/loon.tmLanguage.json"
+    }]
+  },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:loon"]
+}
