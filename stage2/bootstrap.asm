@@ -52939,6 +52939,11 @@ fn_ll_builtin:
     mov rax, 37
     pop r10
     mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    sub rax, rcx
     mov rdi, rax
     call _rt_int_to_string
     mov rcx, rdx
