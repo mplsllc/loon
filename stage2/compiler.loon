@@ -2859,8 +2859,8 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     lm_g[4199] = lm_g[4199] + 1;
     lm_g[31] = lm_disc;
     // Store discriminant temp — use g[4179] as scratch to avoid aryset clobber on computed index
-    lm_g[4139] = ll_expr(lm_g, lm_n, lm_s);
-    lm_g[4140 + lm_g[4199] - 1] = lm_g[4139];
+    lm_g[4100 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s); // depth-indexed disc scratch
+    lm_g[4140 + lm_g[4199] - 1] = lm_g[4100 + lm_g[4199] - 1];
     // Phase 1: Emit ALL comparisons as a chain before any arm bodies
     lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_ni * 10 + 5]; // first arm node
     for lm_ai in range(0, lm_ac) {
@@ -2908,8 +2908,8 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
         lm_g[4160 + lm_g[4199] * 2 + 1] = lm_g[4160 + lm_g[4199] * 2];
         do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_bi) + ":");
         lm_g[31] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 5]; // arm body
-        lm_g[4178] = ll_expr(lm_g, lm_n, lm_s); // scratch to avoid aryset clobber
-        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = lm_g[4178];
+        lm_g[4120 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s); // depth-indexed scratch
+        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = lm_g[4120 + lm_g[4199] - 1];
         // Ensure arm result is a valid i64 temp
         match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] == 0 { true -> {
             lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = ll_tmp(lm_g);
@@ -2931,6 +2931,29 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     lm_g[4199] = lm_g[4199] - 1; // restore depth
     lm_g[4193]
     } }
+}
+
+// Emit LLVM IR for a BLOCK expression — iterates children, returns last result.
+// Separate function to isolate local variables from recursive ll_expr calls.
+// ll_block_expr: evaluate block children, return last result.
+// Uses depth-indexed g[] slots to handle recursive block nesting.
+// g[4080+depth*2] = child cursor, g[4080+depth*2+1] = last result
+// ll_block_expr: evaluate block children, return last result.
+// Uses g[4097] as fixed scratch for fn call result (safe from aryset clobber).
+// Child cursor and result stored depth-indexed at g[4080+depth*2].
+fn ll_block_expr(be_g: Array<Int>, be_n: Array<Int>, be_s: Array<Int>, be_ni: Int) [IO] -> Int {
+    be_g[4099] = be_g[4099] + 1;
+    be_g[4080 + (be_g[4099] - 1) * 2] = be_n[be_ni * 10 + 5];
+    be_g[4080 + (be_g[4099] - 1) * 2 + 1] = 0;
+    for _be_i in range(0, be_n[be_ni * 10 + 4]) {
+        be_g[31] = be_g[4080 + (be_g[4099] - 1) * 2];
+        be_g[4097] = ll_expr(be_g, be_n, be_s); // FIXED slot — safe
+        be_g[4080 + (be_g[4099] - 1) * 2 + 1] = be_g[4097]; // copy to depth-indexed
+        be_g[4098] = be_g[4080 + (be_g[4099] - 1) * 2]; // read cursor to fixed slot
+        be_g[4080 + (be_g[4099] - 1) * 2] = be_n[be_g[4098] * 10 + 6]; // advance
+    };
+    be_g[4099] = be_g[4099] - 1;
+    be_g[4080 + be_g[4099] * 2 + 1]
 }
 
 // Emit LLVM IR for an expression. Dispatches by node type.
@@ -2957,7 +2980,7 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     false -> match le_nt == 15 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
     false -> match le_nt == 6 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
     false -> match le_nt == 5 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 3 { true -> { let le_bci: Array<Int> = Array(1); le_bci[0] = le_n[le_ni * 10 + 5]; let le_last: Array<Int> = Array(1); le_last[0] = 0; for _le_bi in range(0, le_n[le_ni * 10 + 4]) { le_g[31] = le_bci[0]; le_last[0] = ll_expr(le_g, le_n, le_s); le_bci[0] = le_n[le_bci[0] * 10 + 6]; }; le_last[0] },
+    false -> match le_nt == 3 { true -> ll_block_expr(le_g, le_n, le_s, le_ni),
     false -> match le_nt == 4 { true -> { le_g[31] = le_ni; do ll_stmt(le_g, le_n, le_s); let le_lt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_lt) + " = add i64 0, 0"); le_lt },
     false -> match le_nt == 19 { true -> ll_arynew(le_g, le_n, le_s),
     false -> match le_nt == 20 { true -> ll_aryget(le_g, le_n, le_s),
