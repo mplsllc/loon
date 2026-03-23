@@ -2833,47 +2833,53 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     let lm_ac: Int = lm_n[lm_ni * 10 + 4];
     let lm_disc: Int = lm_n[lm_ni * 10 + 8];
     let lm_mid: Int = lm_g[34]; lm_g[34] = lm_g[34] + 1;
+    // Match depth tracking — g[4199] = current depth, results at g[4200 + depth*16 + arm]
+    lm_g[4199] = lm_g[4199] + 1;
     lm_g[31] = lm_disc;
-    let lm_dt: Int = ll_expr(lm_g, lm_n, lm_s);
-    let lm_arm: Array<Int> = Array(1); lm_arm[0] = lm_n[lm_ni * 10 + 5];
-    let lm_res: Array<Int> = Array(16);
+    lm_g[4198] = ll_expr(lm_g, lm_n, lm_s); // discriminant temp in g[] (immune to clobber)
+    lm_g[4197] = lm_n[lm_ni * 10 + 5]; // first arm node
     for lm_ai in range(0, lm_ac) {
-        let lm_an: Int = lm_arm[0];
-        let lm_sub: Int = lm_n[lm_an * 10 + 1];
-        let lm_pat: Int = lm_n[lm_an * 10 + 8];
-        match lm_sub == 1 {
+        lm_g[4196] = lm_g[4197]; // current arm node
+        lm_g[4195] = lm_n[lm_g[4196] * 10 + 1]; // sub_type
+        lm_g[4194] = lm_n[lm_g[4196] * 10 + 8]; // pattern value
+        match lm_g[4195] == 1 {
             true -> do print("    br label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
             false -> {
-                let lm_ct: Int = ll_tmp(lm_g);
-                do print("    %t" + int_to_string(lm_ct) + " = icmp eq i64 %t" + int_to_string(lm_dt) + ", " + int_to_string(lm_pat));
+                lm_g[4193] = ll_tmp(lm_g);
+                do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4198]) + ", " + int_to_string(lm_g[4194]));
                 match lm_ai + 1 < lm_ac {
-                    true -> do print("    br i1 %t" + int_to_string(lm_ct) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1)),
-                    false -> do print("    br i1 %t" + int_to_string(lm_ct) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
+                    true -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1)),
+                    false -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
                 };
             },
         };
         do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ":");
-        lm_g[31] = lm_n[lm_an * 10 + 5];
-        lm_res[lm_ai] = ll_expr(lm_g, lm_n, lm_s);
-        // Join block — predictable predecessor for phi
+        lm_g[31] = lm_n[lm_g[4196] * 10 + 5];
+        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = ll_expr(lm_g, lm_n, lm_s);
+        // Ensure arm result is a valid i64 temp (not stale %t0 from empty blocks)
+        match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] == 0 { true -> {
+            lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = ll_tmp(lm_g);
+            do print("    %t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai]) + " = add i64 0, 0");
+        }, false -> { } };
         do print("    br label %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai));
         do print("m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai) + ":");
         do print("    br label %m" + int_to_string(lm_mid) + "_end");
         match lm_ai + 1 < lm_ac {
-            true -> match lm_sub == 1 { true -> { }, false -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":") },
+            true -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":"),
             false -> { },
         };
-        lm_arm[0] = lm_n[lm_an * 10 + 6];
+        lm_g[4197] = lm_n[lm_g[4196] * 10 + 6]; // next arm
     };
     do print("m" + int_to_string(lm_mid) + "_end:");
-    let lm_rt: Int = ll_tmp(lm_g);
-    do print_raw("    %t" + int_to_string(lm_rt) + " = phi i64 ");
+    lm_g[4193] = ll_tmp(lm_g);
+    do print_raw("    %t" + int_to_string(lm_g[4193]) + " = phi i64 ");
     for lm_pi in range(0, lm_ac) {
         match lm_pi > 0 { true -> do print_raw(", "), false -> { } };
-        do print_raw("[%t" + int_to_string(lm_res[lm_pi]) + ", %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_pi) + "]");
+        do print_raw("[%t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_pi]) + ", %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_pi) + "]");
     };
     do print("");
-    lm_rt
+    lm_g[4199] = lm_g[4199] - 1; // restore depth
+    lm_g[4193]
     } }
 }
 
