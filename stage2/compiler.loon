@@ -2886,7 +2886,9 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
                     },
                     false -> {
                         lm_g[4193] = ll_tmp(lm_g);
-                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4720 + lm_g[4199] - 1]));
+                        lm_g[40] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 2];
+                        lm_g[41] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 3];
+                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + ", " + int_to_string(match lm_g[41] > 0 { true -> str2int(lm_g, lm_s), false -> lm_g[4720 + lm_g[4199] - 1] }));
                     },
                 };
                 match lm_ai + 1 < lm_g[4020 + lm_g[4199] - 1] {

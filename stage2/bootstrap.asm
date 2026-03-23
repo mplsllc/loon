@@ -62600,6 +62600,96 @@ fn_ll_match:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 40
+    push rax
+    mov r10, qword [rbp-32]
+    push r10
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4160
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 2
+    mov rcx, rax
+    pop rax
+    imul rax, rcx
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 10
+    mov rcx, rax
+    pop rax
+    imul rax, rcx
+    push rax
+    mov rax, 2
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 41
+    push rax
+    mov r10, qword [rbp-32]
+    push r10
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4160
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 2
+    mov rcx, rax
+    pop rax
+    imul rax, rcx
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 10
+    mov rcx, rax
+    pop rax
+    imul rax, rcx
+    push rax
+    mov rax, 3
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
     lea rax, [rel _s1000]
     mov rdx, _s1000_len
     push rdx
@@ -62666,6 +62756,39 @@ fn_ll_match:
     push rax
     mov r10, qword [rbp-16]
     push r10
+    mov rax, 41
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 0
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    setg al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm723_a0
+    cmp r15, 0
+    je .Lm723_a1
+.Lm723_a0:
+    mov rax, qword [rbp-16]
+    mov rdx, qword [rbp-8]
+    push rdx
+    push rax
+    mov rax, qword [rbp-48]
+    mov rdx, qword [rbp-40]
+    push rdx
+    push rax
+    pop rdx
+    pop rcx
+    pop rdi
+    pop rsi
+    call fn_str2int
+    jmp .Lm723_end
+.Lm723_a1:
+    mov r10, qword [rbp-16]
+    push r10
     mov rax, 4720
     push rax
     mov r10, qword [rbp-16]
@@ -62683,6 +62806,8 @@ fn_ll_match:
     sub rax, rcx
     pop r10
     mov rax, qword [r10 + rax*8]
+    jmp .Lm723_end
+.Lm723_end:
     mov rdi, rax
     call _rt_int_to_string
     mov rcx, rdx
@@ -62734,10 +62859,10 @@ fn_ll_match:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm723_a0
+    je .Lm724_a0
     cmp r15, 0
-    je .Lm723_a1
-.Lm723_a0:
+    je .Lm724_a1
+.Lm724_a0:
     lea rax, [rel _s1003]
     mov rdx, _s1003_len
     push rdx
@@ -62880,8 +63005,8 @@ fn_ll_match:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm723_end
-.Lm723_a1:
+    jmp .Lm724_end
+.Lm724_a1:
     lea rax, [rel _s1008]
     mov rdx, _s1008_len
     push rdx
@@ -63019,8 +63144,8 @@ fn_ll_match:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm723_end
-.Lm723_end:
+    jmp .Lm724_end
+.Lm724_end:
     jmp .Lm721_end
 .Lm721_end:
     lea rax, [rel _s1013]
@@ -63235,10 +63360,10 @@ fn_ll_match:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm724_a0
+    je .Lm725_a0
     cmp r15, 0
-    je .Lm724_a1
-.Lm724_a0:
+    je .Lm725_a1
+.Lm725_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 4200
@@ -63335,10 +63460,10 @@ fn_ll_match:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm724_end
-.Lm724_a1:
-    jmp .Lm724_end
-.Lm724_end:
+    jmp .Lm725_end
+.Lm725_a1:
+    jmp .Lm725_end
+.Lm725_end:
     lea rax, [rel _s1018]
     mov rdx, _s1018_len
     push rdx
@@ -63545,10 +63670,10 @@ fn_ll_match:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm725_a0
+    je .Lm726_a0
     cmp r15, 0
-    je .Lm725_a1
-.Lm725_a0:
+    je .Lm726_a1
+.Lm726_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 4700
@@ -63577,12 +63702,12 @@ fn_ll_match:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm726_a0
+    je .Lm727_a0
     cmp r15, 0
-    je .Lm726_a1
-.Lm726_a0:
-    jmp .Lm726_end
-.Lm726_a1:
+    je .Lm727_a1
+.Lm727_a0:
+    jmp .Lm727_end
+.Lm727_a1:
     lea rax, [rel _s1025]
     mov rdx, _s1025_len
     push rdx
@@ -63655,12 +63780,12 @@ fn_ll_match:
     mov rdx, 1
     mov rax, 1
     syscall
+    jmp .Lm727_end
+.Lm727_end:
+    jmp .Lm726_end
+.Lm726_a1:
     jmp .Lm726_end
 .Lm726_end:
-    jmp .Lm725_end
-.Lm725_a1:
-    jmp .Lm725_end
-.Lm725_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 4160
@@ -63836,10 +63961,10 @@ fn_ll_match:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-104], rax
-.Lf727_top:
+.Lf728_top:
     mov rax, qword [rbp-96]
     cmp rax, qword [rbp-104]
-    jge .Lf727_end
+    jge .Lf728_end
     mov rax, qword [rbp-96]
     push rax
     mov rax, 0
@@ -63850,20 +63975,20 @@ fn_ll_match:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm728_a0
+    je .Lm729_a0
     cmp r15, 0
-    je .Lm728_a1
-.Lm728_a0:
+    je .Lm729_a1
+.Lm729_a0:
     lea rax, [rel _s1032]
     mov rdx, _s1032_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
-    jmp .Lm728_end
-.Lm728_a1:
-    jmp .Lm728_end
-.Lm728_end:
+    jmp .Lm729_end
+.Lm729_a1:
+    jmp .Lm729_end
+.Lm729_end:
     lea rax, [rel _s1033]
     mov rdx, _s1033_len
     push rdx
@@ -63974,8 +64099,8 @@ fn_ll_match:
     mov rax, 1
     syscall
     inc qword [rbp-96]
-    jmp .Lf727_top
-.Lf727_end:
+    jmp .Lf728_top
+.Lf728_end:
     lea rax, [rel _s1037]
     mov rdx, _s1037_len
     mov rsi, rax
@@ -64153,10 +64278,10 @@ fn_ll_block_expr:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-64], rax
-.Lf729_top:
+.Lf730_top:
     mov rax, qword [rbp-56]
     cmp rax, qword [rbp-64]
-    jge .Lf729_end
+    jge .Lf730_end
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -64355,8 +64480,8 @@ fn_ll_block_expr:
     pop r10
     mov qword [r10 + rcx*8], rax
     inc qword [rbp-56]
-    jmp .Lf729_top
-.Lf729_end:
+    jmp .Lf730_top
+.Lf730_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 4099
@@ -64439,10 +64564,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm730_a0
+    je .Lm731_a0
     cmp r15, 0
-    je .Lm730_a1
-.Lm730_a0:
+    je .Lm731_a1
+.Lm731_a0:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -64519,10 +64644,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm731_a0
+    je .Lm732_a0
     cmp r15, 0
-    je .Lm731_a1
-.Lm731_a0:
+    je .Lm732_a1
+.Lm732_a0:
     lea rax, [rel _s1038]
     mov rdx, _s1038_len
     push rdx
@@ -64556,10 +64681,10 @@ fn_ll_expr:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-88], rax
-.Lf732_top:
+.Lf733_top:
     mov rax, qword [rbp-80]
     cmp rax, qword [rbp-88]
-    jge .Lf732_end
+    jge .Lf733_end
     mov r10, qword [rbp-48]
     push r10
     mov r10, qword [rbp-16]
@@ -64577,8 +64702,8 @@ fn_ll_expr:
     mov rdi, rax
     call _rt_print_byte
     inc qword [rbp-80]
-    jmp .Lf732_top
-.Lf732_end:
+    jmp .Lf733_top
+.Lf733_end:
     lea rax, [rel _s1040]
     mov rdx, _s1040_len
     mov rsi, rax
@@ -64598,8 +64723,8 @@ fn_ll_expr:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
-    jmp .Lm731_end
-.Lm731_a1:
+    jmp .Lm732_end
+.Lm732_a1:
     lea rax, [rel _s1041]
     mov rdx, _s1041_len
     push rdx
@@ -64660,11 +64785,11 @@ fn_ll_expr:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
-    jmp .Lm731_end
-.Lm731_end:
+    jmp .Lm732_end
+.Lm732_end:
     mov rax, qword [rbp-72]
-    jmp .Lm730_end
-.Lm730_a1:
+    jmp .Lm731_end
+.Lm731_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 8
@@ -64675,10 +64800,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm733_a0
+    je .Lm734_a0
     cmp r15, 0
-    je .Lm733_a1
-.Lm733_a0:
+    je .Lm734_a1
+.Lm734_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 35
@@ -64929,8 +65054,8 @@ fn_ll_expr:
     mov rax, 38
     pop r10
     mov rax, qword [r10 + rax*8]
-    jmp .Lm733_end
-.Lm733_a1:
+    jmp .Lm734_end
+.Lm734_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 9
@@ -64941,10 +65066,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm734_a0
+    je .Lm735_a0
     cmp r15, 0
-    je .Lm734_a1
-.Lm734_a0:
+    je .Lm735_a1
+.Lm735_a0:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -65008,46 +65133,11 @@ fn_ll_expr:
     mov rax, 1
     syscall
     mov rax, qword [rbp-96]
-    jmp .Lm734_end
-.Lm734_a1:
-    mov rax, qword [rbp-64]
-    push rax
-    mov rax, 11
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
-    je .Lm735_a0
-    cmp r15, 0
-    je .Lm735_a1
-.Lm735_a0:
-    mov rax, qword [rbp-16]
-    mov rdx, qword [rbp-8]
-    push rdx
-    push rax
-    mov rax, qword [rbp-32]
-    mov rdx, qword [rbp-24]
-    push rdx
-    push rax
-    mov rax, qword [rbp-48]
-    mov rdx, qword [rbp-40]
-    push rdx
-    push rax
-    pop r8
-    pop r9
-    pop rdx
-    pop rcx
-    pop rdi
-    pop rsi
-    call fn_ll_binop
     jmp .Lm735_end
 .Lm735_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 10
+    mov rax, 11
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65077,12 +65167,12 @@ fn_ll_expr:
     pop rcx
     pop rdi
     pop rsi
-    call fn_ll_ident
+    call fn_ll_binop
     jmp .Lm736_end
 .Lm736_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 14
+    mov rax, 10
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65094,6 +65184,41 @@ fn_ll_expr:
     cmp r15, 0
     je .Lm737_a1
 .Lm737_a0:
+    mov rax, qword [rbp-16]
+    mov rdx, qword [rbp-8]
+    push rdx
+    push rax
+    mov rax, qword [rbp-32]
+    mov rdx, qword [rbp-24]
+    push rdx
+    push rax
+    mov rax, qword [rbp-48]
+    mov rdx, qword [rbp-40]
+    push rdx
+    push rax
+    pop r8
+    pop r9
+    pop rdx
+    pop rcx
+    pop rdi
+    pop rsi
+    call fn_ll_ident
+    jmp .Lm737_end
+.Lm737_a1:
+    mov rax, qword [rbp-64]
+    push rax
+    mov rax, 14
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm738_a0
+    cmp r15, 0
+    je .Lm738_a1
+.Lm738_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 40
@@ -65162,10 +65287,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm738_a0
+    je .Lm739_a0
     cmp r15, 0
-    je .Lm738_a1
-.Lm738_a0:
+    je .Lm739_a1
+.Lm739_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 140
@@ -65201,8 +65326,8 @@ fn_ll_expr:
     pop rdi
     pop rsi
     call fn_ll_builtin
-    jmp .Lm738_end
-.Lm738_a1:
+    jmp .Lm739_end
+.Lm739_a1:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -65230,10 +65355,10 @@ fn_ll_expr:
     pop rdi
     pop rsi
     call fn_ll_call
+    jmp .Lm739_end
+.Lm739_end:
     jmp .Lm738_end
-.Lm738_end:
-    jmp .Lm737_end
-.Lm737_a1:
+.Lm738_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 16
@@ -65244,10 +65369,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm739_a0
+    je .Lm740_a0
     cmp r15, 0
-    je .Lm739_a1
-.Lm739_a0:
+    je .Lm740_a1
+.Lm740_a0:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -65267,68 +65392,11 @@ fn_ll_expr:
     pop rdi
     pop rsi
     call fn_ll_match
-    jmp .Lm739_end
-.Lm739_a1:
-    mov rax, qword [rbp-64]
-    push rax
-    mov rax, 15
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
-    je .Lm740_a0
-    cmp r15, 0
-    je .Lm740_a1
-.Lm740_a0:
-    mov r10, qword [rbp-16]
-    push r10
-    mov rax, 31
-    push rax
-    mov r10, qword [rbp-32]
-    push r10
-    mov rax, qword [rbp-56]
-    push rax
-    mov rax, 10
-    mov rcx, rax
-    pop rax
-    imul rax, rcx
-    push rax
-    mov rax, 5
-    mov rcx, rax
-    pop rax
-    add rax, rcx
-    pop r10
-    mov rax, qword [r10 + rax*8]
-    pop rcx
-    pop r10
-    mov qword [r10 + rcx*8], rax
-    mov rax, qword [rbp-16]
-    mov rdx, qword [rbp-8]
-    push rdx
-    push rax
-    mov rax, qword [rbp-32]
-    mov rdx, qword [rbp-24]
-    push rdx
-    push rax
-    mov rax, qword [rbp-48]
-    mov rdx, qword [rbp-40]
-    push rdx
-    push rax
-    pop r8
-    pop r9
-    pop rdx
-    pop rcx
-    pop rdi
-    pop rsi
-    call fn_ll_expr
     jmp .Lm740_end
 .Lm740_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 6
+    mov rax, 15
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65385,7 +65453,7 @@ fn_ll_expr:
 .Lm741_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 5
+    mov rax, 6
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65442,7 +65510,7 @@ fn_ll_expr:
 .Lm742_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 3
+    mov rax, 5
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65454,6 +65522,63 @@ fn_ll_expr:
     cmp r15, 0
     je .Lm743_a1
 .Lm743_a0:
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 31
+    push rax
+    mov r10, qword [rbp-32]
+    push r10
+    mov rax, qword [rbp-56]
+    push rax
+    mov rax, 10
+    mov rcx, rax
+    pop rax
+    imul rax, rcx
+    push rax
+    mov rax, 5
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
+    mov rax, qword [rbp-16]
+    mov rdx, qword [rbp-8]
+    push rdx
+    push rax
+    mov rax, qword [rbp-32]
+    mov rdx, qword [rbp-24]
+    push rdx
+    push rax
+    mov rax, qword [rbp-48]
+    mov rdx, qword [rbp-40]
+    push rdx
+    push rax
+    pop r8
+    pop r9
+    pop rdx
+    pop rcx
+    pop rdi
+    pop rsi
+    call fn_ll_expr
+    jmp .Lm743_end
+.Lm743_a1:
+    mov rax, qword [rbp-64]
+    push rax
+    mov rax, 3
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm744_a0
+    cmp r15, 0
+    je .Lm744_a1
+.Lm744_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -65481,8 +65606,8 @@ fn_ll_expr:
     pop rdi
     pop rsi
     call fn_ll_block_expr
-    jmp .Lm743_end
-.Lm743_a1:
+    jmp .Lm744_end
+.Lm744_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 4
@@ -65493,10 +65618,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm744_a0
+    je .Lm745_a0
     cmp r15, 0
-    je .Lm744_a1
-.Lm744_a0:
+    je .Lm745_a1
+.Lm745_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -65563,46 +65688,11 @@ fn_ll_expr:
     mov rax, 1
     syscall
     mov rax, qword [rbp-112]
-    jmp .Lm744_end
-.Lm744_a1:
-    mov rax, qword [rbp-64]
-    push rax
-    mov rax, 19
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
-    je .Lm745_a0
-    cmp r15, 0
-    je .Lm745_a1
-.Lm745_a0:
-    mov rax, qword [rbp-16]
-    mov rdx, qword [rbp-8]
-    push rdx
-    push rax
-    mov rax, qword [rbp-32]
-    mov rdx, qword [rbp-24]
-    push rdx
-    push rax
-    mov rax, qword [rbp-48]
-    mov rdx, qword [rbp-40]
-    push rdx
-    push rax
-    pop r8
-    pop r9
-    pop rdx
-    pop rcx
-    pop rdi
-    pop rsi
-    call fn_ll_arynew
     jmp .Lm745_end
 .Lm745_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 20
+    mov rax, 19
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65632,12 +65722,12 @@ fn_ll_expr:
     pop rcx
     pop rdi
     pop rsi
-    call fn_ll_aryget
+    call fn_ll_arynew
     jmp .Lm746_end
 .Lm746_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 18
+    mov rax, 20
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -65649,6 +65739,41 @@ fn_ll_expr:
     cmp r15, 0
     je .Lm747_a1
 .Lm747_a0:
+    mov rax, qword [rbp-16]
+    mov rdx, qword [rbp-8]
+    push rdx
+    push rax
+    mov rax, qword [rbp-32]
+    mov rdx, qword [rbp-24]
+    push rdx
+    push rax
+    mov rax, qword [rbp-48]
+    mov rdx, qword [rbp-40]
+    push rdx
+    push rax
+    pop r8
+    pop r9
+    pop rdx
+    pop rcx
+    pop rdi
+    pop rsi
+    call fn_ll_aryget
+    jmp .Lm747_end
+.Lm747_a1:
+    mov rax, qword [rbp-64]
+    push rax
+    mov rax, 18
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm748_a0
+    cmp r15, 0
+    je .Lm748_a1
+.Lm748_a0:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -65707,8 +65832,8 @@ fn_ll_expr:
     mov rax, 1
     syscall
     mov rax, qword [rbp-120]
-    jmp .Lm747_end
-.Lm747_a1:
+    jmp .Lm748_end
+.Lm748_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 21
@@ -65719,10 +65844,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm748_a0
+    je .Lm749_a0
     cmp r15, 0
-    je .Lm748_a1
-.Lm748_a0:
+    je .Lm749_a1
+.Lm749_a0:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -65781,8 +65906,8 @@ fn_ll_expr:
     mov rax, 1
     syscall
     mov rax, qword [rbp-128]
-    jmp .Lm748_end
-.Lm748_a1:
+    jmp .Lm749_end
+.Lm749_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 24
@@ -65793,10 +65918,10 @@ fn_ll_expr:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm749_a0
+    je .Lm750_a0
     cmp r15, 0
-    je .Lm749_a1
-.Lm749_a0:
+    je .Lm750_a1
+.Lm750_a0:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -65816,8 +65941,8 @@ fn_ll_expr:
     pop rdi
     pop rsi
     call fn_ll_vnew
-    jmp .Lm749_end
-.Lm749_a1:
+    jmp .Lm750_end
+.Lm750_a1:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     push rdx
@@ -65867,6 +65992,8 @@ fn_ll_expr:
     mov rax, 1
     syscall
     mov rax, qword [rbp-136]
+    jmp .Lm750_end
+.Lm750_end:
     jmp .Lm749_end
 .Lm749_end:
     jmp .Lm748_end
@@ -65887,8 +66014,8 @@ fn_ll_expr:
 .Lm741_end:
     jmp .Lm740_end
 .Lm740_end:
-    jmp .Lm739_end
-.Lm739_end:
+    jmp .Lm738_end
+.Lm738_end:
     jmp .Lm737_end
 .Lm737_end:
     jmp .Lm736_end
@@ -65897,10 +66024,8 @@ fn_ll_expr:
 .Lm735_end:
     jmp .Lm734_end
 .Lm734_end:
-    jmp .Lm733_end
-.Lm733_end:
-    jmp .Lm730_end
-.Lm730_end:
+    jmp .Lm731_end
+.Lm731_end:
     mov rsp, rbp
     pop rbp
     ret
@@ -65942,10 +66067,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm750_a0
+    je .Lm751_a0
     cmp r15, 0
-    je .Lm750_a1
-.Lm750_a0:
+    je .Lm751_a1
+.Lm751_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 50
@@ -66120,10 +66245,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm751_a0
+    je .Lm752_a0
     cmp r15, 0
-    je .Lm751_a1
-.Lm751_a0:
+    je .Lm752_a1
+.Lm752_a0:
     lea rax, [rel _s1061]
     mov rdx, _s1061_len
     push rdx
@@ -66154,8 +66279,8 @@ fn_ll_stmt:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm751_end
-.Lm751_a1:
+    jmp .Lm752_end
+.Lm752_a1:
     lea rax, [rel _s1063]
     mov rdx, _s1063_len
     push rdx
@@ -66186,8 +66311,8 @@ fn_ll_stmt:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm751_end
-.Lm751_end:
+    jmp .Lm752_end
+.Lm752_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -66240,10 +66365,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm752_a0
+    je .Lm753_a0
     cmp r15, 0
-    je .Lm752_a1
-.Lm752_a0:
+    je .Lm753_a1
+.Lm753_a0:
     lea rax, [rel _s1065]
     mov rdx, _s1065_len
     push rdx
@@ -66284,8 +66409,8 @@ fn_ll_stmt:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm752_end
-.Lm752_a1:
+    jmp .Lm753_end
+.Lm753_a1:
     lea rax, [rel _s1067]
     mov rdx, _s1067_len
     push rdx
@@ -66326,10 +66451,10 @@ fn_ll_stmt:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm752_end
-.Lm752_end:
-    jmp .Lm750_end
-.Lm750_a1:
+    jmp .Lm753_end
+.Lm753_end:
+    jmp .Lm751_end
+.Lm751_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 5
@@ -66340,10 +66465,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm753_a0
+    je .Lm754_a0
     cmp r15, 0
-    je .Lm753_a1
-.Lm753_a0:
+    je .Lm754_a1
+.Lm754_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -66386,8 +66511,8 @@ fn_ll_stmt:
     pop rsi
     call fn_ll_expr
     mov qword [rbp-96], rax
-    jmp .Lm753_end
-.Lm753_a1:
+    jmp .Lm754_end
+.Lm754_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 6
@@ -66398,10 +66523,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm754_a0
+    je .Lm755_a0
     cmp r15, 0
-    je .Lm754_a1
-.Lm754_a0:
+    je .Lm755_a1
+.Lm755_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -66458,10 +66583,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm755_a0
+    je .Lm756_a0
     cmp r15, 0
-    je .Lm755_a1
-.Lm755_a0:
+    je .Lm756_a1
+.Lm756_a0:
     lea rax, [rel _s1069]
     mov rdx, _s1069_len
     push rdx
@@ -66483,8 +66608,8 @@ fn_ll_stmt:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm755_end
-.Lm755_a1:
+    jmp .Lm756_end
+.Lm756_a1:
     lea rax, [rel _s1070]
     mov rdx, _s1070_len
     push rdx
@@ -66506,8 +66631,8 @@ fn_ll_stmt:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm755_end
-.Lm755_end:
+    jmp .Lm756_end
+.Lm756_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 33
@@ -66516,8 +66641,8 @@ fn_ll_stmt:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
-    jmp .Lm754_end
-.Lm754_a1:
+    jmp .Lm755_end
+.Lm755_a1:
     mov rax, qword [rbp-64]
     push rax
     mov rax, 15
@@ -66528,10 +66653,10 @@ fn_ll_stmt:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm756_a0
+    je .Lm757_a0
     cmp r15, 0
-    je .Lm756_a1
-.Lm756_a0:
+    je .Lm757_a1
+.Lm757_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -66574,54 +66699,11 @@ fn_ll_stmt:
     pop rsi
     call fn_ll_expr
     mov qword [rbp-112], rax
-    jmp .Lm756_end
-.Lm756_a1:
-    mov rax, qword [rbp-64]
-    push rax
-    mov rax, 18
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
-    je .Lm757_a0
-    cmp r15, 0
-    je .Lm757_a1
-.Lm757_a0:
-    mov r10, qword [rbp-16]
-    push r10
-    mov rax, 31
-    push rax
-    mov rax, qword [rbp-56]
-    pop rcx
-    pop r10
-    mov qword [r10 + rcx*8], rax
-    mov rax, qword [rbp-16]
-    mov rdx, qword [rbp-8]
-    push rdx
-    push rax
-    mov rax, qword [rbp-32]
-    mov rdx, qword [rbp-24]
-    push rdx
-    push rax
-    mov rax, qword [rbp-48]
-    mov rdx, qword [rbp-40]
-    push rdx
-    push rax
-    pop r8
-    pop r9
-    pop rdx
-    pop rcx
-    pop rdi
-    pop rsi
-    call fn_ll_for
     jmp .Lm757_end
 .Lm757_a1:
     mov rax, qword [rbp-64]
     push rax
-    mov rax, 21
+    mov rax, 18
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -66659,9 +66741,52 @@ fn_ll_stmt:
     pop rcx
     pop rdi
     pop rsi
-    call fn_ll_aryset
+    call fn_ll_for
     jmp .Lm758_end
 .Lm758_a1:
+    mov rax, qword [rbp-64]
+    push rax
+    mov rax, 21
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm759_a0
+    cmp r15, 0
+    je .Lm759_a1
+.Lm759_a0:
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 31
+    push rax
+    mov rax, qword [rbp-56]
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
+    mov rax, qword [rbp-16]
+    mov rdx, qword [rbp-8]
+    push rdx
+    push rax
+    mov rax, qword [rbp-32]
+    mov rdx, qword [rbp-24]
+    push rdx
+    push rax
+    mov rax, qword [rbp-48]
+    mov rdx, qword [rbp-40]
+    push rdx
+    push rax
+    pop r8
+    pop r9
+    pop rdx
+    pop rcx
+    pop rdi
+    pop rsi
+    call fn_ll_aryset
+    jmp .Lm759_end
+.Lm759_a1:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -66690,18 +66815,18 @@ fn_ll_stmt:
     pop rsi
     call fn_ll_expr
     mov qword [rbp-120], rax
+    jmp .Lm759_end
+.Lm759_end:
     jmp .Lm758_end
 .Lm758_end:
     jmp .Lm757_end
 .Lm757_end:
-    jmp .Lm756_end
-.Lm756_end:
+    jmp .Lm755_end
+.Lm755_end:
     jmp .Lm754_end
 .Lm754_end:
-    jmp .Lm753_end
-.Lm753_end:
-    jmp .Lm750_end
-.Lm750_end:
+    jmp .Lm751_end
+.Lm751_end:
     mov rsp, rbp
     pop rbp
     ret
@@ -66773,10 +66898,10 @@ fn_ll_block:
     mov qword [rbp-88], rax
     mov rax, qword [rbp-64]
     mov qword [rbp-96], rax
-.Lf759_top:
+.Lf760_top:
     mov rax, qword [rbp-88]
     cmp rax, qword [rbp-96]
-    jge .Lf759_end
+    jge .Lf760_end
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -66835,8 +66960,8 @@ fn_ll_block:
     pop r10
     mov qword [r10 + rcx*8], rax
     inc qword [rbp-88]
-    jmp .Lf759_top
-.Lf759_end:
+    jmp .Lf760_top
+.Lf760_end:
     mov rsp, rbp
     pop rbp
     ret
@@ -67005,34 +67130,34 @@ fn_ll_fn:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm760_a0
+    je .Lm761_a0
     cmp r15, 0
-    je .Lm760_a1
-.Lm760_a0:
+    je .Lm761_a1
+.Lm761_a0:
     lea rax, [rel _s1071]
     mov rdx, _s1071_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
-    jmp .Lm760_end
-.Lm760_a1:
+    jmp .Lm761_end
+.Lm761_a1:
     lea rax, [rel _s1072]
     mov rdx, _s1072_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
-    jmp .Lm760_end
-.Lm760_end:
+    jmp .Lm761_end
+.Lm761_end:
     mov rax, 0
     mov qword [rbp-96], rax
     mov rax, qword [rbp-72]
     mov qword [rbp-104], rax
-.Lf761_top:
+.Lf762_top:
     mov rax, qword [rbp-96]
     cmp rax, qword [rbp-104]
-    jge .Lf761_end
+    jge .Lf762_end
     mov r10, qword [rbp-48]
     push r10
     mov rax, qword [rbp-64]
@@ -67046,8 +67171,8 @@ fn_ll_fn:
     mov rdi, rax
     call _rt_print_byte
     inc qword [rbp-96]
-    jmp .Lf761_top
-.Lf761_end:
+    jmp .Lf762_top
+.Lf762_end:
     lea rax, [rel _s1073]
     mov rdx, _s1073_len
     mov rsi, rax
@@ -67089,10 +67214,10 @@ fn_ll_fn:
     mov qword [rbp-128], rax
     mov rax, qword [rbp-80]
     mov qword [rbp-136], rax
-.Lf762_top:
+.Lf763_top:
     mov rax, qword [rbp-128]
     cmp rax, qword [rbp-136]
-    jge .Lf762_end
+    jge .Lf763_end
     mov rax, qword [rbp-128]
     push rax
     mov rax, 0
@@ -67103,20 +67228,20 @@ fn_ll_fn:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm763_a0
+    je .Lm764_a0
     cmp r15, 0
-    je .Lm763_a1
-.Lm763_a0:
+    je .Lm764_a1
+.Lm764_a0:
     lea rax, [rel _s1074]
     mov rdx, _s1074_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
-    jmp .Lm763_end
-.Lm763_a1:
-    jmp .Lm763_end
-.Lm763_end:
+    jmp .Lm764_end
+.Lm764_a1:
+    jmp .Lm764_end
+.Lm764_end:
     mov r10, qword [rbp-32]
     push r10
     mov r10, qword [rbp-120]
@@ -67147,26 +67272,26 @@ fn_ll_fn:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm764_a0
+    je .Lm765_a0
     cmp r15, 0
-    je .Lm764_a1
-.Lm764_a0:
+    je .Lm765_a1
+.Lm765_a0:
     lea rax, [rel _s1075]
     mov rdx, _s1075_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
-    jmp .Lm764_end
-.Lm764_a1:
+    jmp .Lm765_end
+.Lm765_a1:
     lea rax, [rel _s1076]
     mov rdx, _s1076_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
-    jmp .Lm764_end
-.Lm764_end:
+    jmp .Lm765_end
+.Lm765_end:
     mov r10, qword [rbp-32]
     push r10
     mov r10, qword [rbp-120]
@@ -67211,10 +67336,10 @@ fn_ll_fn:
     mov qword [rbp-168], rax
     mov rax, qword [rbp-160]
     mov qword [rbp-176], rax
-.Lf765_top:
+.Lf766_top:
     mov rax, qword [rbp-168]
     cmp rax, qword [rbp-176]
-    jge .Lf765_end
+    jge .Lf766_end
     mov r10, qword [rbp-48]
     push r10
     mov rax, qword [rbp-152]
@@ -67228,8 +67353,8 @@ fn_ll_fn:
     mov rdi, rax
     call _rt_print_byte
     inc qword [rbp-168]
-    jmp .Lf765_top
-.Lf765_end:
+    jmp .Lf766_top
+.Lf766_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 51
@@ -67377,8 +67502,8 @@ fn_ll_fn:
     pop r10
     mov qword [r10 + rcx*8], rax
     inc qword [rbp-128]
-    jmp .Lf762_top
-.Lf762_end:
+    jmp .Lf763_top
+.Lf763_end:
     lea rax, [rel _s1077]
     mov rdx, _s1077_len
     mov rsi, rax
@@ -67436,10 +67561,10 @@ fn_ll_fn:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-192], rax
-.Lf766_top:
+.Lf767_top:
     mov rax, qword [rbp-184]
     cmp rax, qword [rbp-192]
-    jge .Lf766_end
+    jge .Lf767_end
     mov r10, qword [rbp-16]
     push r10
     mov rax, 51
@@ -67475,10 +67600,10 @@ fn_ll_fn:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm767_a0
+    je .Lm768_a0
     cmp r15, 0
-    je .Lm767_a1
-.Lm767_a0:
+    je .Lm768_a1
+.Lm768_a0:
     lea rax, [rel _s1079]
     mov rdx, _s1079_len
     push rdx
@@ -67500,13 +67625,13 @@ fn_ll_fn:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm767_end
-.Lm767_a1:
-    jmp .Lm767_end
-.Lm767_end:
+    jmp .Lm768_end
+.Lm768_a1:
+    jmp .Lm768_end
+.Lm768_end:
     inc qword [rbp-184]
-    jmp .Lf766_top
-.Lf766_end:
+    jmp .Lf767_top
+.Lf767_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 4120
@@ -67521,10 +67646,10 @@ fn_ll_fn:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm768_a0
+    je .Lm769_a0
     cmp r15, 0
-    je .Lm768_a1
-.Lm768_a0:
+    je .Lm769_a1
+.Lm769_a0:
     lea rax, [rel _s1080]
     mov rdx, _s1080_len
     mov rsi, rax
@@ -67536,8 +67661,8 @@ fn_ll_fn:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm768_end
-.Lm768_a1:
+    jmp .Lm769_end
+.Lm769_a1:
     lea rax, [rel _s1081]
     mov rdx, _s1081_len
     mov rsi, rax
@@ -67549,8 +67674,8 @@ fn_ll_fn:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm768_end
-.Lm768_end:
+    jmp .Lm769_end
+.Lm769_end:
     lea rax, [rel _s1082]
     mov rdx, _s1082_len
     mov rsi, rax
@@ -67612,10 +67737,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm769_a0
+    je .Lm770_a0
     cmp r15, 0
-    je .Lm769_a1
-.Lm769_a0:
+    je .Lm770_a1
+.Lm770_a0:
     lea rax, [rel _s1085]
     mov rdx, _s1085_len
     mov rsi, rax
@@ -67638,37 +67763,6 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm769_end
-.Lm769_a1:
-    mov r10, qword [rbp-16]
-    push r10
-    mov rax, 916
-    pop r10
-    mov rax, qword [r10 + rax*8]
-    push rax
-    mov rax, 1
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
-    je .Lm770_a0
-    cmp r15, 0
-    je .Lm770_a1
-.Lm770_a0:
-    lea rax, [rel _s1087]
-    mov rdx, _s1087_len
-    mov rsi, rax
-    mov rdi, 1
-    mov rax, 1
-    syscall
-    lea rsi, [rel _newline_byte]
-    mov rdi, 1
-    mov rdx, 1
-    mov rax, 1
-    syscall
     jmp .Lm770_end
 .Lm770_a1:
     mov r10, qword [rbp-16]
@@ -67677,7 +67771,7 @@ fn_cg_emit_llvm:
     pop r10
     mov rax, qword [r10 + rax*8]
     push rax
-    mov rax, 2
+    mov rax, 1
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -67689,8 +67783,8 @@ fn_cg_emit_llvm:
     cmp r15, 0
     je .Lm771_a1
 .Lm771_a0:
-    lea rax, [rel _s1088]
-    mov rdx, _s1088_len
+    lea rax, [rel _s1087]
+    mov rdx, _s1087_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
@@ -67708,7 +67802,7 @@ fn_cg_emit_llvm:
     pop r10
     mov rax, qword [r10 + rax*8]
     push rax
-    mov rax, 3
+    mov rax, 2
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -67720,8 +67814,8 @@ fn_cg_emit_llvm:
     cmp r15, 0
     je .Lm772_a1
 .Lm772_a0:
-    lea rax, [rel _s1089]
-    mov rdx, _s1089_len
+    lea rax, [rel _s1088]
+    mov rdx, _s1088_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
@@ -67733,6 +67827,37 @@ fn_cg_emit_llvm:
     syscall
     jmp .Lm772_end
 .Lm772_a1:
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 916
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 3
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm773_a0
+    cmp r15, 0
+    je .Lm773_a1
+.Lm773_a0:
+    lea rax, [rel _s1089]
+    mov rdx, _s1089_len
+    mov rsi, rax
+    mov rdi, 1
+    mov rax, 1
+    syscall
+    lea rsi, [rel _newline_byte]
+    mov rdi, 1
+    mov rdx, 1
+    mov rax, 1
+    syscall
+    jmp .Lm773_end
+.Lm773_a1:
     lea rax, [rel _s1090]
     mov rdx, _s1090_len
     mov rsi, rax
@@ -67744,14 +67869,14 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
+    jmp .Lm773_end
+.Lm773_end:
     jmp .Lm772_end
 .Lm772_end:
     jmp .Lm771_end
 .Lm771_end:
     jmp .Lm770_end
 .Lm770_end:
-    jmp .Lm769_end
-.Lm769_end:
     lea rax, [rel _s1091]
     mov rdx, _s1091_len
     mov rsi, rax
@@ -67777,10 +67902,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm773_a0
+    je .Lm774_a0
     cmp r15, 0
-    je .Lm773_a1
-.Lm773_a0:
+    je .Lm774_a1
+.Lm774_a0:
     lea rax, [rel _s1092]
     mov rdx, _s1092_len
     mov rsi, rax
@@ -67869,8 +67994,8 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm773_end
-.Lm773_a1:
+    jmp .Lm774_end
+.Lm774_a1:
     lea rax, [rel _s1100]
     mov rdx, _s1100_len
     mov rsi, rax
@@ -67992,8 +68117,8 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm773_end
-.Lm773_end:
+    jmp .Lm774_end
+.Lm774_end:
     lea rax, [rel _s1111]
     mov rdx, _s1111_len
     mov rsi, rax
@@ -68021,10 +68146,10 @@ fn_cg_emit_llvm:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-64], rax
-.Lf774_top:
+.Lf775_top:
     mov rax, qword [rbp-56]
     cmp rax, qword [rbp-64]
-    jge .Lf774_end
+    jge .Lf775_end
     mov r10, qword [rbp-32]
     push r10
     mov rax, qword [rbp-56]
@@ -68044,13 +68169,13 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm775_a0
+    je .Lm776_a0
     cmp r15, 0
-    je .Lm775_a1
-.Lm775_a0:
+    je .Lm776_a1
+.Lm776_a0:
     mov rax, 1
-    jmp .Lm775_end
-.Lm775_a1:
+    jmp .Lm776_end
+.Lm776_a1:
     mov r10, qword [rbp-32]
     push r10
     mov rax, qword [rbp-56]
@@ -68070,18 +68195,18 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm776_a0
+    je .Lm777_a0
     cmp r15, 0
-    je .Lm776_a1
-.Lm776_a0:
+    je .Lm777_a1
+.Lm777_a0:
     mov rax, 1
-    jmp .Lm776_end
-.Lm776_a1:
+    jmp .Lm777_end
+.Lm777_a1:
     mov rax, 0
+    jmp .Lm777_end
+.Lm777_end:
     jmp .Lm776_end
 .Lm776_end:
-    jmp .Lm775_end
-.Lm775_end:
     mov qword [rbp-72], rax
     mov rax, qword [rbp-72]
     push rax
@@ -68093,10 +68218,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm777_a0
+    je .Lm778_a0
     cmp r15, 0
-    je .Lm777_a1
-.Lm777_a0:
+    je .Lm778_a1
+.Lm778_a0:
     mov r10, qword [rbp-32]
     push r10
     mov rax, qword [rbp-56]
@@ -68186,10 +68311,10 @@ fn_cg_emit_llvm:
     mov qword [rbp-96], rax
     mov rax, qword [rbp-88]
     mov qword [rbp-104], rax
-.Lf778_top:
+.Lf779_top:
     mov rax, qword [rbp-96]
     cmp rax, qword [rbp-104]
-    jge .Lf778_end
+    jge .Lf779_end
     mov r10, qword [rbp-48]
     push r10
     mov rax, qword [rbp-80]
@@ -68211,35 +68336,13 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm779_a0
-    cmp r15, 0
-    je .Lm779_a1
-.Lm779_a0:
-    mov rax, qword [rbp-112]
-    push rax
-    mov rax, 34
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
     je .Lm780_a0
     cmp r15, 0
     je .Lm780_a1
 .Lm780_a0:
-    lea rax, [rel _s1115]
-    mov rdx, _s1115_len
-    mov rsi, rax
-    mov rdi, 1
-    mov rax, 1
-    syscall
-    jmp .Lm780_end
-.Lm780_a1:
     mov rax, qword [rbp-112]
     push rax
-    mov rax, 92
+    mov rax, 34
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -68251,8 +68354,8 @@ fn_cg_emit_llvm:
     cmp r15, 0
     je .Lm781_a1
 .Lm781_a0:
-    lea rax, [rel _s1116]
-    mov rdx, _s1116_len
+    lea rax, [rel _s1115]
+    mov rdx, _s1115_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
@@ -68260,17 +68363,8 @@ fn_cg_emit_llvm:
     jmp .Lm781_end
 .Lm781_a1:
     mov rax, qword [rbp-112]
-    mov rdi, rax
-    call _rt_print_byte
-    jmp .Lm781_end
-.Lm781_end:
-    jmp .Lm780_end
-.Lm780_end:
-    jmp .Lm779_end
-.Lm779_a1:
-    mov rax, qword [rbp-112]
     push rax
-    mov rax, 10
+    mov rax, 92
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -68282,8 +68376,8 @@ fn_cg_emit_llvm:
     cmp r15, 0
     je .Lm782_a1
 .Lm782_a0:
-    lea rax, [rel _s1117]
-    mov rdx, _s1117_len
+    lea rax, [rel _s1116]
+    mov rdx, _s1116_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
@@ -68291,8 +68385,17 @@ fn_cg_emit_llvm:
     jmp .Lm782_end
 .Lm782_a1:
     mov rax, qword [rbp-112]
+    mov rdi, rax
+    call _rt_print_byte
+    jmp .Lm782_end
+.Lm782_end:
+    jmp .Lm781_end
+.Lm781_end:
+    jmp .Lm780_end
+.Lm780_a1:
+    mov rax, qword [rbp-112]
     push rax
-    mov rax, 9
+    mov rax, 10
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -68304,29 +68407,51 @@ fn_cg_emit_llvm:
     cmp r15, 0
     je .Lm783_a1
 .Lm783_a0:
-    lea rax, [rel _s1118]
-    mov rdx, _s1118_len
+    lea rax, [rel _s1117]
+    mov rdx, _s1117_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
     jmp .Lm783_end
 .Lm783_a1:
+    mov rax, qword [rbp-112]
+    push rax
+    mov rax, 9
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm784_a0
+    cmp r15, 0
+    je .Lm784_a1
+.Lm784_a0:
+    lea rax, [rel _s1118]
+    mov rdx, _s1118_len
+    mov rsi, rax
+    mov rdi, 1
+    mov rax, 1
+    syscall
+    jmp .Lm784_end
+.Lm784_a1:
     lea rax, [rel _s1119]
     mov rdx, _s1119_len
     mov rsi, rax
     mov rdi, 1
     mov rax, 1
     syscall
+    jmp .Lm784_end
+.Lm784_end:
     jmp .Lm783_end
 .Lm783_end:
-    jmp .Lm782_end
-.Lm782_end:
-    jmp .Lm779_end
-.Lm779_end:
+    jmp .Lm780_end
+.Lm780_end:
     inc qword [rbp-96]
-    jmp .Lf778_top
-.Lf778_end:
+    jmp .Lf779_top
+.Lf779_end:
     lea rax, [rel _s1120]
     mov rdx, _s1120_len
     mov rsi, rax
@@ -68377,13 +68502,13 @@ fn_cg_emit_llvm:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
-    jmp .Lm777_end
-.Lm777_a1:
-    jmp .Lm777_end
-.Lm777_end:
+    jmp .Lm778_end
+.Lm778_a1:
+    jmp .Lm778_end
+.Lm778_end:
     inc qword [rbp-56]
-    jmp .Lf774_top
-.Lf774_end:
+    jmp .Lf775_top
+.Lf775_end:
     lea rax, [rel _s1121]
     mov rdx, _s1121_len
     mov rsi, rax
@@ -68475,10 +68600,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm784_a0
+    je .Lm785_a0
     cmp r15, 0
-    je .Lm784_a1
-.Lm784_a0:
+    je .Lm785_a1
+.Lm785_a0:
     lea rax, [rel _s1128]
     mov rdx, _s1128_len
     mov rsi, rax
@@ -68490,8 +68615,8 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm784_end
-.Lm784_a1:
+    jmp .Lm785_end
+.Lm785_a1:
     lea rax, [rel _s1129]
     mov rdx, _s1129_len
     mov rsi, rax
@@ -68514,8 +68639,8 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm784_end
-.Lm784_end:
+    jmp .Lm785_end
+.Lm785_end:
     lea rax, [rel _s1131]
     mov rdx, _s1131_len
     mov rsi, rax
@@ -68552,10 +68677,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm785_a0
+    je .Lm786_a0
     cmp r15, 0
-    je .Lm785_a1
-.Lm785_a0:
+    je .Lm786_a1
+.Lm786_a0:
     lea rax, [rel _s1133]
     mov rdx, _s1133_len
     mov rsi, rax
@@ -68974,10 +69099,10 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm785_end
-.Lm785_a1:
-    jmp .Lm785_end
-.Lm785_end:
+    jmp .Lm786_end
+.Lm786_a1:
+    jmp .Lm786_end
+.Lm786_end:
     lea rax, [rel _s1171]
     mov rdx, _s1171_len
     mov rsi, rax
@@ -68997,10 +69122,10 @@ fn_cg_emit_llvm:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-128], rax
-.Lf786_top:
+.Lf787_top:
     mov rax, qword [rbp-120]
     cmp rax, qword [rbp-128]
-    jge .Lf786_end
+    jge .Lf787_end
     mov r10, qword [rbp-32]
     push r10
     mov rax, qword [rbp-120]
@@ -69020,10 +69145,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm787_a0
+    je .Lm788_a0
     cmp r15, 0
-    je .Lm787_a1
-.Lm787_a0:
+    je .Lm788_a1
+.Lm788_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 31
@@ -69051,13 +69176,13 @@ fn_cg_emit_llvm:
     pop rdi
     pop rsi
     call fn_ll_fn
-    jmp .Lm787_end
-.Lm787_a1:
-    jmp .Lm787_end
-.Lm787_end:
+    jmp .Lm788_end
+.Lm788_a1:
+    jmp .Lm788_end
+.Lm788_end:
     inc qword [rbp-120]
-    jmp .Lf786_top
-.Lf786_end:
+    jmp .Lf787_top
+.Lf787_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 916
@@ -69072,10 +69197,10 @@ fn_cg_emit_llvm:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm788_a0
+    je .Lm789_a0
     cmp r15, 0
-    je .Lm788_a1
-.Lm788_a0:
+    je .Lm789_a1
+.Lm789_a0:
     lea rax, [rel _s1172]
     mov rdx, _s1172_len
     mov rsi, rax
@@ -69131,8 +69256,8 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm788_end
-.Lm788_a1:
+    jmp .Lm789_end
+.Lm789_a1:
     lea rax, [rel _s1177]
     mov rdx, _s1177_len
     mov rsi, rax
@@ -69188,8 +69313,8 @@ fn_cg_emit_llvm:
     mov rdx, 1
     mov rax, 1
     syscall
-    jmp .Lm788_end
-.Lm788_end:
+    jmp .Lm789_end
+.Lm789_end:
     mov rsp, rbp
     pop rbp
     ret
@@ -69219,10 +69344,10 @@ fn_ptarg:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm789_a0
+    je .Lm790_a0
     cmp r15, 0
-    je .Lm789_a1
-.Lm789_a0:
+    je .Lm790_a1
+.Lm790_a0:
     mov rax, 2
     mov rdi, rax
     call _rt_get_arg
@@ -69243,10 +69368,10 @@ fn_ptarg:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm790_a0
+    je .Lm791_a0
     cmp r15, 0
-    je .Lm790_a1
-.Lm790_a0:
+    je .Lm791_a1
+.Lm791_a0:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 0
@@ -69255,10 +69380,10 @@ fn_ptarg:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
-    jmp .Lm790_end
-.Lm790_a1:
-    jmp .Lm790_end
-.Lm790_end:
+    jmp .Lm791_end
+.Lm791_a1:
+    jmp .Lm791_end
+.Lm791_end:
     mov r10, qword [rbp-16]
     push r10
     mov rax, 1
@@ -69267,10 +69392,10 @@ fn_ptarg:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
-    jmp .Lm789_end
-.Lm789_a1:
-    jmp .Lm789_end
-.Lm789_end:
+    jmp .Lm790_end
+.Lm790_a1:
+    jmp .Lm790_end
+.Lm790_end:
     mov rsp, rbp
     pop rbp
     ret
@@ -69323,10 +69448,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm791_a0
+    je .Lm792_a0
     cmp r15, 0
-    je .Lm791_a1
-.Lm791_a0:
+    je .Lm792_a1
+.Lm792_a0:
     mov rax, 2
     mov rdi, rax
     call _rt_get_arg
@@ -69347,10 +69472,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm792_a0
+    je .Lm793_a0
     cmp r15, 0
-    je .Lm792_a1
-.Lm792_a0:
+    je .Lm793_a1
+.Lm793_a0:
     mov r10, qword [rbp-40]
     push r10
     mov rax, 0
@@ -69359,14 +69484,14 @@ fn_main:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
+    jmp .Lm793_end
+.Lm793_a1:
+    jmp .Lm793_end
+.Lm793_end:
     jmp .Lm792_end
 .Lm792_a1:
     jmp .Lm792_end
 .Lm792_end:
-    jmp .Lm791_end
-.Lm791_a1:
-    jmp .Lm791_end
-.Lm791_end:
     mov rax, qword [rbp-24]
     push rax
     mov rax, 8
@@ -69377,10 +69502,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm793_a0
+    je .Lm794_a0
     cmp r15, 0
-    je .Lm793_a1
-.Lm793_a0:
+    je .Lm794_a1
+.Lm794_a0:
     mov rax, 3
     mov rdi, rax
     call _rt_get_arg
@@ -69400,10 +69525,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm794_a0
+    je .Lm795_a0
     cmp r15, 0
-    je .Lm794_a1
-.Lm794_a0:
+    je .Lm795_a1
+.Lm795_a0:
     mov rax, qword [rbp-72]
     mov rdx, qword [rbp-64]
     push rax
@@ -69419,10 +69544,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm795_a0
+    je .Lm796_a0
     cmp r15, 0
-    je .Lm795_a1
-.Lm795_a0:
+    je .Lm796_a1
+.Lm796_a0:
     mov rax, 4
     mov rdi, rax
     call _rt_get_arg
@@ -69442,10 +69567,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm796_a0
+    je .Lm797_a0
     cmp r15, 0
-    je .Lm796_a1
-.Lm796_a0:
+    je .Lm797_a1
+.Lm797_a0:
     mov rax, qword [rbp-96]
     mov rdx, qword [rbp-88]
     push rax
@@ -69461,36 +69586,6 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm797_a0
-    cmp r15, 0
-    je .Lm797_a1
-.Lm797_a0:
-    mov r10, qword [rbp-40]
-    push r10
-    mov rax, 1
-    push rax
-    mov rax, 1
-    pop rcx
-    pop r10
-    mov qword [r10 + rcx*8], rax
-    jmp .Lm797_end
-.Lm797_a1:
-    jmp .Lm797_end
-.Lm797_end:
-    jmp .Lm796_end
-.Lm796_a1:
-    jmp .Lm796_end
-.Lm796_end:
-    mov rax, qword [rbp-104]
-    push rax
-    mov rax, 9
-    mov rcx, rax
-    pop rax
-    cmp rax, rcx
-    sete al
-    movzx rax, al
-    mov r15, rax
-    cmp r15, 1
     je .Lm798_a0
     cmp r15, 0
     je .Lm798_a1
@@ -69499,7 +69594,7 @@ fn_main:
     push r10
     mov rax, 1
     push rax
-    mov rax, 2
+    mov rax, 1
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
@@ -69507,9 +69602,13 @@ fn_main:
 .Lm798_a1:
     jmp .Lm798_end
 .Lm798_end:
+    jmp .Lm797_end
+.Lm797_a1:
+    jmp .Lm797_end
+.Lm797_end:
     mov rax, qword [rbp-104]
     push rax
-    mov rax, 7
+    mov rax, 9
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -69525,7 +69624,7 @@ fn_main:
     push r10
     mov rax, 1
     push rax
-    mov rax, 3
+    mov rax, 2
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
@@ -69535,7 +69634,7 @@ fn_main:
 .Lm799_end:
     mov rax, qword [rbp-104]
     push rax
-    mov rax, 4
+    mov rax, 7
     mov rcx, rax
     pop rax
     cmp rax, rcx
@@ -69547,6 +69646,32 @@ fn_main:
     cmp r15, 0
     je .Lm800_a1
 .Lm800_a0:
+    mov r10, qword [rbp-40]
+    push r10
+    mov rax, 1
+    push rax
+    mov rax, 3
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
+    jmp .Lm800_end
+.Lm800_a1:
+    jmp .Lm800_end
+.Lm800_end:
+    mov rax, qword [rbp-104]
+    push rax
+    mov rax, 4
+    mov rcx, rax
+    pop rax
+    cmp rax, rcx
+    sete al
+    movzx rax, al
+    mov r15, rax
+    cmp r15, 1
+    je .Lm801_a0
+    cmp r15, 0
+    je .Lm801_a1
+.Lm801_a0:
     mov rax, qword [rbp-96]
     mov rdx, qword [rbp-88]
     push rax
@@ -69562,10 +69687,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm801_a0
+    je .Lm802_a0
     cmp r15, 0
-    je .Lm801_a1
-.Lm801_a0:
+    je .Lm802_a1
+.Lm802_a0:
     mov r10, qword [rbp-40]
     push r10
     mov rax, 1
@@ -69574,14 +69699,18 @@ fn_main:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
+    jmp .Lm802_end
+.Lm802_a1:
+    jmp .Lm802_end
+.Lm802_end:
     jmp .Lm801_end
 .Lm801_a1:
     jmp .Lm801_end
 .Lm801_end:
-    jmp .Lm800_end
-.Lm800_a1:
-    jmp .Lm800_end
-.Lm800_end:
+    jmp .Lm796_end
+.Lm796_a1:
+    jmp .Lm796_end
+.Lm796_end:
     jmp .Lm795_end
 .Lm795_a1:
     jmp .Lm795_end
@@ -69590,10 +69719,6 @@ fn_main:
 .Lm794_a1:
     jmp .Lm794_end
 .Lm794_end:
-    jmp .Lm793_end
-.Lm793_a1:
-    jmp .Lm793_end
-.Lm793_end:
     mov rax, qword [rbp-24]
     push rax
     mov rax, 8
@@ -69604,10 +69729,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm802_a0
+    je .Lm803_a0
     cmp r15, 0
-    je .Lm802_a1
-.Lm802_a0:
+    je .Lm803_a1
+.Lm803_a0:
     mov r10, qword [rbp-40]
     push r10
     mov rax, 1
@@ -69622,28 +69747,28 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm803_a0
+    je .Lm804_a0
     cmp r15, 0
-    je .Lm803_a1
-.Lm803_a0:
+    je .Lm804_a1
+.Lm804_a0:
     mov rax, 5
     mov rdi, rax
     call _rt_get_arg
     mov rdi, rax
     mov rsi, rdx
     call _rt_read_file
-    jmp .Lm803_end
-.Lm803_a1:
+    jmp .Lm804_end
+.Lm804_a1:
     mov rax, 3
     mov rdi, rax
     call _rt_get_arg
     mov rdi, rax
     mov rsi, rdx
     call _rt_read_file
+    jmp .Lm804_end
+.Lm804_end:
     jmp .Lm803_end
-.Lm803_end:
-    jmp .Lm802_end
-.Lm802_a1:
+.Lm803_a1:
     mov rax, qword [rbp-24]
     push rax
     mov rax, 6
@@ -69654,27 +69779,27 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm804_a0
+    je .Lm805_a0
     cmp r15, 0
-    je .Lm804_a1
-.Lm804_a0:
+    je .Lm805_a1
+.Lm805_a0:
     mov rax, 2
     mov rdi, rax
     call _rt_get_arg
     mov rdi, rax
     mov rsi, rdx
     call _rt_read_file
-    jmp .Lm804_end
-.Lm804_a1:
+    jmp .Lm805_end
+.Lm805_a1:
     mov rax, qword [rbp-16]
     mov rdx, qword [rbp-8]
     mov rdi, rax
     mov rsi, rdx
     call _rt_read_file
-    jmp .Lm804_end
-.Lm804_end:
-    jmp .Lm802_end
-.Lm802_end:
+    jmp .Lm805_end
+.Lm805_end:
+    jmp .Lm803_end
+.Lm803_end:
     mov qword [rbp-120], rax
     mov qword [rbp-112], rdx
     mov rax, qword [rbp-120]
@@ -69731,16 +69856,16 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm805_a0
+    je .Lm806_a0
     cmp r15, 0
-    je .Lm805_a1
-.Lm805_a0:
+    je .Lm806_a1
+.Lm806_a0:
     mov rax, 1
-    jmp .Lm805_end
-.Lm805_a1:
+    jmp .Lm806_end
+.Lm806_a1:
     mov rax, 0
-    jmp .Lm805_end
-.Lm805_end:
+    jmp .Lm806_end
+.Lm806_end:
     pop rcx
     pop r10
     mov qword [r10 + rcx*8], rax
@@ -69772,10 +69897,10 @@ fn_main:
     mov qword [rbp-200], rax
     mov rax, qword [rbp-128]
     mov qword [rbp-208], rax
-.Lf806_top:
+.Lf807_top:
     mov rax, qword [rbp-200]
     cmp rax, qword [rbp-208]
-    jge .Lf806_end
+    jge .Lf807_end
     mov r10, qword [rbp-160]
     push r10
     mov rax, qword [rbp-200]
@@ -69790,8 +69915,8 @@ fn_main:
     pop r10
     mov qword [r10 + rcx*8], rax
     inc qword [rbp-200]
-    jmp .Lf806_top
-.Lf806_end:
+    jmp .Lf807_top
+.Lf807_end:
     mov r10, qword [rbp-144]
     push r10
     mov rax, 0
@@ -69887,10 +70012,10 @@ fn_main:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-224], rax
-.Lf807_top:
+.Lf808_top:
     mov rax, qword [rbp-216]
     cmp rax, qword [rbp-224]
-    jge .Lf807_end
+    jge .Lf808_end
     mov r10, qword [rbp-192]
     push r10
     mov rax, 200000
@@ -69909,8 +70034,8 @@ fn_main:
     pop r10
     mov qword [r10 + rcx*8], rax
     inc qword [rbp-216]
-    jmp .Lf807_top
-.Lf807_end:
+    jmp .Lf808_top
+.Lf808_end:
     mov rax, qword [rbp-144]
     mov rdx, qword [rbp-136]
     push rdx
@@ -69938,10 +70063,10 @@ fn_main:
     pop r10
     mov rax, qword [r10 + rax*8]
     mov qword [rbp-240], rax
-.Lf808_top:
+.Lf809_top:
     mov rax, qword [rbp-232]
     cmp rax, qword [rbp-240]
-    jge .Lf808_end
+    jge .Lf809_end
     mov r10, qword [rbp-160]
     push r10
     mov rax, qword [rbp-232]
@@ -69960,8 +70085,8 @@ fn_main:
     pop r10
     mov qword [r10 + rcx*8], rax
     inc qword [rbp-232]
-    jmp .Lf808_top
-.Lf808_end:
+    jmp .Lf809_top
+.Lf809_end:
     mov rax, qword [rbp-144]
     mov rdx, qword [rbp-136]
     push rdx
@@ -69995,10 +70120,10 @@ fn_main:
     movzx rax, al
     mov r15, rax
     cmp r15, 1
-    je .Lm809_a0
+    je .Lm810_a0
     cmp r15, 0
-    je .Lm809_a1
-.Lm809_a0:
+    je .Lm810_a1
+.Lm810_a0:
     mov rax, qword [rbp-144]
     mov rdx, qword [rbp-136]
     push rdx
@@ -70018,8 +70143,8 @@ fn_main:
     pop rdi
     pop rsi
     call fn_cg_emit_llvm
-    jmp .Lm809_end
-.Lm809_a1:
+    jmp .Lm810_end
+.Lm810_a1:
     mov rax, qword [rbp-144]
     mov rdx, qword [rbp-136]
     push rdx
@@ -70039,8 +70164,8 @@ fn_main:
     pop rdi
     pop rsi
     call fn_cg_emit
-    jmp .Lm809_end
-.Lm809_end:
+    jmp .Lm810_end
+.Lm810_end:
     mov rax, 0
     mov rdi, rax
     mov rax, 60
