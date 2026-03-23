@@ -2852,11 +2852,12 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     let lm_fa: Int = lm_n[lm_ni * 10 + 5]; // first arm
     match lm_n[lm_fa * 10] == 25 { true -> { lm_g[31] = lm_ni; ll_amatch(lm_g, lm_n, lm_s) },
     false -> {
-    let lm_ac: Int = lm_n[lm_ni * 10 + 4];
+    // Store match state in depth-indexed g[] slots (immune to stack clobber)
+    // g[4050+depth] = arm count, g[4060+depth] = match ID
+    lm_g[4199] = lm_g[4199] + 1; // increment depth FIRST
+    lm_g[4050 + lm_g[4199] - 1] = lm_n[lm_ni * 10 + 4]; // arm count
+    lm_g[4060 + lm_g[4199] - 1] = lm_g[34]; lm_g[34] = lm_g[34] + 1; // match ID
     let lm_disc: Int = lm_n[lm_ni * 10 + 8];
-    let lm_mid: Int = lm_g[34]; lm_g[34] = lm_g[34] + 1;
-    // Match depth tracking — g[4199] = current depth, results at g[4200 + depth*16 + arm]
-    lm_g[4199] = lm_g[4199] + 1;
     lm_g[31] = lm_disc;
     // Store discriminant temp — use g[4179] as scratch to avoid aryset clobber on computed index
     lm_g[4100 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s); // depth-indexed disc scratch
@@ -2864,13 +2865,13 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     // Interleaved emission: comparison → arm body → join, for each arm
     // Discriminant at g[4140+depth] dominates all blocks (defined before any branching)
     lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_ni * 10 + 5]; // first arm node
-    for lm_ai in range(0, lm_ac) {
+    for lm_ai in range(0, lm_g[4050 + lm_g[4199] - 1]) {
         lm_g[4160 + lm_g[4199] * 2 + 1] = lm_g[4160 + lm_g[4199] * 2]; // current arm
         lm_g[4195] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 1]; // sub_type
         lm_g[4194] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 8]; // pattern
         // Emit comparison
         match lm_g[4195] == 1 {
-            true -> do print("    br label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
+            true -> do print("    br label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_b" + int_to_string(lm_ai)),
             false -> {
                 match lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10] == 26 {
                     true -> {
@@ -2890,14 +2891,14 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
                         do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
                     },
                 };
-                match lm_ai + 1 < lm_ac {
-                    true -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1)),
-                    false -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
+                match lm_ai + 1 < lm_g[4050 + lm_g[4199] - 1] {
+                    true -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_c" + int_to_string(lm_ai + 1)),
+                    false -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_b" + int_to_string(lm_ai)),
                 };
             },
         };
         // Emit arm body immediately after comparison
-        do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ":");
+        do print("m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_b" + int_to_string(lm_ai) + ":");
         lm_g[31] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 5];
         lm_g[4120 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s);
         lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = lm_g[4120 + lm_g[4199] - 1];
@@ -2906,22 +2907,22 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
             do print("    %t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai]) + " = add i64 0, 0");
         }, false -> { } };
         // Join block
-        do print("    br label %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai));
-        do print("m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai) + ":");
-        do print("    br label %m" + int_to_string(lm_mid) + "_end");
+        do print("    br label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_j" + int_to_string(lm_ai));
+        do print("m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_j" + int_to_string(lm_ai) + ":");
+        do print("    br label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_end");
         // Continuation label for next arm's comparison
-        match lm_ai + 1 < lm_ac {
-            true -> match lm_g[4195] == 1 { true -> { }, false -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":") },
+        match lm_ai + 1 < lm_g[4050 + lm_g[4199] - 1] {
+            true -> match lm_g[4195] == 1 { true -> { }, false -> do print("m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_c" + int_to_string(lm_ai + 1) + ":") },
             false -> { },
         };
         lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 6];
     };
-    do print("m" + int_to_string(lm_mid) + "_end:");
+    do print("m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_end:");
     lm_g[4193] = ll_tmp(lm_g);
     do print_raw("    %t" + int_to_string(lm_g[4193]) + " = phi i64 ");
-    for lm_pi in range(0, lm_ac) {
+    for lm_pi in range(0, lm_g[4050 + lm_g[4199] - 1]) {
         match lm_pi > 0 { true -> do print_raw(", "), false -> { } };
-        do print_raw("[%t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_pi]) + ", %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_pi) + "]");
+        do print_raw("[%t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_pi]) + ", %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_j" + int_to_string(lm_pi) + "]");
     };
     do print("");
     lm_g[4199] = lm_g[4199] - 1; // restore depth
@@ -2942,11 +2943,12 @@ fn ll_block_expr(be_g: Array<Int>, be_n: Array<Int>, be_s: Array<Int>, be_ni: In
     be_g[4080 + (be_g[4099] - 1) * 2] = be_n[be_ni * 10 + 5];
     be_g[4080 + (be_g[4099] - 1) * 2 + 1] = 0;
     for _be_i in range(0, be_n[be_ni * 10 + 4]) {
-        be_g[31] = be_g[4080 + (be_g[4099] - 1) * 2];
-        be_g[4097] = ll_expr(be_g, be_n, be_s); // FIXED slot — safe
-        be_g[4080 + (be_g[4099] - 1) * 2 + 1] = be_g[4097]; // copy to depth-indexed
-        be_g[4098] = be_g[4080 + (be_g[4099] - 1) * 2]; // read cursor to fixed slot
-        be_g[4080 + (be_g[4099] - 1) * 2] = be_n[be_g[4098] * 10 + 6]; // advance
+        be_g[31] = be_g[4080 + (be_g[4099] - 1) * 2]; // set g[31] to current child
+        // Pre-compute next sibling into depth-indexed slot BEFORE ll_expr call
+        be_g[4070 + be_g[4099] - 1] = be_n[be_g[4080 + (be_g[4099] - 1) * 2] * 10 + 6];
+        be_g[4097] = ll_expr(be_g, be_n, be_s); // evaluate child (may recurse)
+        be_g[4080 + (be_g[4099] - 1) * 2 + 1] = be_g[4097]; // store result
+        be_g[4080 + (be_g[4099] - 1) * 2] = be_g[4070 + be_g[4099] - 1]; // advance cursor
     };
     be_g[4099] = be_g[4099] - 1;
     be_g[4080 + be_g[4099] * 2 + 1]
@@ -3064,6 +3066,8 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
     lf_g[50] = 0;
     lf_g[32] = 0; // reset SSA counter
     lf_g[33] = 0; // reset has_unreachable flag
+    lf_g[4199] = 0; // reset match depth
+    lf_g[4099] = 0; // reset block depth
     // g[4120] set below directly from node
     lf_g[34] = 0; // reset match label counter
     // Emit function header
