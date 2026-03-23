@@ -134,57 +134,55 @@ equal:
 }
 
 ; --- _loon_i64_to_str: convert i64 to null-terminated decimal string ---
+; Simpler approach: write digits right-to-left, then return pointer to first digit
 define i8* @_loon_i64_to_str(i64 %val) {
 entry:
   %buf = call i8* @malloc(i64 24)
+  ; Null-terminate at position 23
+  %endp = getelementptr i8, i8* %buf, i64 23
+  store i8 0, i8* %endp
+  ; Handle zero
+  %is_zero = icmp eq i64 %val, 0
+  br i1 %is_zero, label %zero, label %nonzero
+zero:
+  %zp = getelementptr i8, i8* %buf, i64 22
+  store i8 48, i8* %zp
+  ret i8* %zp
+nonzero:
+  ; Handle negative
   %is_neg = icmp slt i64 %val, 0
-  br i1 %is_neg, label %neg, label %pos
-neg:
+  %abs_val = select i1 %is_neg, i64 0, i64 %val
   %neg_val = sub i64 0, %val
-  br label %pos
-pos:
-  %abs = phi i64 [%val, %entry], [%neg_val, %neg]
-  %neg2 = phi i1 [false, %entry], [true, %neg]
+  %work = select i1 %is_neg, i64 %neg_val, i64 %val
   br label %dloop
 dloop:
-  %n = phi i64 [%abs, %pos], [%nn, %dloop]
-  %i = phi i64 [0, %pos], [%ni, %dloop]
+  %n = phi i64 [%work, %nonzero], [%nn, %dloop]
+  %pos = phi i64 [22, %nonzero], [%prev_pos, %dloop]
   %d = urem i64 %n, 10
   %nn = udiv i64 %n, 10
   %dc = add i64 %d, 48
   %d8 = trunc i64 %dc to i8
-  %si = sub i64 22, %i
-  %sp = getelementptr i8, i8* %buf, i64 %si
-  store i8 %d8, i8* %sp
-  %ni = add i64 %i, 1
-  %dn = icmp eq i64 %nn, 0
-  br i1 %dn, label %fin, label %dloop
-fin:
-  %st = sub i64 23, %ni
-  br i1 %neg2, label %minus, label %cp
-minus:
-  %mp = sub i64 %st, 1
+  %dp = getelementptr i8, i8* %buf, i64 %pos
+  store i8 %d8, i8* %dp
+  %prev_pos = sub i64 %pos, 1
+  %done = icmp eq i64 %nn, 0
+  br i1 %done, label %digits_done, label %dloop
+digits_done:
+  ; pos now points one before the first digit. The first digit is at pos+1... no, pos was the last digit written
+  ; Actually: in the last iteration, we wrote to %pos. So the string starts at %pos.
+  ; But %pos was decremented to %prev_pos. We need the LAST %pos used, which is the phi value in the final iteration.
+  ; The string starts at %pos (which holds the position of the last digit written)
+  %start = phi i64 [%pos, %dloop]
+  br i1 %is_neg, label %add_minus, label %return_str
+add_minus:
+  %mp = sub i64 %start, 1
   %mpp = getelementptr i8, i8* %buf, i64 %mp
   store i8 45, i8* %mpp
-  br label %cp
-cp:
-  %fs = phi i64 [%st, %fin], [%mp, %minus]
-  %src = getelementptr i8, i8* %buf, i64 %fs
-  %tl = sub i64 23, %fs
-  br label %cl
-cl:
-  %ci = phi i64 [0, %cp], [%cn, %cl]
-  %fr = getelementptr i8, i8* %src, i64 %ci
-  %to = getelementptr i8, i8* %buf, i64 %ci
-  %bv = load i8, i8* %fr
-  store i8 %bv, i8* %to
-  %cn = add i64 %ci, 1
-  %cd = icmp uge i64 %cn, %tl
-  br i1 %cd, label %nt, label %cl
-nt:
-  %np = getelementptr i8, i8* %buf, i64 %tl
-  store i8 0, i8* %np
-  ret i8* %buf
+  %mret = getelementptr i8, i8* %buf, i64 %mp
+  ret i8* %mret
+return_str:
+  %ret = getelementptr i8, i8* %buf, i64 %start
+  ret i8* %ret
 }
 
 ; --- _loon_print_byte: write single byte to stdout ---
