@@ -11,10 +11,106 @@ attributes #1 = { "wasm-import-module"="wasi_snapshot_preview1" "wasm-import-nam
 declare i32 @args_get(i32, i32) #2
 attributes #2 = { "wasm-import-module"="wasi_snapshot_preview1" "wasm-import-name"="args_get" }
 
-; External (provided by compiler output)
-declare i8* @malloc(i64)
-declare i64 @strlen(i8*)
-declare i64 @write(i32, i8*, i64)
+; WASI fd_write for our write() implementation
+declare i32 @fd_write(i32, i32, i32, i32) #3
+attributes #3 = { "wasm-import-module"="wasi_snapshot_preview1" "wasm-import-name"="fd_write" }
+; WASI proc_exit for exit()
+declare void @proc_exit(i32) #4
+attributes #4 = { "wasm-import-module"="wasi_snapshot_preview1" "wasm-import-name"="proc_exit" }
+
+; --- Bump allocator (malloc) ---
+@_heap = global [33554432 x i8] zeroinitializer  ; 32MB heap
+@_heap_pos = global i64 0
+
+define i8* @malloc(i64 %size) {
+entry:
+  %pos = load i64, i64* @_heap_pos
+  %ptr = getelementptr [33554432 x i8], [33554432 x i8]* @_heap, i64 0, i64 %pos
+  ; Align to 8 bytes
+  %aligned = add i64 %size, 7
+  %mask = and i64 %aligned, -8
+  %new_pos = add i64 %pos, %mask
+  store i64 %new_pos, i64* @_heap_pos
+  ret i8* %ptr
+}
+
+; --- strlen ---
+define i64 @strlen(i8* %s) {
+entry:
+  br label %loop
+loop:
+  %i = phi i64 [0, %entry], [%next, %loop]
+  %p = getelementptr i8, i8* %s, i64 %i
+  %c = load i8, i8* %p
+  %done = icmp eq i8 %c, 0
+  %next = add i64 %i, 1
+  br i1 %done, label %end, label %loop
+end:
+  ret i64 %i
+}
+
+; --- write(fd, ptr, len) via WASI fd_write ---
+@_wiov = global [2 x i32] zeroinitializer
+@_wnw = global i32 0
+
+define i64 @write(i32 %fd, i8* %ptr, i64 %len) {
+entry:
+  %p32 = ptrtoint i8* %ptr to i32
+  %l32 = trunc i64 %len to i32
+  store i32 %p32, i32* getelementptr ([2 x i32], [2 x i32]* @_wiov, i32 0, i32 0)
+  store i32 %l32, i32* getelementptr ([2 x i32], [2 x i32]* @_wiov, i32 0, i32 1)
+  %ip = ptrtoint [2 x i32]* @_wiov to i32
+  %np = ptrtoint i32* @_wnw to i32
+  call i32 @fd_write(i32 %fd, i32 %ip, i32 1, i32 %np)
+  %nw = load i32, i32* @_wnw
+  %nw64 = zext i32 %nw to i64
+  ret i64 %nw64
+}
+
+; --- exit(code) via WASI proc_exit ---
+define void @exit(i32 %code) {
+entry:
+  call void @proc_exit(i32 %code)
+  unreachable
+}
+
+; --- sprintf stub (used by int_to_string/float_to_string) ---
+; For WASM, int_to_string uses _loon_i64_to_str instead
+define i32 @sprintf(i8* %buf, i8* %fmt, ...) {
+entry:
+  ; Stub — returns 0 (no formatting in WASM mode)
+  store i8 48, i8* %buf  ; '0'
+  %p1 = getelementptr i8, i8* %buf, i64 1
+  store i8 0, i8* %p1    ; null terminate
+  ret i32 1
+}
+
+; --- strcmp ---
+define i32 @strcmp(i8* %a, i8* %b) {
+entry:
+  br label %loop
+loop:
+  %i = phi i64 [0, %entry], [%next, %cont]
+  %pa = getelementptr i8, i8* %a, i64 %i
+  %pb = getelementptr i8, i8* %b, i64 %i
+  %ca = load i8, i8* %pa
+  %cb = load i8, i8* %pb
+  %eq = icmp eq i8 %ca, %cb
+  br i1 %eq, label %same, label %diff
+same:
+  %za = icmp eq i8 %ca, 0
+  br i1 %za, label %equal, label %cont
+cont:
+  %next = add i64 %i, 1
+  br label %loop
+diff:
+  %ai = zext i8 %ca to i32
+  %bi = zext i8 %cb to i32
+  %r = sub i32 %ai, %bi
+  ret i32 %r
+equal:
+  ret i32 0
+}
 
 ; --- _loon_i64_to_str: convert i64 to null-terminated decimal string ---
 define i8* @_loon_i64_to_str(i64 %val) {
@@ -143,4 +239,13 @@ empty:
   %eb = call i8* @malloc(i64 1)
   store i8 0, i8* %eb
   ret i8* %eb
+}
+
+; --- _start entry point for WASI ---
+declare i32 @main()
+define void @_start() {
+entry:
+  call i32 @main()
+  call void @proc_exit(i32 0)
+  unreachable
 }
