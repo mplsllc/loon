@@ -2936,11 +2936,12 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
 // ll_block_expr: evaluate block children, return last result.
 // Uses g[4097] as fixed scratch for fn call result (safe from aryset clobber).
 // Child cursor and result stored depth-indexed at g[4080+depth*2].
-fn ll_block_expr(be_g: Array<Int>, be_n: Array<Int>, be_s: Array<Int>, be_ni: Int) [IO] -> Int {
+fn ll_block_expr(be_g: Array<Int>, be_n: Array<Int>, be_s: Array<Int>) [IO] -> Int {
     be_g[4099] = be_g[4099] + 1;
-    be_g[4080 + (be_g[4099] - 1) * 2] = be_n[be_ni * 10 + 5];
+    be_g[4015] = be_g[31]; // block node index from g[31] (no 4th param — 3-param limit)
+    be_g[4080 + (be_g[4099] - 1) * 2] = be_n[be_g[4015] * 10 + 5];
     be_g[4080 + (be_g[4099] - 1) * 2 + 1] = 0;
-    for _be_i in range(0, be_n[be_ni * 10 + 4]) {
+    for _be_i in range(0, be_n[be_g[4015] * 10 + 4]) {
         be_g[31] = be_g[4080 + (be_g[4099] - 1) * 2]; // set g[31] to current child
         // Pre-compute next sibling into depth-indexed slot BEFORE ll_expr call
         be_g[4070 + be_g[4099] - 1] = be_n[be_g[4080 + (be_g[4099] - 1) * 2] * 10 + 6];
@@ -2976,7 +2977,7 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     false -> match le_nt == 15 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
     false -> match le_nt == 6 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
     false -> match le_nt == 5 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 3 { true -> ll_block_expr(le_g, le_n, le_s, le_ni),
+    false -> match le_nt == 3 { true -> { le_g[31] = le_ni; ll_block_expr(le_g, le_n, le_s) },
     false -> match le_nt == 4 { true -> { le_g[31] = le_ni; do ll_stmt(le_g, le_n, le_s); let le_lt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_lt) + " = add i64 0, 0"); le_lt },
     false -> match le_nt == 19 { true -> ll_arynew(le_g, le_n, le_s),
     false -> match le_nt == 20 { true -> ll_aryget(le_g, le_n, le_s),
