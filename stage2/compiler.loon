@@ -2868,8 +2868,26 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
         match lm_g[4195] == 1 {
             true -> do print("    br label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
             false -> {
-                lm_g[4193] = ll_tmp(lm_g);
-                do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4180 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
+                // Check if string match arm (type 26) — use strcmp instead of icmp
+                match lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10] == 26 {
+                    true -> {
+                        // String comparison: strcmp(disc_ptr, pattern_str) == 0
+                        lm_g[4192] = ll_tmp(lm_g);
+                        do print("    %t" + int_to_string(lm_g[4192]) + " = inttoptr i64 %t" + int_to_string(lm_g[4180 + lm_g[4199] - 1]) + " to i8*");
+                        lm_g[4191] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 8]; // pattern string index
+                        lm_g[4190] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 3] + 1; // pattern string length + 1
+                        lm_g[4189] = ll_tmp(lm_g);
+                        do print("    %t" + int_to_string(lm_g[4189]) + " = getelementptr [" + int_to_string(lm_g[4190]) + " x i8], [" + int_to_string(lm_g[4190]) + " x i8]* @_s" + int_to_string(lm_g[4191]) + ", i64 0, i64 0");
+                        lm_g[4188] = ll_tmp(lm_g);
+                        do print("    %t" + int_to_string(lm_g[4188]) + " = call i32 @strcmp(i8* %t" + int_to_string(lm_g[4192]) + ", i8* %t" + int_to_string(lm_g[4189]) + ")");
+                        lm_g[4193] = ll_tmp(lm_g);
+                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i32 %t" + int_to_string(lm_g[4188]) + ", 0");
+                    },
+                    false -> {
+                        lm_g[4193] = ll_tmp(lm_g);
+                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4180 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
+                    },
+                };
                 match lm_ai + 1 < lm_ac {
                     true -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1)),
                     false -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
@@ -3096,6 +3114,7 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
         do print("declare i8* @malloc(i64)");
         do print("declare i32 @sprintf(i8*, i8*, ...)");
         do print("declare i64 @strlen(i8*)");
+        do print("declare i32 @strcmp(i8*, i8*)");
         do print("declare void @llvm.memcpy.p0.p0.i64(i8* nocapture, i8* nocapture readonly, i64, i1)");
     } };
     do print("");
