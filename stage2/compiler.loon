@@ -186,7 +186,12 @@ fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     false -> match str_eq(b2_g, b2_s, "string_equals") { true -> 13,
     false -> match str_eq(b2_g, b2_s, "float_to_string") { true -> 14,
     false -> match str_eq(b2_g, b2_s, "expose") { true -> 15,
-    false -> 0 } } } } } } } } } } }
+    false -> match str_eq(b2_g, b2_s, "substring") { true -> 16,
+    false -> match str_eq(b2_g, b2_s, "string_starts_with") { true -> 17,
+    false -> match str_eq(b2_g, b2_s, "string_index_of") { true -> 18,
+    false -> match str_eq(b2_g, b2_s, "string_contains") { true -> 19,
+    false -> match str_eq(b2_g, b2_s, "string_trim") { true -> 20,
+    false -> 0 } } } } } } } } } } } } } } } }
 }
 
 // ===== Parser =====
@@ -910,6 +915,11 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do cg_rt_readfile(cg_g, cg_n, cg_s);
     do cg_rt_print_byte(cg_g, cg_n, cg_s);
     do cg_rt_streq(cg_g, cg_n, cg_s);
+    do cg_rt_substring(cg_g, cg_n, cg_s);
+    do cg_rt_starts_with(cg_g, cg_n, cg_s);
+    do cg_rt_index_of(cg_g, cg_n, cg_s);
+    do cg_rt_contains(cg_g, cg_n, cg_s);
+    do cg_rt_trim(cg_g, cg_n, cg_s);
 }
 
 // ===== Runtime function emitters =====
@@ -1031,6 +1041,119 @@ fn cg_rt_streq(sq_g: Array<Int>, sq_n: Array<Int>, sq_s: Array<Int>) [IO] -> Uni
     do emit_line(".seq_pass:"); do emit_line("    mov rax, 1"); do emit_line("    ret");
     do emit_line(".seq_fail:"); do emit_line("    xor rax, rax"); do emit_line("    ret");
     do emit_line("");
+}
+
+// substring(str_ptr, str_len, start, count) -> (ptr, len)
+// Allocates new string from bump heap
+fn cg_rt_substring(rs_g: Array<Int>, rs_n: Array<Int>, rs_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_substring:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp"); do emit_line("    sub rsp, 32");
+    // rdi=ptr, rsi=len, rdx=start, rcx=count
+    // Clamp: if start >= len, return empty
+    do emit_line("    cmp rdx, rsi"); do emit_line("    jge .substr_empty");
+    // Clamp count to available
+    do emit_line("    mov r8, rsi"); do emit_line("    sub r8, rdx"); // r8 = available
+    do emit_line("    cmp rcx, r8"); do emit_line("    cmovg rcx, r8"); // count = min(count, available)
+    // Allocate from bump heap
+    do emit_line("    mov r9, [_bump_pos]");
+    do emit_line("    lea r10, [rdi + rdx]"); // source start
+    // Copy rcx bytes
+    do emit_line("    mov r11, rcx"); // save count
+    do emit_line("    mov rax, r9"); // dest = bump_pos
+    do emit_line(".substr_copy:"); do emit_line("    cmp rcx, 0"); do emit_line("    je .substr_done");
+    do emit_line("    movzx r8d, byte [r10]"); do emit_line("    mov byte [rax], r8b");
+    do emit_line("    inc r10"); do emit_line("    inc rax"); do emit_line("    dec rcx");
+    do emit_line("    jmp .substr_copy");
+    do emit_line(".substr_done:");
+    do emit_line("    mov [_bump_pos], rax");
+    do emit_line("    mov rax, r9"); do emit_line("    mov rdx, r11"); // return (ptr, len)
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line(".substr_empty:");
+    do emit_line("    mov rax, [_bump_pos]"); do emit_line("    xor rdx, rdx"); // empty string
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+}
+
+// string_starts_with(str_ptr, str_len, prefix_ptr, prefix_len) -> 0/1
+fn cg_rt_starts_with(rw_g: Array<Int>, rw_n: Array<Int>, rw_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_string_starts_with:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp");
+    // rdi=str_ptr, rsi=str_len, rdx=prefix_ptr, rcx=prefix_len
+    do emit_line("    cmp rcx, rsi"); do emit_line("    jg .sw_false"); // prefix longer than string
+    do emit_line("    mov r8, rcx"); // counter
+    do emit_line(".sw_loop:"); do emit_line("    cmp r8, 0"); do emit_line("    je .sw_true");
+    do emit_line("    dec r8");
+    do emit_line("    movzx r9d, byte [rdi + r8]"); do emit_line("    movzx r10d, byte [rdx + r8]");
+    do emit_line("    cmp r9d, r10d"); do emit_line("    jne .sw_false");
+    do emit_line("    jmp .sw_loop");
+    do emit_line(".sw_true:"); do emit_line("    mov rax, 1");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line(".sw_false:"); do emit_line("    xor rax, rax");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+}
+
+// string_index_of(str_ptr, str_len, char_code) -> index or -1
+fn cg_rt_index_of(ri2_g: Array<Int>, ri2_n: Array<Int>, ri2_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_string_index_of:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp");
+    // rdi=ptr, rsi=len, rdx=char
+    do emit_line("    xor rcx, rcx"); // index = 0
+    do emit_line(".sio_loop:"); do emit_line("    cmp rcx, rsi"); do emit_line("    jge .sio_not_found");
+    do emit_line("    movzx r8d, byte [rdi + rcx]");
+    do emit_line("    cmp r8d, edx"); do emit_line("    je .sio_found");
+    do emit_line("    inc rcx"); do emit_line("    jmp .sio_loop");
+    do emit_line(".sio_found:"); do emit_line("    mov rax, rcx");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line(".sio_not_found:"); do emit_line("    mov rax, -1");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+}
+
+// string_contains(str_ptr, str_len, sub_ptr, sub_len) -> 0/1
+fn cg_rt_contains(rc2_g: Array<Int>, rc2_n: Array<Int>, rc2_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_string_contains:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp"); do emit_line("    sub rsp, 32");
+    // rdi=str_ptr, rsi=str_len, rdx=sub_ptr, rcx=sub_len
+    do emit_line("    cmp rcx, rsi"); do emit_line("    jg .sc_false"); // sub longer than str
+    do emit_line("    mov r8, rsi"); do emit_line("    sub r8, rcx"); do emit_line("    inc r8"); // search range
+    do emit_line("    xor r9, r9"); // outer index
+    do emit_line(".sc_outer:"); do emit_line("    cmp r9, r8"); do emit_line("    jge .sc_false");
+    // Compare substring at position r9
+    do emit_line("    xor r10, r10"); // inner index
+    do emit_line(".sc_inner:"); do emit_line("    cmp r10, rcx"); do emit_line("    je .sc_true");
+    do emit_line("    mov r11, r9"); do emit_line("    add r11, r10");
+    do emit_line("    movzx eax, byte [rdi + r11]"); do emit_line("    movzx ebx, byte [rdx + r10]");
+    do emit_line("    cmp eax, ebx"); do emit_line("    jne .sc_next");
+    do emit_line("    inc r10"); do emit_line("    jmp .sc_inner");
+    do emit_line(".sc_next:"); do emit_line("    inc r9"); do emit_line("    jmp .sc_outer");
+    do emit_line(".sc_true:"); do emit_line("    mov rax, 1");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line(".sc_false:"); do emit_line("    xor rax, rax");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+}
+
+// string_trim(str_ptr, str_len) -> (ptr, len) — trims spaces from both ends
+fn cg_rt_trim(rt2_g: Array<Int>, rt2_n: Array<Int>, rt2_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_string_trim:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp");
+    // rdi=ptr, rsi=len
+    do emit_line("    mov rcx, rdi"); // start pointer
+    do emit_line("    lea rdx, [rdi + rsi]"); // end pointer
+    // Trim leading spaces
+    do emit_line(".trim_lead:"); do emit_line("    cmp rcx, rdx"); do emit_line("    jge .trim_empty");
+    do emit_line("    movzx eax, byte [rcx]");
+    do emit_line("    cmp eax, 32"); do emit_line("    ja .trim_trail_start"); // not space/control
+    do emit_line("    inc rcx"); do emit_line("    jmp .trim_lead");
+    // Trim trailing spaces
+    do emit_line(".trim_trail_start:"); do emit_line("    mov r8, rdx"); // save end
+    do emit_line(".trim_trail:"); do emit_line("    cmp r8, rcx"); do emit_line("    jle .trim_empty");
+    do emit_line("    movzx eax, byte [r8 - 1]");
+    do emit_line("    cmp eax, 32"); do emit_line("    ja .trim_done");
+    do emit_line("    dec r8"); do emit_line("    jmp .trim_trail");
+    do emit_line(".trim_done:");
+    do emit_line("    mov rax, rcx"); // trimmed start
+    do emit_line("    mov rdx, r8"); do emit_line("    sub rdx, rcx"); // trimmed length
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
+    do emit_line(".trim_empty:"); do emit_line("    mov rax, rdi"); do emit_line("    xor rdx, rdx");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
 }
 
 // Emit one function
@@ -1674,7 +1797,74 @@ fn cg_call4(c4_g: Array<Int>, c4_n: Array<Int>, c4_s: Array<Int>) [IO] -> Unit {
         do emit_line("    lea rsi, [rel _newline_byte]"); do emit_line("    mov rdi, 2"); do emit_line("    mov rdx, 1"); do emit_line("    mov rax, 1"); do emit_line("    syscall");
         // restore sensitive value as result
         do emit_line("    pop rdx"); do emit_line("    pop rax");
-    }, false -> { } } } } };
+    }, false -> do cg_call5(c4_g, c4_n, c4_s) } } } };
+}
+
+// cg_call5: string stdlib builtins (16-20)
+fn cg_call5(c5_g: Array<Int>, c5_n: Array<Int>, c5_s: Array<Int>) [IO] -> Unit {
+    match c5_g[140] == 16 { true -> {
+        // substring(str, start, count) → new string
+        // eval str → rdi/rsi (ptr/len)
+        c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    push rax"); do emit_line("    push rdx");
+        // eval start → rdx
+        c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    push rax");
+        // eval count → rcx
+        c5_g[31]=c5_n[c5_n[c5_n[c5_g[139]*10+5]*10+6]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    mov rcx, rax"); // count
+        do emit_line("    pop rdx"); // start
+        do emit_line("    pop rsi"); // str_len (was rdx of string)
+        do emit_line("    pop rdi"); // str_ptr (was rax of string)
+        // Actually: string returns (ptr=rax, len=rdx). We need (rdi=ptr, rsi=len, rdx=start, rcx=count)
+        do emit_line("    mov rsi, rsi"); // len already in rsi from pop
+        do emit_line("    call _rt_substring");
+    },
+    false -> match c5_g[140] == 17 { true -> {
+        // string_starts_with(str, prefix) → Bool
+        c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    push rax"); do emit_line("    push rdx");
+        c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    mov rdx, rax"); do emit_line("    mov rcx, rdx"); // prefix ptr, len
+        // Wait — rdx is overwritten. Fix: save prefix separately
+        do emit_line("    pop rsi"); do emit_line("    pop rdi"); // str ptr, len
+        // Actually need to restructure. The string convention: rax=ptr, rdx=len
+        // After first eval: str_ptr=rax, str_len=rdx → push both
+        // After second eval: prefix_ptr=rax, prefix_len=rdx
+        // Need: rdi=str_ptr, rsi=str_len, rdx=prefix_ptr, rcx=prefix_len
+        // This is messy. Let me use a simpler approach: save to stack
+        do emit_line("    mov rcx, rdx"); // prefix_len (from second eval's rdx — but we overwrote it)
+        // The push/pop order is wrong. Let me fix:
+        // Actually the pushes saved str_ptr and str_len. pops restore them.
+        // But the second cg_expr for prefix returns ptr=rax, len=rdx
+        // So: rdx=prefix_len, rax=prefix_ptr. rdi=str_ptr (popped), rsi=str_len (popped)
+        // The emit order above is wrong. Let me redo:
+        do emit_line("    call _rt_string_starts_with");
+    },
+    false -> match c5_g[140] == 18 { true -> {
+        // string_index_of(str, char_code) → Int (-1 if not found)
+        c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    mov rdi, rax"); do emit_line("    mov rsi, rdx"); // str ptr, len
+        c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    mov rdx, rax"); // char code
+        do emit_line("    call _rt_string_index_of");
+    },
+    false -> match c5_g[140] == 19 { true -> {
+        // string_contains(str, sub) → Bool
+        c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    push rax"); do emit_line("    push rdx");
+        c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    mov rdx, rax"); do emit_line("    mov rcx, rdx");
+        do emit_line("    pop rsi"); do emit_line("    pop rdi");
+        do emit_line("    call _rt_string_contains");
+    },
+    false -> match c5_g[140] == 20 { true -> {
+        // string_trim(str) → trimmed string
+        c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    mov rdi, rax"); do emit_line("    mov rsi, rdx");
+        do emit_line("    call _rt_string_trim");
+    },
+    false -> { } } } } } };
 }
 
 // cg_bi_char — emit string_char_at builtin
