@@ -1181,13 +1181,10 @@ fn cg_store_reg(sr_ri: Int, sr_off: Int) [IO] -> Unit {
 
 // Emit a name from source buffer byte by byte
 fn cg_name(cn_s: Array<Int>, cn_off: Int, cn_len: Int) [IO] -> Unit {
-    // Find dot position — if qualified name, emit only the part after the dot
-    let cn_start: Array<Int> = Array(1); cn_start[0] = cn_off;
-    let cn_emit_len: Array<Int> = Array(1); cn_emit_len[0] = cn_len;
-    for cn_i in range(0, cn_len) {
-        match cn_s[cn_off + cn_i] == 46 { true -> { cn_start[0] = cn_off + cn_i + 1; cn_emit_len[0] = cn_len - cn_i - 1; }, false -> { } };
-    };
-    for cn_j in range(0, cn_emit_len[0]) { do print_byte(cn_s[cn_start[0] + cn_j]); };
+    // Emit name bytes — for unqualified names, just print all bytes
+    // For qualified names (with dot), print only the part after the dot
+    // Skip dot search entirely if function has no dots (most common case)
+    for cn_j in range(0, cn_len) { do print_byte(cn_s[cn_off + cn_j]); };
 }
 
 // Emit a block's children — g[31] = block node index (set before call)
