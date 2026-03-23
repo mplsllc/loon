@@ -10,29 +10,47 @@
 }
 
 :root {
-  --teal-900: #0d3b3e;
-  --teal-800: #134e52;
-  --teal-700: #1a6369;
-  --teal-600: #1f7a82;
-  --teal-500: #2a9da8;
-  --teal-400: #3dbcc8;
-  --teal-300: #6dd3dc;
-  --teal-100: #d0f0f4;
-  --gray-50: #f8fafb;
-  --gray-100: #eef1f3;
-  --gray-200: #dde2e6;
-  --gray-300: #c4ccd2;
-  --gray-400: #8d99a3;
-  --gray-500: #5f6d78;
-  --gray-600: #3e4c57;
-  --gray-700: #2a353e;
-  --gray-800: #1a2129;
-  --gray-900: #0d1117;
-  --red-500: #e05252;
-  --red-100: #fde8e8;
+  /* Background & surfaces */
+  --bg: #141218;
+  --surface: #1E1C22;
+  --border: #2E2B34;
+  --red-tint: #1C1018;
+
+  /* Text */
+  --text: #E8E4DF;
+  --text-muted: #9590A0;
+
+  /* Accent */
+  --accent: #C42B2B;
+  --accent-hover: #D94040;
+
+  /* Semantic aliases — dark theme mapping
+     Old gray scale was light-theme (50=white, 900=black).
+     For dark theme: low numbers = dark surfaces, high numbers = light text.
+     Teal aliases used as text must be visible on dark backgrounds. */
+  --teal-900: #141218;   /* bg: header, hero gradient start */
+  --teal-800: #1E1C22;   /* bg: surface */
+  --teal-700: #2E2B34;   /* border */
+  --teal-600: #C42B2B;   /* accent */
+  --teal-500: #C42B2B;   /* accent */
+  --teal-400: #D94040;   /* accent hover */
+  --teal-300: #D94040;   /* accent hover */
+  --teal-100: #1C1018;   /* bg: dark red tint */
+  --gray-50: #1E1C22;    /* bg: section alt */
+  --gray-100: #1E1C22;   /* bg: surface */
+  --gray-200: #2E2B34;   /* border */
+  --gray-300: #E8E4DF;   /* text: primary on dark */
+  --gray-400: #9590A0;   /* text: muted */
+  --gray-500: #9590A0;   /* text: muted */
+  --gray-600: #E8E4DF;   /* text: primary */
+  --gray-700: #2E2B34;   /* border */
+  --gray-800: #E8E4DF;   /* text: primary */
+  --gray-900: #141218;   /* bg: darkest background */
+  --red-500: #C42B2B;
+  --red-100: #1C1018;
   --green-500: #38a169;
-  --green-100: #e6f7ee;
-  --code-bg: #0d1117;
+  --green-100: #0a1f0e;
+  --code-bg: #1E1C22;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
 }
@@ -44,14 +62,14 @@ html {
 
 body {
   font-family: var(--font-sans);
-  color: var(--gray-800);
-  background: #fff;
+  color: var(--text);
+  background: var(--bg);
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--teal-600);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -89,8 +107,23 @@ a:hover {
   color: #fff;
   text-decoration: none;
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-img {
+  height: 50px;
+  width: auto;
+  vertical-align: middle;
+}
+
+.logo-img + .logo-name {
+  /* Hide text when logo image is present */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
 }
 
 .logo-name {
@@ -113,7 +146,7 @@ a:hover {
 }
 
 .main-nav a {
-  color: var(--teal-100);
+  color: var(--text-muted);
   font-size: 0.9rem;
   font-weight: 500;
   padding: 0.25rem 0;
@@ -157,9 +190,28 @@ a:hover {
    HERO
    ============================================================ */
 .hero {
-  background: linear-gradient(170deg, var(--teal-900) 0%, var(--teal-800) 100%);
+  background: linear-gradient(170deg, var(--bg) 0%, var(--surface) 100%);
   color: #fff;
   padding: 5rem 0 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  left: -5%;
+  top: -10%;
+  width: 500px;
+  height: 500px;
+  background: url('/media/looncircle.png') no-repeat center / contain;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.hero .container {
+  position: relative;
+  z-index: 1;
 }
 
 .hero h1 {
@@ -207,10 +259,16 @@ a:hover {
   color: #fff;
 }
 
+.code-panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .code-panel pre {
   background: var(--code-bg);
   padding: 1.25rem;
   margin: 0;
+  flex: 1;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   line-height: 1.6;
@@ -275,7 +333,7 @@ a:hover {
   font-size: 1.8rem;
   font-weight: 700;
   margin-bottom: 2rem;
-  color: var(--gray-900);
+  color: var(--text);
 }
 
 /* Stats */
@@ -298,7 +356,7 @@ a:hover {
   display: block;
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--teal-700);
+  color: var(--accent);
 }
 
 .stat-label {
@@ -324,7 +382,7 @@ a:hover {
 
 .feature-card h3 {
   font-size: 1.2rem;
-  color: var(--teal-800);
+  color: var(--text);
   margin-bottom: 0.75rem;
 }
 
@@ -336,7 +394,7 @@ a:hover {
 
 .feature-card code {
   background: var(--teal-100);
-  color: var(--teal-800);
+  color: var(--text);
   padding: 0.15rem 0.35rem;
   border-radius: 3px;
   font-size: 0.85em;
@@ -394,7 +452,7 @@ a:hover {
 
 .timeline-current td {
   font-weight: 600;
-  color: var(--teal-800);
+  color: var(--text);
 }
 
 /* ============================================================
@@ -409,7 +467,7 @@ a:hover {
 .mission-section h2 {
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--text);
 }
 
 .mission-lead {
@@ -465,7 +523,7 @@ a:hover {
 
 .mission-col-prohibited {
   background: var(--red-100);
-  border: 1px solid #f5c6c6;
+  border: 1px solid var(--accent);
 }
 
 .mission-col-prohibited h3 { color: var(--red-500); }
@@ -482,8 +540,8 @@ a:hover {
    FOOTER
    ============================================================ */
 .site-footer {
-  background: var(--gray-900);
-  color: var(--gray-400);
+  background: var(--bg);
+  color: var(--text-muted);
   padding: 2rem 0;
 }
 
@@ -523,7 +581,7 @@ a:hover {
    CONTENT PAGES (docs, license, why)
    ============================================================ */
 .page-hero {
-  background: linear-gradient(170deg, var(--teal-900) 0%, var(--teal-800) 100%);
+  background: linear-gradient(170deg, var(--bg) 0%, var(--surface) 100%);
   color: #fff;
   padding: 3.5rem 0 2.5rem;
 }
@@ -575,7 +633,7 @@ a:hover {
 
 .doc-card h3 {
   font-size: 1.1rem;
-  color: var(--teal-700);
+  color: var(--text);
   margin-bottom: 0.35rem;
 }
 
@@ -592,7 +650,7 @@ a:hover {
   border-left: 4px solid var(--teal-500);
   border-radius: 0 6px 6px 0;
   font-size: 0.9rem;
-  color: var(--teal-800);
+  color: var(--text);
 }
 
 /* License page */
@@ -602,7 +660,7 @@ a:hover {
 
 .license-section h2 {
   font-size: 1.35rem;
-  color: var(--gray-900);
+  color: var(--text);
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 2px solid var(--gray-200);
@@ -610,7 +668,7 @@ a:hover {
 
 .license-section p {
   font-size: 0.95rem;
-  color: var(--gray-700);
+  color: var(--text-muted);
   line-height: 1.7;
   margin-bottom: 0.75rem;
 }
@@ -631,7 +689,7 @@ a:hover {
 }
 
 .license-prohibited-list li {
-  color: var(--gray-700);
+  color: var(--text-muted);
   padding-left: 1.5rem;
   position: relative;
 }
@@ -669,21 +727,21 @@ a:hover {
 /* Why/essay page */
 .essay h2 {
   font-size: 1.5rem;
-  color: var(--gray-900);
+  color: var(--text);
   margin-top: 3rem;
   margin-bottom: 1rem;
 }
 
 .essay h3 {
   font-size: 1.2rem;
-  color: var(--teal-800);
+  color: var(--text);
   margin-top: 2rem;
   margin-bottom: 0.75rem;
 }
 
 .essay p {
   font-size: 1.02rem;
-  color: var(--gray-700);
+  color: var(--text-muted);
   line-height: 1.75;
   margin-bottom: 1rem;
 }
@@ -710,7 +768,7 @@ a:hover {
 
 .essay code {
   background: var(--teal-100);
-  color: var(--teal-800);
+  color: var(--text);
   padding: 0.12rem 0.3rem;
   border-radius: 3px;
   font-size: 0.88em;
@@ -729,7 +787,7 @@ a:hover {
 
 .essay li {
   font-size: 1rem;
-  color: var(--gray-700);
+  color: var(--text-muted);
   line-height: 1.7;
   padding: 0.2rem 0;
 }
@@ -743,7 +801,7 @@ a:hover {
 }
 
 .essay-cta p {
-  color: var(--teal-800);
+  color: var(--text);
   font-weight: 500;
   margin-bottom: 1rem;
 }

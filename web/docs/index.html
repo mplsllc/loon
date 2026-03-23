@@ -6,12 +6,14 @@
   <title>Documentation — Loon</title>
   <meta name="description" content="Loon language documentation: getting started, building from source, language specification, privacy types, and the bootstrap story.">
   <link rel="stylesheet" href="../style.css">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
   <meta property="og:title" content="Loon Documentation">
   <meta property="og:description" content="Getting started, building from source, language reference, privacy types, and the bootstrap story.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://loonlang.org/docs/">
   <meta name="twitter:card" content="summary">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
 <body>
 
@@ -19,8 +21,7 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <span class="logo-name">Loon</span>
-        <span class="logo-tagline">incorrect code does not compile</span>
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
@@ -47,27 +48,27 @@
 
     <div class="docs-grid">
 
-      <a href="../../docs/getting-started.md" class="doc-card">
+      <a href="getting-started.html" class="doc-card">
         <h3>Getting Started</h3>
         <p>Write your first Loon program in 15 minutes. Covers installation, hello world, types, match expressions, and the effect system.</p>
       </a>
 
-      <a href="../../docs/building.md" class="doc-card">
+      <a href="building.html" class="doc-card">
         <h3>Building from Source</h3>
         <p>Build instructions for all platforms. Covers assembling the bootstrap compiler, running the test gauntlet, and verifying the trust chain.</p>
       </a>
 
-      <a href="../../spec/loon-spec.md" class="doc-card">
+      <a href="reference.html" class="doc-card">
         <h3>Language Specification</h3>
         <p>Complete language reference. Every type, every keyword, every compile-time rule. The authoritative document for what Loon accepts and rejects.</p>
       </a>
 
-      <a href="../../docs/privacy-guide.md" class="doc-card">
+      <a href="privacy-guide.html" class="doc-card">
         <h3>Privacy Types</h3>
         <p>How privacy types work and why they exist. The core innovation that makes Loon different: compile-time enforcement of data classification.</p>
       </a>
 
-      <a href="../../spec/loon-0-spec.md" class="doc-card">
+      <a href="bootstrap.html" class="doc-card">
         <h3>Bootstrap Story</h3>
         <p>How Loon was built from bare metal assembly. The Loon-0 bootstrap subset specification, the stage-by-stage compiler chain, and why it matters.</p>
       </a>
@@ -84,7 +85,7 @@
 <footer class="site-footer">
   <div class="container footer-inner">
     <div class="footer-info">
-      <p class="footer-stewardship">Stewarded by MPLS LLC</p>
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
       <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
     </div>
     <nav class="footer-nav" aria-label="Footer navigation">

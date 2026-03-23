@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting Started — Loon</title>
+  <meta name="description" content="Write your first Loon program in 15 minutes. Install the compiler, learn effects, types, pattern matching, and see privacy types catch a leaked password at compile time.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta property="og:title" content="Getting Started with Loon">
+  <meta property="og:description" content="Write your first Loon program in 15 minutes. See privacy types catch a leaked password at compile time.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/docs/getting-started">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Getting Started with Loon">
+  <meta name="twitter:description" content="Write your first Loon program in 15 minutes. See privacy types catch a leaked password at compile time.">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Getting Started</h1>
+    <p class="page-subtitle">Write your first Loon program in 15 minutes &mdash; and see the compiler catch a leaked password before it ships.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container essay">
+
+    <!-- ============================================================ -->
+    <h2>1. Install the compiler</h2>
+
+    <p>Loon compiles on Linux x86-64. You need NASM (the Netwide Assembler) and a linker &mdash; both come standard on most distributions.</p>
+
+    <h3>Linux (x86-64)</h3>
+
+    <p>Install NASM, clone the repository, and build the bootstrap chain:</p>
+
+<pre><code><span class="code-comment"># Install the assembler</span>
+sudo apt install nasm
+
+<span class="code-comment"># Clone the repository</span>
+git clone https://github.com/mplsllc/loon.git
+cd loon
+
+<span class="code-comment"># Build the bootstrap chain: stage0 (lexer) then stage1 (compiler)</span>
+cd stage0 && make && cd ../stage1 && make && cd ..
+
+<span class="code-comment"># Compile the stage2 compiler (written in Loon) using the bootstrap chain</span>
+./stage0/lexer stage2/compiler.loon | ./stage1/compiler > /tmp/loon.asm
+nasm -f elf64 -o /tmp/loon.o /tmp/loon.asm
+ld -o loon /tmp/loon.o
+
+<span class="code-comment"># Install system-wide</span>
+sudo mv loon /usr/local/bin/</code></pre>
+
+    <h3>macOS / Windows</h3>
+
+    <p>Loon targets Linux x86-64 natively. For macOS and Windows, see the <a href="/docs/building">Building from Source</a> documentation for cross-compilation options and WSL instructions.</p>
+
+    <!-- ============================================================ -->
+    <h2>2. Hello world</h2>
+
+    <p>Create a file called <code>hello.loon</code>:</p>
+
+<pre><code>module main;
+
+fn main() [IO] -> Unit {
+    do print("Hello, Loon!");
+    do exit(0);
+}</code></pre>
+
+    <p>Compile and run it:</p>
+
+<pre><code>loon hello.loon > hello.asm && nasm -f elf64 -o hello.o hello.asm && ld -o hello hello.o && ./hello</code></pre>
+
+    <p>You should see <code>Hello, Loon!</code> printed to the terminal.</p>
+
+    <p>Three things to notice:</p>
+
+    <ul>
+      <li><strong><code>module main;</code></strong> &mdash; Every Loon file begins with a module declaration. There is one entry point: the <code>main</code> function in the <code>main</code> module.</li>
+      <li><strong><code>[IO]</code></strong> &mdash; This is an effect declaration. It tells the compiler (and every reader of this code) that <code>main</code> performs I/O. Functions must declare their effects. If a function claims to be pure, the compiler enforces it.</li>
+      <li><strong><code>do</code></strong> &mdash; The <code>do</code> keyword marks effectful calls. You cannot call <code>print</code> without it. This makes every side effect visible at the call site.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h2>3. Functions and effects</h2>
+
+    <p>Define a pure function &mdash; one that takes values and returns a value, with no side effects:</p>
+
+<pre><code>fn add(a: Int, b: Int) [] -> Int {
+    a + b
+}</code></pre>
+
+    <p>The empty brackets <code>[]</code> mean this function has no effects. It cannot print, it cannot read files, it cannot do anything other than compute a value from its inputs.</p>
+
+    <p>What happens if a pure function tries to call <code>print</code>?</p>
+
+<pre><code>fn add(a: Int, b: Int) [] -> Int {
+    do print("adding");  <span class="code-comment">// try to sneak in some I/O</span>
+    a + b
+}</code></pre>
+
+<pre><code><span class="code-error">error[E0301]: effect violation in function `add`
+  --> math.loon:2:5
+  |
+2 |     do print("adding");
+  |     ^^^^^^^^^^^^^^^^^^^ `print` requires [IO] effect
+  |
+  = note: function `add` declares effects [] but calls require [IO]
+  = help: add IO to the effect list: fn add(a: Int, b: Int) [IO] -> Int</span></code></pre>
+
+    <p>The compiler rejects it. A function that claims to be pure must actually be pure. There is no way to sneak a side effect into a pure function.</p>
+
+    <!-- ============================================================ -->
+    <h2>4. Types and ADTs</h2>
+
+    <p>Loon has algebraic data types (ADTs). Define a <code>Shape</code> type with three variants:</p>
+
+<pre><code>type Shape =
+  | Circle(Float)
+  | Rectangle(Float, Float)
+  | Point;</code></pre>
+
+    <p>Use <code>match</code> to handle each variant:</p>
+
+<pre><code>fn describe(s: Shape) [] -> String {
+    match s {
+        Circle(r) -> "Circle with radius " + float_to_string(r),
+        Rectangle(w, h) -> "Rectangle " + float_to_string(w) + "x" + float_to_string(h),
+        Point -> "Point",
+    }
+}</code></pre>
+
+    <p>Every <code>match</code> in Loon must be exhaustive. If you forget a variant, the compiler tells you:</p>
+
+<pre><code>fn describe(s: Shape) [] -> String {
+    match s {
+        Circle(r) -> "Circle with radius " + float_to_string(r),
+        Rectangle(w, h) -> "Rectangle",
+        <span class="code-comment">// Point is missing</span>
+    }
+}</code></pre>
+
+<pre><code><span class="code-error">error[E0401]: non-exhaustive match expression
+  --> shapes.loon:8:5
+  |
+8 |     match s {
+  |     ^^^^^^^^ missing variant: `Point`
+  |
+  = note: all variants of `Shape` must be handled
+  = help: add the missing arm: Point -> ...</span></code></pre>
+
+    <p>No variant falls through. No default case silently swallows a new variant added six months later. If the type changes, every match that handles it must be updated, and the compiler will tell you exactly which ones.</p>
+
+    <!-- ============================================================ -->
+    <h2>5. Privacy types</h2>
+
+    <p>This is the moment. This is why Loon exists.</p>
+
+    <p>Create a file called <code>auth.loon</code>:</p>
+
+<pre><code>module auth;
+
+fn main() [IO] -> Unit {
+    let username: Public&lt;String&gt; = "alice";
+    let password: Sensitive&lt;String&gt; = "hunter2";
+
+    do print("User: " + username);     <span class="code-comment">// OK</span>
+    <span class="code-comment">// do print("Pass: " + password);  // COMPILE ERROR</span>
+
+    do exit(0);
+}</code></pre>
+
+    <p>Uncomment the second print line. The compiler rejects it:</p>
+
+<pre><code><span class="code-error">error[E0501]: privacy violation — Sensitive value cannot flow to public output
+  --> auth.loon:8:27
+  |
+8 |     do print("Pass: " + password);
+  |                          ^^^^^^^^ `password` has privacy level Sensitive
+  |
+  = note: `print` is a public output channel
+  = note: Sensitive data cannot be printed, logged, serialized, or returned from a public API
+  = help: use expose(password, "reason") with [Audit] effect to explicitly declassify</span></code></pre>
+
+    <p>It is not just <code>print</code>. Try assigning the password to a plain variable:</p>
+
+<pre><code>let copy: String = password;  <span class="code-comment">// COMPILE ERROR</span></code></pre>
+
+<pre><code><span class="code-error">error[E0502]: privacy violation — cannot assign Sensitive&lt;String&gt; to String
+  --> auth.loon:9:24
+  |
+9 |     let copy: String = password;
+  |                         ^^^^^^^^ Sensitive&lt;String&gt; cannot be assigned to String
+  |
+  = note: this would strip the Sensitive wrapper, allowing the value to leak</span></code></pre>
+
+    <p>Try passing it to a function that accepts a plain <code>String</code>:</p>
+
+<pre><code>fn log_value(v: String) [IO] -> Unit {
+    do print(v);
+}
+
+<span class="code-comment">// In main:</span>
+do log_value(password);  <span class="code-comment">// COMPILE ERROR</span></code></pre>
+
+<pre><code><span class="code-error">error[E0503]: privacy violation — Sensitive&lt;String&gt; cannot flow to String parameter
+  --> auth.loon:14:19
+   |
+14 |     do log_value(password);
+   |                  ^^^^^^^^ expected String, found Sensitive&lt;String&gt;
+   |
+   = note: function `log_value` accepts String, which is a public type
+   = note: passing Sensitive data to a public parameter would allow it to leak</span></code></pre>
+
+    <p>The compiler blocks every path. You cannot print it, assign it to an unwrapped variable, pass it to a function that does not expect sensitive data, or serialize it. The password is locked at the type level.</p>
+
+    <!-- ============================================================ -->
+    <h2>6. The escape hatch: expose()</h2>
+
+    <p>Sometimes you genuinely need the underlying value &mdash; to hash it, compare it, or send it over an encrypted channel. Loon provides <code>expose()</code> for this, but it requires the <code>Audit</code> effect and a reason string:</p>
+
+<pre><code>fn hash_password(pw: Sensitive&lt;String&gt;) [Audit] -> String {
+    let raw: String = expose(pw, "hashing for storage");
+    hash_sha256(raw)
+}</code></pre>
+
+    <p>This compiles. Three things happen:</p>
+
+    <ul>
+      <li><strong>The function must declare <code>[Audit]</code></strong> &mdash; Any function that calls <code>expose()</code> must declare the Audit effect. This propagates up the call chain: the caller must also declare <code>[Audit]</code>, and so on. Every function in the chain is visibly marked as one that handles sensitive data.</li>
+      <li><strong>The reason string is mandatory</strong> &mdash; <code>"hashing for storage"</code> is not optional. It documents why the sensitive value is being unwrapped. This is a compile-time requirement, not a convention.</li>
+      <li><strong>The audit trail is compiler-enforced</strong> &mdash; You can search the codebase for every <code>expose()</code> call and know exactly where sensitive data is being accessed and why. No grep for <code>password</code> across a million lines &mdash; the compiler has already narrowed it down.</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h2>7. ZeroOnDrop</h2>
+
+    <p>For cryptographic keys, API secrets, and other values that should not linger in memory after use, Loon provides the <code>ZeroOnDrop</code> policy:</p>
+
+<pre><code>let api_key: Sensitive&lt;String, ZeroOnDrop&gt; = load_key();
+<span class="code-comment">// use api_key...</span>
+<span class="code-comment">// when api_key goes out of scope, its memory is zeroed</span></code></pre>
+
+    <p><code>ZeroOnDrop</code> guarantees that the memory backing this value is overwritten with zeros when the value is no longer reachable. This is not a finalizer that might run eventually &mdash; it is a deterministic cleanup tied to scope exit. The value cannot survive in memory after the function returns.</p>
+
+    <p>Combined with privacy types, this means a sensitive value is protected at every stage: it cannot leak through code at compile time, and it cannot leak through memory at runtime.</p>
+
+    <!-- ============================================================ -->
+    <h2>What's next</h2>
+
+    <p>You have seen the core of Loon: effects that make side effects visible, types that make data shapes exhaustive, and privacy types that make leaks impossible. Here is where to go from here:</p>
+
+    <ul>
+      <li><a href="/docs/reference">Language Reference</a> &mdash; The complete specification: every keyword, every type, every compile-time rule.</li>
+      <li><a href="/docs/privacy-guide">Privacy Types Guide</a> &mdash; Deep dive into privacy levels, declassification policies, and real-world patterns.</li>
+      <li><a href="/docs/bootstrap">The Bootstrap Story</a> &mdash; How Loon was built from bare metal x86-64 assembly, with no borrowed toolchain.</li>
+    </ul>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Types Guide — Loon</title>
+  <meta name="description" content="Deep dive into Loon's privacy type system. Privacy levels, declassification policies, ZeroOnDrop, forbidden algorithms, and real-world authentication patterns.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta property="og:title" content="Privacy Types Guide — Loon">
+  <meta property="og:description" content="Deep dive into Loon's privacy type system. Privacy levels, declassification policies, ZeroOnDrop, and real-world patterns.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/docs/privacy-guide">
+  <meta name="twitter:card" content="summary">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Privacy Types Guide</h1>
+    <p class="page-subtitle">How privacy types work and why they exist &mdash; compile-time enforcement of data classification.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container essay">
+
+    <!-- ============================================================ -->
+    <h2>Why privacy types exist</h2>
+
+    <p>Every data breach follows the same pattern: sensitive data ends up somewhere it shouldn't. A password in a log file. An API key in an error message. A social security number in an analytics event.</p>
+
+    <p>The developer didn't intend to leak the data. The code reviewer didn't catch it. The linter didn't flag it. The data leaked because nothing in the system enforced the constraint "this value must not be logged."</p>
+
+    <p>Loon makes that constraint part of the type system. <code>Sensitive&lt;String&gt;</code> is not <code>String</code>. The compiler treats them as different types. Operations that are safe for <code>String</code> &mdash; logging, serialization, display &mdash; are compile errors for <code>Sensitive&lt;String&gt;</code>.</p>
+
+    <!-- ============================================================ -->
+    <h2>The privacy levels</h2>
+
+    <p>Every value in Loon has a privacy level. The default is Raw (unclassified).</p>
+
+    <table>
+      <thead>
+        <tr><th>Level</th><th>Type syntax</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Raw</td><td><code>String</code></td><td>Default. No privacy restrictions.</td></tr>
+        <tr><td>Public</td><td><code>Public&lt;String&gt;</code></td><td>Explicitly safe to log, display, transmit.</td></tr>
+        <tr><td>Sensitive</td><td><code>Sensitive&lt;String&gt;</code></td><td>Cannot be logged. Cannot be downcast.</td></tr>
+        <tr><td>ZeroOnDrop</td><td><code>Sensitive&lt;String, ZeroOnDrop&gt;</code></td><td>Like Sensitive, plus zeroed from memory at scope exit.</td></tr>
+        <tr><td>Hashed</td><td><code>Hashed&lt;String&gt;</code></td><td>Output of a hash function. Not reversible.</td></tr>
+        <tr><td>Encrypted</td><td><code>Encrypted&lt;String&gt;</code></td><td>Encrypted payload. Safe to transmit.</td></tr>
+      </tbody>
+    </table>
+
+    <p>Privacy levels form a hierarchy. Values can be upgraded (Raw &rarr; Sensitive) freely. Downgrades (Sensitive &rarr; Raw) require the <code>expose()</code> escape hatch.</p>
+
+    <!-- ============================================================ -->
+    <h2>Rule 1: Cannot log Sensitive values</h2>
+
+<pre><code>fn bad() [IO] -&gt; Unit {
+    let pw: Sensitive&lt;String&gt; = "hunter2";
+    do print(pw);  <span class="code-comment">// COMPILE ERROR</span>
+}</code></pre>
+
+<pre><code><span class="code-error">error: cannot log Sensitive value — use expose() with audit context</span></code></pre>
+
+    <p>This applies to <code>print()</code> and <code>print_raw()</code>. There is no way to make a Sensitive value printable without going through <code>expose()</code>.</p>
+
+    <!-- ============================================================ -->
+    <h2>Rule 2: Cannot downcast Sensitive values</h2>
+
+<pre><code>fn bad() [IO] -&gt; Unit {
+    let pw: Sensitive&lt;String&gt; = "hunter2";
+    let raw: String = pw;  <span class="code-comment">// COMPILE ERROR</span>
+}</code></pre>
+
+<pre><code><span class="code-error">error: cannot assign Sensitive value to less restrictive type — use expose()</span></code></pre>
+
+    <p>This also applies to function arguments:</p>
+
+<pre><code>fn log_it(msg: String) [IO] -&gt; Unit { do print(msg); }
+
+fn bad() [IO] -&gt; Unit {
+    let pw: Sensitive&lt;String&gt; = "hunter2";
+    do log_it(pw);  <span class="code-comment">// COMPILE ERROR</span>
+}</code></pre>
+
+<pre><code><span class="code-error">error: cannot pass Sensitive value to less restrictive parameter — use expose()</span></code></pre>
+
+    <p>Upcasting is always safe:</p>
+
+<pre><code>let raw: String = "hello";
+let safe: Sensitive&lt;String&gt; = raw;  <span class="code-comment">// OK — upgrading is always allowed</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h2>Rule 3: The escape hatch &mdash; expose()</h2>
+
+    <p>When you genuinely need to cross the privacy boundary:</p>
+
+<pre><code>fn show_hint(pw: Sensitive&lt;String&gt;) [IO, Audit] -&gt; Unit {
+    let visible: Public&lt;String&gt; = expose(pw, "user requested password hint");
+    do print(visible);  <span class="code-comment">// OK — it's Public now</span>
+}</code></pre>
+
+    <p><code>expose()</code> requires three things:</p>
+
+    <ol>
+      <li>The caller must declare the <code>[Audit]</code> effect</li>
+      <li>A reason string must be provided (documents why the exposure happened)</li>
+      <li>An audit record is written to stderr at runtime</li>
+    </ol>
+
+    <p>The <code>[Audit]</code> effect propagates through the call chain &mdash; every function in the chain must declare it. This means the audit trail is visible in the type signature of every function that participates in an exposure.</p>
+
+    <h3>expose() on non-Sensitive values is an error</h3>
+
+<pre><code>fn bad(s: String) [IO, Audit] -&gt; Unit {
+    let p: Public&lt;String&gt; = expose(s, "not sensitive");  <span class="code-comment">// COMPILE ERROR</span>
+}</code></pre>
+
+<pre><code><span class="code-error">error: expose() argument must be Sensitive — only use with Sensitive values</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h2>Rule 4: ZeroOnDrop</h2>
+
+    <p>For values that shouldn't linger in memory after use:</p>
+
+<pre><code>fn use_key() [IO] -&gt; Unit {
+    let key: Sensitive&lt;String, ZeroOnDrop&gt; = "encryption_key_256";
+    <span class="code-comment">// ... use the key ...</span>
+}  <span class="code-comment">// key is zeroed from memory here</span></code></pre>
+
+    <p>The compiler emits zeroing instructions at every scope exit for ZeroOnDrop variables. This is not a garbage collector hint &mdash; it's a deterministic instruction in the generated machine code.</p>
+
+    <p>Use ZeroOnDrop for:</p>
+
+    <ul>
+      <li>Passwords</li>
+      <li>Encryption keys</li>
+      <li>Session tokens</li>
+      <li>API keys</li>
+      <li>Any value that shouldn't survive past its immediate use</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h2>Rule 5: Forbidden algorithms</h2>
+
+    <p>Certain cryptographic algorithms are known to be broken. Loon doesn't provide them:</p>
+
+<pre><code>let h: String = md5("data");   <span class="code-comment">// COMPILE ERROR: forbidden algorithm</span>
+let h: String = sha1("data");  <span class="code-comment">// COMPILE ERROR: forbidden algorithm</span></code></pre>
+
+<pre><code><span class="code-error">error: forbidden algorithm — MD5 is broken, not available in Loon</span></code></pre>
+
+    <p>The forbidden list: MD5, SHA1, DES, RC4.</p>
+
+    <p>Use instead:</p>
+
+    <ul>
+      <li><strong>Password hashing:</strong> <code>hash_password()</code> (Argon2id)</li>
+      <li><strong>Data integrity:</strong> SHA-256, SHA-512</li>
+      <li><strong>Encryption:</strong> AES-256</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h2>The crypto package</h2>
+
+<pre><code><span class="code-comment">// hash_password takes Sensitive, returns Hashed — types enforce the contract</span>
+fn hash_password(password: Sensitive&lt;String&gt;) [IO] -&gt; Hashed&lt;String&gt;
+
+<span class="code-comment">// verify_password compares Sensitive against Hashed — returns plain Bool</span>
+fn verify_password(password: Sensitive&lt;String&gt;, hash: Hashed&lt;String&gt;) [IO] -&gt; Bool
+
+<span class="code-comment">// generate_token returns Sensitive + ZeroOnDrop — auto-zeroed when done</span>
+fn generate_token() [IO] -&gt; Sensitive&lt;String, ZeroOnDrop&gt;</code></pre>
+
+    <!-- ============================================================ -->
+    <h2>The design principle</h2>
+
+    <p><strong>Make the safe path easy. Make the unsafe path possible but visible.</strong></p>
+
+    <table>
+      <thead>
+        <tr><th>Operation</th><th>What happens</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Safe operation</td><td>Just works, no extra syntax</td></tr>
+        <tr><td>Sensitive operation</td><td>Works, requires explicit acknowledgment</td></tr>
+        <tr><td>Dangerous operation</td><td>Works, leaves mandatory audit trail</td></tr>
+        <tr><td>Prohibited operation</td><td>Compile error, no escape hatch</td></tr>
+      </tbody>
+    </table>
+
+    <p>The unsafe path is not impossible. It's visible, documented, and audited. This is intentional &mdash; every language that makes the unsafe path impossible eventually fails because reality is more complex than the type system anticipated.</p>
+
+    <!-- ============================================================ -->
+    <h2>Worked example: authentication</h2>
+
+<pre><code>module auth;
+
+fn authenticate(pw: Sensitive&lt;String&gt;) [IO] -&gt; Bool {
+    let hash: Hashed&lt;String&gt; = hash_password(pw);
+    let stored: Hashed&lt;String&gt; = load_stored_hash();
+    verify_password(hash, stored)
+}
+
+fn main() [IO] -&gt; Unit {
+    let pw: Sensitive&lt;String&gt; = read_password();
+    let ok: Bool = authenticate(pw);
+    do print(match ok { true -&gt; "Access granted", false -&gt; "Access denied" });
+    <span class="code-comment">// do print(pw);  ← COMPILE ERROR: cannot log Sensitive value</span>
+}</code></pre>
+
+    <p>The happy path compiles without friction. The dangerous path doesn't compile. The developer doesn't need to remember to not log the password &mdash; the type system remembers for them.</p>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

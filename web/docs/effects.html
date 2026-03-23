@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Effect System — Loon</title>
+  <meta name="description" content="How Loon's effect system makes side effects visible, verifiable, and impossible to hide — from every call site to every signature.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta property="og:title" content="The Effect System — Loon">
+  <meta property="og:description" content="How Loon's effect system makes side effects visible, verifiable, and impossible to hide.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/docs/effects">
+  <meta name="twitter:card" content="summary_large_image">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>The Effect System</h1>
+    <p class="page-subtitle">Every side effect declared. Every call site marked. Nothing hidden.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container essay">
+
+    <!-- ============================================================ -->
+    <h2>What are effects?</h2>
+
+    <p>Every function in Loon declares what side effects it can perform. The declaration is in square brackets after the parameters:</p>
+
+<pre><code>fn name(params) [Effects] -&gt; ReturnType</code></pre>
+
+    <p>A function with <code>[]</code> is pure &mdash; guaranteed no side effects. The compiler enforces this. If a function says it's pure, it is pure.</p>
+
+    <!-- ============================================================ -->
+    <h2>Built-in effects</h2>
+
+    <p>Loon defines four built-in effects:</p>
+
+    <ul>
+      <li><strong><code>IO</code></strong> &mdash; print, exit, any output to the outside world</li>
+      <li><strong><code>Crypto</code></strong> &mdash; cryptographic operations (hash_password, etc.)</li>
+      <li><strong><code>Audit</code></strong> &mdash; audit logging, required for <code>expose()</code></li>
+      <li><strong><code>FileIO</code></strong> &mdash; reading files (read_file, get_arg)</li>
+    </ul>
+
+    <p>Each effect is a capability. A function must declare the capability before it can use it.</p>
+
+    <!-- ============================================================ -->
+    <h2>The <code>do</code> keyword</h2>
+
+    <p>Every call to an effectful function must be prefixed with <code>do</code>. This makes side effects visible at every call site, not just in signatures.</p>
+
+<pre><code>// Pure — no do needed
+let sum: Int = add(1, 2);
+
+// Effectful — do required
+do print("hello");</code></pre>
+
+    <p>You can never accidentally call an effectful function. The <code>do</code> keyword is a conscious acknowledgment: "I know this has side effects, and I intend them."</p>
+
+    <!-- ============================================================ -->
+    <h2>Effect propagation</h2>
+
+    <p>If function A calls function B which has <code>[IO]</code>, then A must also declare <code>[IO]</code>. Effects propagate up the call chain. The compiler verifies this &mdash; you cannot hide effects.</p>
+
+<pre><code>fn helper() [IO] -&gt; Unit {
+    do print("helping");
+}
+
+fn caller() [] -&gt; Unit {
+    do helper();  // COMPILE ERROR: undeclared effect
+}</code></pre>
+
+    <p>The compiler produces a structured error:</p>
+
+<pre><code>error: undeclared effect: function caller uses IO but declares []</code></pre>
+
+    <p>The fix is to declare the effect honestly:</p>
+
+<pre><code>fn caller() [IO] -&gt; Unit {
+    do helper();  // now valid
+}</code></pre>
+
+    <p>This propagation means you can trace any effect from <code>main</code> down to its origin. Every function in the call chain admits what it does.</p>
+
+    <!-- ============================================================ -->
+    <h2>Why this matters</h2>
+
+    <p><strong>Pure functions are safe to call anywhere.</strong> A function declared <code>[]</code> cannot print, cannot write files, cannot exit the process. It takes values in and returns values out. You can call it in tests, in parallel, in any context, with zero risk of hidden behavior.</p>
+
+    <p><strong>You can tell from the signature alone what a function can do.</strong> No need to read the implementation. No need to trace through layers of abstraction. The effect list is the truth.</p>
+
+    <p><strong>AI agents generating code get immediate feedback about unintended effects.</strong> When an LLM adds a <code>print</code> call for debugging and forgets to remove it, the effect checker catches it. The function signature says pure; the body says otherwise. That's a compile error, not a code review comment.</p>
+
+    <p><strong>Security auditing becomes a search problem.</strong> Find every function with <code>[Crypto]</code> to audit all cryptographic code. Find every function with <code>[Audit]</code> to review all security boundaries. The effect declarations are a machine-readable index of every capability in the codebase.</p>
+
+    <!-- ============================================================ -->
+    <h2>Effect combinations</h2>
+
+    <p>Functions can declare multiple effects:</p>
+
+<pre><code>fn register(user: String) [IO, Crypto, Audit] -&gt; Unit</code></pre>
+
+    <p>The order doesn't matter. The compiler checks each one independently. A function that hashes a password, logs the registration, and prints a confirmation needs all three effects declared.</p>
+
+    <!-- ============================================================ -->
+    <h2>Interaction with privacy types</h2>
+
+    <p>The <code>expose()</code> builtin requires the <code>[Audit]</code> effect. This means any function that crosses a privacy boundary must declare it in its signature &mdash; visible in every call chain up to main.</p>
+
+<pre><code>fn log_user(email: Private&lt;String&gt;) [Audit] -&gt; Unit {
+    let raw: String = do expose(email);
+    do audit_log(raw);
+}</code></pre>
+
+    <p>A function that tries to <code>expose()</code> without declaring <code>[Audit]</code> gets a compile error. Privacy boundaries and effect boundaries reinforce each other &mdash; you cannot access sensitive data without the compiler knowing about it.</p>
+
+    <div class="essay-cta">
+      <p>See the effect system in action.</p>
+      <a href="https://github.com/mplsllc/loon" class="btn btn-primary">View on GitHub</a>
+      <a href="/docs/" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">Back to Docs</a>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

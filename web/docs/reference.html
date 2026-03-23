@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Language Reference — Loon</title>
+  <meta name="description" content="Complete language reference for Loon. Every type, keyword, operator, and compile-time rule in one concise document.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta property="og:title" content="Language Reference — Loon">
+  <meta property="og:description" content="Complete language reference for Loon. Every type, keyword, operator, and compile-time rule in one concise document.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/docs/reference">
+  <meta name="twitter:card" content="summary">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Language Reference</h1>
+    <p class="page-subtitle">Every construct in Loon, concisely defined. Not a tutorial &mdash; a reference.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container">
+
+    <nav class="ref-toc" aria-label="Reference sections">
+      <ol>
+        <li><a href="#modules">Modules</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#variables">Variables</a></li>
+        <li><a href="#types">Types</a></li>
+        <li><a href="#match">Match Expressions</a></li>
+        <li><a href="#for-loops">For Loops</a></li>
+        <li><a href="#effects">Effects and <code>do</code></a></li>
+        <li><a href="#privacy-types">Privacy Types</a></li>
+        <li><a href="#builtins">Built-in Functions</a></li>
+        <li><a href="#operators">Operators</a></li>
+        <li><a href="#compile-time-checks">Compile-time Checks</a></li>
+        <li><a href="#structured-errors">Structured Errors</a></li>
+      </ol>
+    </nav>
+
+    <!-- ============================================================ -->
+    <h2 id="modules">1. Modules</h2>
+
+    <p>Every source file begins with a module declaration. One module per file. No exceptions.</p>
+
+<pre><code>module my_module;</code></pre>
+
+    <p>The module name is an identifier. It must appear before any other declaration.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="functions">2. Functions</h2>
+
+    <p>Functions are declared with <code>fn</code>. Parameters are typed. Effects are declared in square brackets. The return type follows <code>-&gt;</code>. The last expression in the body is the return value &mdash; there is no <code>return</code> keyword.</p>
+
+<pre><code>fn name(param: Type, param2: Type) [Effects] -&gt; ReturnType {
+    body
+}</code></pre>
+
+    <dl>
+      <dt>Parameters</dt>
+      <dd>Each parameter requires a name and a type annotation, separated by <code>:</code>. Multiple parameters are comma-separated.</dd>
+
+      <dt>Effect declaration</dt>
+      <dd>Square brackets list the effects a function may perform. Use <code>[]</code> for a pure function with no effects. Multiple effects are comma-separated: <code>[IO, FileIO]</code>.</dd>
+
+      <dt>Return type</dt>
+      <dd>Declared after <code>-&gt;</code>. Every function must declare its return type.</dd>
+
+      <dt>Return value</dt>
+      <dd>The last expression in the function body is the return value. There is no <code>return</code> keyword.</dd>
+    </dl>
+
+    <p>Example:</p>
+
+<pre><code>fn greet(name: String) [IO] -&gt; Unit {
+    do print(string_concat("Hello, ", name))
+}
+
+fn double(n: Int) [] -&gt; Int {
+    n * 2
+}</code></pre>
+
+    <!-- ============================================================ -->
+    <h2 id="variables">3. Variables</h2>
+
+    <p>Variables are declared with <code>let</code>. All variables are immutable. Type annotation is required.</p>
+
+<pre><code>let name: Type = value;</code></pre>
+
+    <dl>
+      <dt>Immutability</dt>
+      <dd>All variables are immutable by default. There is no <code>mut</code> keyword. Reassignment is a compile error.</dd>
+
+      <dt>Type annotation</dt>
+      <dd>Required on every <code>let</code> binding. The compiler does not infer variable types.</dd>
+
+      <dt>Scope</dt>
+      <dd>Variables are scoped to the enclosing block.</dd>
+    </dl>
+
+    <p>Example:</p>
+
+<pre><code>let count: Int = 42;
+let message: String = "hello";</code></pre>
+
+    <!-- ============================================================ -->
+    <h2 id="types">4. Types</h2>
+
+    <h3>Primitive types</h3>
+
+    <table>
+      <thead>
+        <tr><th>Type</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Int</code></td><td>64-bit signed integer</td></tr>
+        <tr><td><code>String</code></td><td>Immutable UTF-8 string</td></tr>
+        <tr><td><code>Bool</code></td><td><code>true</code> or <code>false</code></td></tr>
+        <tr><td><code>Unit</code></td><td>No meaningful value (similar to void)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Privacy-wrapped types</h3>
+
+    <table>
+      <thead>
+        <tr><th>Type</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Public&lt;T&gt;</code></td><td>Data safe for public consumption</td></tr>
+        <tr><td><code>Sensitive&lt;T&gt;</code></td><td>Data requiring protection (passwords, PII)</td></tr>
+        <tr><td><code>Restricted&lt;T&gt;</code></td><td>Data with access restrictions</td></tr>
+      </tbody>
+    </table>
+
+    <p>Privacy types accept an optional policy parameter:</p>
+
+<pre><code>Sensitive&lt;String, ZeroOnDrop&gt;</code></pre>
+
+    <h3>User-defined algebraic data types</h3>
+
+    <p>Declared with <code>type</code>. Each variant may carry named fields or be a bare tag.</p>
+
+<pre><code>type Shape {
+    Circle(radius: Int),
+    Rectangle(width: Int, height: Int),
+    Point,
+}</code></pre>
+
+    <p>Variants are comma-separated. Fields within a variant use the same <code>name: Type</code> syntax as function parameters.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="match">5. Match Expressions</h2>
+
+    <p>Pattern matching over algebraic data types. Match is an expression &mdash; it produces a value.</p>
+
+<pre><code>match value {
+    Pattern1 -&gt; expression1,
+    Pattern2(a, b) -&gt; expression2,
+}</code></pre>
+
+    <dl>
+      <dt>Exhaustiveness</dt>
+      <dd>Every variant of the matched type must be covered. The compiler rejects non-exhaustive matches.</dd>
+
+      <dt>Arms</dt>
+      <dd>Each arm is <code>Pattern -&gt; expression</code>. Arms are comma-separated.</dd>
+
+      <dt>Destructuring</dt>
+      <dd>Variant fields are bound to names in the pattern: <code>Circle(r)</code> binds the radius to <code>r</code>.</dd>
+
+      <dt>Expression result</dt>
+      <dd>Every arm must produce a value of the same type.</dd>
+    </dl>
+
+    <p>Example:</p>
+
+<pre><code>let description: String = match shape {
+    Circle(r) -&gt; string_concat("circle with radius ", int_to_string(r)),
+    Rectangle(w, h) -&gt; string_concat("rectangle ", int_to_string(w)),
+    Point -&gt; "a point",
+};</code></pre>
+
+    <!-- ============================================================ -->
+    <h2 id="for-loops">6. For Loops</h2>
+
+    <p>Iteration over ranges.</p>
+
+<pre><code>for i in range(0, 10) {
+    // body
+}</code></pre>
+
+    <dl>
+      <dt><code>range(start, end)</code></dt>
+      <dd>Produces integers from <code>start</code> (inclusive) to <code>end</code> (exclusive).</dd>
+
+      <dt>Loop variable</dt>
+      <dd>Immutable within the loop body. Scoped to the loop.</dd>
+    </dl>
+
+    <!-- ============================================================ -->
+    <h2 id="effects">7. Effects and <code>do</code></h2>
+
+    <p>Effects declare what a function may do beyond pure computation. A function that performs I/O must declare <code>[IO]</code>. A function that reads files must declare <code>[FileIO]</code>. A pure function declares <code>[]</code>.</p>
+
+    <h3>Built-in effects</h3>
+
+    <table>
+      <thead>
+        <tr><th>Effect</th><th>Permits</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>IO</code></td><td>Console output, process exit</td></tr>
+        <tr><td><code>FileIO</code></td><td>File reads, command-line argument access</td></tr>
+        <tr><td><code>Crypto</code></td><td>Cryptographic operations (hashing)</td></tr>
+        <tr><td><code>Audit</code></td><td>Privacy boundary crossing via <code>expose()</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>The <code>do</code> keyword</h3>
+
+    <p>Calling an effectful function requires the <code>do</code> keyword at the call site. This makes effects visible in the code, not just the signature.</p>
+
+<pre><code>fn main() [IO] -&gt; Unit {
+    do print("hello")
+}</code></pre>
+
+    <p>Calling <code>print</code> without <code>do</code> is a compile error. Declaring effects you don't use is allowed. Performing effects you didn't declare is not.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="privacy-types">8. Privacy Types</h2>
+
+    <p>Loon enforces data classification at compile time through a privacy type hierarchy.</p>
+
+    <h3>Hierarchy</h3>
+
+    <p><code>Public</code> &lt; <code>Restricted</code> &lt; <code>Sensitive</code></p>
+
+    <dl>
+      <dt>No implicit downcast</dt>
+      <dd>A <code>Sensitive&lt;String&gt;</code> cannot be passed where a <code>Public&lt;String&gt;</code> is expected. The compiler rejects it.</dd>
+
+      <dt>Crossing boundaries</dt>
+      <dd>The <code>expose()</code> function crosses privacy boundaries. It requires the <code>Audit</code> effect, creating a traceable record of every declassification.</dd>
+
+      <dt>Policies</dt>
+      <dd>Privacy types accept an optional policy: <code>Sensitive&lt;String, ZeroOnDrop&gt;</code>. Policies control runtime behavior like memory clearing.</dd>
+    </dl>
+
+<pre><code>fn log_user(password: Sensitive&lt;String&gt;) [IO, Audit] -&gt; Unit {
+    let safe: Public&lt;String&gt; = do expose(password, "logging");
+    do print(safe)
+}</code></pre>
+
+    <!-- ============================================================ -->
+    <h2 id="builtins">9. Built-in Functions</h2>
+
+    <table>
+      <thead>
+        <tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>print</code></td>
+          <td><code>(s: String) [IO] -&gt; Unit</code></td>
+          <td>Print string to stdout</td>
+        </tr>
+        <tr>
+          <td><code>exit</code></td>
+          <td><code>(code: Int) [IO] -&gt; Unit</code></td>
+          <td>Exit the process with a status code</td>
+        </tr>
+        <tr>
+          <td><code>int_to_string</code></td>
+          <td><code>(n: Int) [] -&gt; String</code></td>
+          <td>Convert integer to its string representation</td>
+        </tr>
+        <tr>
+          <td><code>string_concat</code></td>
+          <td><code>(a: String, b: String) [] -&gt; String</code></td>
+          <td>Concatenate two strings (also available via <code>+</code>)</td>
+        </tr>
+        <tr>
+          <td><code>read_file</code></td>
+          <td><code>(path: String) [FileIO] -&gt; String</code></td>
+          <td>Read entire file contents as a string</td>
+        </tr>
+        <tr>
+          <td><code>get_arg</code></td>
+          <td><code>(n: Int) [FileIO] -&gt; String</code></td>
+          <td>Get command-line argument at index <code>n</code></td>
+        </tr>
+        <tr>
+          <td><code>hash_password</code></td>
+          <td><code>(pw: Sensitive&lt;String&gt;) [Crypto] -&gt; Hashed&lt;String&gt;</code></td>
+          <td>Hash a sensitive password</td>
+        </tr>
+        <tr>
+          <td><code>expose</code></td>
+          <td><code>(val: Sensitive&lt;T&gt;, reason: String) [Audit] -&gt; Public&lt;T&gt;</code></td>
+          <td>Cross a privacy boundary with an audit reason</td>
+        </tr>
+        <tr>
+          <td><code>array</code></td>
+          <td><code>(size: Int) [] -&gt; Array&lt;T&gt;</code></td>
+          <td>Create an array of the given size</td>
+        </tr>
+        <tr>
+          <td><code>len</code></td>
+          <td><code>(arr: Array&lt;T&gt;) [] -&gt; Int</code></td>
+          <td>Return the length of an array</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================ -->
+    <h2 id="operators">10. Operators</h2>
+
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Operators</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Arithmetic</td>
+          <td><code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code></td>
+          <td>Integer arithmetic. Division truncates toward zero.</td>
+        </tr>
+        <tr>
+          <td>Comparison</td>
+          <td><code>==</code> <code>!=</code> <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code></td>
+          <td>Produce <code>Bool</code>. Both operands must have the same type.</td>
+        </tr>
+        <tr>
+          <td>Logical</td>
+          <td><code>and</code> <code>or</code> <code>not</code></td>
+          <td>Boolean logic. Keywords, not symbols.</td>
+        </tr>
+        <tr>
+          <td>String concatenation</td>
+          <td><code>+</code></td>
+          <td>When both operands are <code>String</code>, <code>+</code> concatenates.</td>
+        </tr>
+        <tr>
+          <td>Pipe</td>
+          <td><code>|&gt;</code></td>
+          <td>Passes the left-hand value as the first argument to the right-hand function.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>There is no operator overloading. Each operator has exactly one meaning per type.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="compile-time-checks">11. Compile-time Checks</h2>
+
+    <p>The compiler enforces these checks before emitting any code. Programs that violate any check do not compile.</p>
+
+    <ol>
+      <li><strong>Effect violations</strong> &mdash; Calling an effectful function without declaring its effect in the caller's signature.</li>
+      <li><strong>Type mismatches</strong> &mdash; Passing a value of the wrong type to a function or binding.</li>
+      <li><strong>Undefined variables</strong> &mdash; Referencing a variable that has not been declared in the current scope.</li>
+      <li><strong>Wrong argument count</strong> &mdash; Calling a function with too many or too few arguments.</li>
+      <li><strong>Immutable reassignment</strong> &mdash; Assigning to a variable that has already been bound.</li>
+      <li><strong>Return type mismatch</strong> &mdash; The last expression in a function body does not match the declared return type.</li>
+      <li><strong>Non-exhaustive match</strong> &mdash; A match expression that does not cover every variant of the matched type.</li>
+      <li><strong>Undefined functions</strong> &mdash; Calling a function that has not been declared.</li>
+      <li><strong>Effect requirements for <code>read_file</code> and <code>get_arg</code></strong> &mdash; These functions require <code>[FileIO]</code>; calling them without it is rejected.</li>
+    </ol>
+
+    <!-- ============================================================ -->
+    <h2 id="structured-errors">12. Structured Errors</h2>
+
+    <p>The compiler emits errors as JSON objects for machine consumption. Every error includes four fields:</p>
+
+    <dl>
+      <dt><code>code</code></dt>
+      <dd>A stable error identifier (e.g., <code>"E001"</code>).</dd>
+
+      <dt><code>message</code></dt>
+      <dd>A human-readable description of the error.</dd>
+
+      <dt><code>location</code></dt>
+      <dd>File, line, and column where the error was detected.</dd>
+
+      <dt><code>suggestion</code></dt>
+      <dd>An optional fix the developer or AI agent can apply.</dd>
+    </dl>
+
+    <p>Example:</p>
+
+<pre><code>{
+  "code": "E003",
+  "message": "effect IO required but not declared",
+  "location": {"line": 5, "col": 3},
+  "suggestion": "add IO to the function's effect list: [IO]"
+}</code></pre>
+
+    <p>Structured errors make Loon compiler output directly consumable by AI agents, IDEs, and CI pipelines without parsing free-form text.</p>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

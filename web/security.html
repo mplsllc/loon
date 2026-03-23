@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security Policy — Loon</title>
+  <meta name="description" content="How to report security vulnerabilities in the Loon programming language. Scope, response timelines, and credit policy.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta property="og:title" content="Security Policy — Loon">
+  <meta property="og:description" content="How to report security vulnerabilities in the Loon programming language. Scope, response timelines, and credit policy.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://loonlang.org/security">
+  <meta name="twitter:card" content="summary">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Security Policy</h1>
+    <p class="page-subtitle">How to report vulnerabilities in the Loon compiler and toolchain.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container">
+
+    <div class="license-section">
+      <h2>Reporting Vulnerabilities</h2>
+      <p>Email: <a href="mailto:patrick@mplsllc.com">patrick@mplsllc.com</a></p>
+      <p>Subject line: <strong>[SECURITY] brief description</strong></p>
+    </div>
+
+    <div class="license-section">
+      <h2>What's in Scope</h2>
+      <ul>
+        <li><strong>Compiler correctness:</strong> privacy type enforcement bypass, effect system bypass</li>
+        <li><strong>Code generation:</strong> generated assembly that violates type safety</li>
+        <li><strong>Runtime safety:</strong> buffer overflows, memory corruption in compiled programs</li>
+        <li><strong>Privacy type system:</strong> any path that leaks Sensitive data without <code>expose()</code></li>
+        <li><strong>Bootstrap chain:</strong> tampering or integrity issues</li>
+      </ul>
+    </div>
+
+    <div class="license-section">
+      <h2>What's Not in Scope</h2>
+      <ul>
+        <li><strong>Feature requests</strong> — use <a href="https://github.com/mplsllc/loon/issues">GitHub Issues</a></li>
+        <li><strong>Non-security bugs</strong> — use <a href="https://github.com/mplsllc/loon/issues">GitHub Issues</a></li>
+        <li><strong>Social engineering</strong></li>
+      </ul>
+    </div>
+
+    <div class="license-section">
+      <h2>Response Timeline</h2>
+      <p>This is a solo developer project. Honest timelines:</p>
+      <ul>
+        <li><strong>Acknowledgment:</strong> within 72 hours</li>
+        <li><strong>Assessment:</strong> within 1 week</li>
+        <li><strong>Fix for critical issues:</strong> within 2 weeks</li>
+      </ul>
+    </div>
+
+    <div class="license-section">
+      <h2>Credit</h2>
+      <p>Security researchers who report valid vulnerabilities will be credited in the release notes, unless they prefer anonymity.</p>
+    </div>
+
+    <div class="license-callout">
+      <p style="margin-top: 1rem;"><a href="/">&larr; Back to the Loon home page</a></p>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

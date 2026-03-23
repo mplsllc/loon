@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building from Source — Loon</title>
+  <meta name="description" content="Build instructions for all platforms. Covers assembling the bootstrap compiler, running the test gauntlet, and verifying the trust chain.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta property="og:title" content="Building from Source — Loon">
+  <meta property="og:description" content="Build instructions for all platforms. Covers assembling the bootstrap compiler, running the test gauntlet, and verifying the trust chain.">
+  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/docs/building">
+  <meta name="twitter:card" content="summary">
+  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Building from Source</h1>
+    <p class="page-subtitle">Build instructions for all platforms &mdash; bootstrap chain, LLVM backend, WebAssembly, and the test gauntlet.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container essay">
+
+    <!-- ============================================================ -->
+    <h2>Prerequisites</h2>
+
+    <h3>Required (all targets)</h3>
+
+    <ul>
+      <li><strong>NASM</strong> (Netwide Assembler) &mdash; for the NASM backend</li>
+      <li><strong>GNU ld</strong> &mdash; for linking NASM output</li>
+      <li><strong>Python 3</strong> &mdash; for the LSP server and package manager</li>
+    </ul>
+
+    <h3>Required (LLVM targets)</h3>
+
+    <ul>
+      <li><strong>LLVM 18+</strong> (<code>llc</code> command)</li>
+      <li><strong>GCC or Clang</strong> &mdash; for linking LLVM object files</li>
+    </ul>
+
+    <h3>Optional (WebAssembly)</h3>
+
+    <ul>
+      <li><strong>wasm-ld</strong> (from LLVM/LLD)</li>
+      <li><strong>wasmtime</strong> &mdash; WASI runtime for testing</li>
+      <li><strong>wasi-sysroot</strong> &mdash; for <code>clang --target=wasm32-wasi</code> linking</li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h2>Installing dependencies</h2>
+
+    <h3>Ubuntu / Debian</h3>
+
+<pre><code>sudo apt-get install nasm llvm clang gcc lld
+
+<span class="code-comment"># For WASM:</span>
+curl https://wasmtime.dev/install.sh -sSf | bash</code></pre>
+
+    <h3>macOS</h3>
+
+<pre><code>brew install nasm llvm
+
+<span class="code-comment"># llc and clang come with Xcode Command Line Tools</span>
+<span class="code-comment"># For WASM:</span>
+brew install wasmtime</code></pre>
+
+    <h3>Windows</h3>
+
+    <p>Install LLVM from <a href="https://releases.llvm.org/">releases.llvm.org</a> and NASM from <a href="https://www.nasm.us/">nasm.us</a>.</p>
+
+    <!-- ============================================================ -->
+    <h2>Building the compiler</h2>
+
+    <p>The Loon compiler is self-hosting. Build from the pre-compiled boot binary:</p>
+
+<pre><code><span class="code-comment"># If you have a working loon binary:</span>
+./loon stage2/compiler.loon > compiler.asm
+nasm -f elf64 -o compiler.o compiler.asm
+ld -o loon compiler.o
+
+<span class="code-comment"># Bootstrap from Stage 1 (assembly):</span>
+./stage0/lexer stage2/compiler.loon | ./stage1/compiler > compiler.asm
+nasm -f elf64 -o compiler.o compiler.asm
+ld -o loon compiler.o</code></pre>
+
+    <!-- ============================================================ -->
+    <h2>Compiling Loon programs</h2>
+
+    <h3>NASM backend (default, Linux x86-64)</h3>
+
+<pre><code>./loon program.loon > program.asm
+nasm -f elf64 -o program.o program.asm
+ld -o program program.o
+./program</code></pre>
+
+    <h3>LLVM backend (cross-platform)</h3>
+
+<pre><code>./loon --target llvm program.loon > program.ll
+llc --relocation-model=pic -filetype=obj program.ll -o program.o
+gcc -no-pie program.o -o program
+./program</code></pre>
+
+    <h3>Cross-compilation</h3>
+
+<pre><code><span class="code-comment"># macOS x86-64</span>
+./loon --target llvm --arch macos program.loon > program.ll
+
+<span class="code-comment"># macOS ARM64 (Apple Silicon)</span>
+./loon --target llvm --arch macos-arm program.loon > program.ll
+
+<span class="code-comment"># Windows</span>
+./loon --target llvm --arch windows program.loon > program.ll
+
+<span class="code-comment"># WebAssembly (WASI)</span>
+./loon --target llvm --arch wasm program.loon > program.ll</code></pre>
+
+    <h3>WebAssembly build pipeline</h3>
+
+<pre><code><span class="code-comment"># Generate WASM-targeted LLVM IR</span>
+./loon --target llvm --arch wasm program.loon > program.ll
+
+<span class="code-comment"># Option 1: Using llc + wasm-ld</span>
+llc -march=wasm32 -filetype=obj program.ll -o program.o
+wasm-ld program.o -o program.wasm --no-entry --export=_start
+
+<span class="code-comment"># Option 2: Using clang (requires wasi-sysroot)</span>
+clang --target=wasm32-wasi program.ll -o program.wasm
+
+<span class="code-comment"># Run with wasmtime</span>
+wasmtime program.wasm</code></pre>
+
+    <h4>Installing wasi-sysroot</h4>
+
+    <p>The wasi-sysroot provides libc headers and libraries for WASM targets:</p>
+
+    <p><strong>Ubuntu / Debian:</strong></p>
+
+<pre><code>sudo apt-get install wasi-libc
+<span class="code-comment"># sysroot at /usr/share/wasi-sysroot or /usr/lib/wasi</span></code></pre>
+
+    <p><strong>Manual installation:</strong></p>
+
+<pre><code>wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sysroot-24.0.tar.gz
+tar xzf wasi-sysroot-24.0.tar.gz
+clang --target=wasm32-wasi --sysroot=./wasi-sysroot program.ll -o program.wasm</code></pre>
+
+    <!-- ============================================================ -->
+    <h2>Running the test suite</h2>
+
+<pre><code><span class="code-comment"># NASM gauntlet (50 tests)</span>
+./gauntlet/run.sh
+
+<span class="code-comment"># LLVM test sweep</span>
+for f in gauntlet/tests/*/*.loon; do
+    expect=$(grep "^// EXPECT:" "$f" | head -1 | sed 's|^// EXPECT: ||')
+    [[ "$expect" == "COMPILES OK, exit "* ]] || continue
+    expected_exit="${expect#COMPILES OK, exit }"
+    ./loon --target llvm "$f" > /tmp/t.ll 2>/dev/null && \
+    llc --relocation-model=pic -filetype=obj /tmp/t.ll -o /tmp/t.o 2>/dev/null && \
+    gcc -no-pie /tmp/t.o -o /tmp/t 2>/dev/null && \
+    timeout 5 /tmp/t >/dev/null 2>/dev/null
+    [ "$?" = "$expected_exit" ] && echo "PASS $(basename $f .loon)" || echo "FAIL $(basename $f .loon)"
+done</code></pre>
+
+    <!-- ============================================================ -->
+    <h2>Editor support</h2>
+
+    <h3>VS Code</h3>
+
+    <ol>
+      <li>Copy <code>tools/vscode/</code> to <code>~/.vscode/extensions/loon-language/</code></li>
+      <li>Set the <code>LOON_COMPILER</code> environment variable to point to your loon binary</li>
+      <li>Restart VS Code</li>
+      <li>Open a <code>.loon</code> file &mdash; syntax highlighting and error diagnostics will appear</li>
+    </ol>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs/">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
