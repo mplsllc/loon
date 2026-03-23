@@ -2663,7 +2663,7 @@ fn ll_aryget(lag_g: Array<Int>, lag_n: Array<Int>, lag_s: Array<Int>) [IO] -> In
     };
     // Load array pointer (param uses %p_name directly, local uses %v{i})
     let lag_at: Int = ll_tmp(lag_g);
-    match lag_vf[0] >= 0 { true -> match lag_g[51+lag_vf[0]*4+2]==1 { true -> { do print_raw("    %t"+int_to_string(lag_at)+" = add i64 %p_"); let lag_po: Int=lag_g[51+lag_vf[0]*4]; let lag_pl: Int=lag_g[51+lag_vf[0]*4+1]; for lag_pk in range(0,lag_pl) { do print_byte(lag_s[lag_po+lag_pk]); }; do print(", 0"); }, false -> do print("    %t"+int_to_string(lag_at)+" = load i64, i64* %v"+int_to_string(lag_vf[0])) }, false -> { do print_raw("    %t"+int_to_string(lag_at)+" = add i64 %p_"); for lag_uk in range(0, lag_g[42]) { do print_byte(lag_s[lag_g[40] + lag_uk]); }; do print(", 0"); } };
+    match lag_vf[0] >= 0 { true -> match lag_g[51+lag_vf[0]*4+2]==1 { true -> { do print_raw("    %t"+int_to_string(lag_at)+" = add i64 %p_"); let lag_po: Int=lag_g[51+lag_vf[0]*4]; let lag_pl: Int=lag_g[51+lag_vf[0]*4+1]; for lag_pk in range(0,lag_pl) { do print_byte(lag_s[lag_po+lag_pk]); }; do print(", 0"); }, false -> do print("    %t"+int_to_string(lag_at)+" = load i64, i64* %v"+int_to_string(lag_vf[0])) }, false -> do print("    %t"+int_to_string(lag_at)+" = add i64 0, 0 ; unfound var") };
     let lag_apt: Int = ll_tmp(lag_g);
     do print("    %t" + int_to_string(lag_apt) + " = inttoptr i64 %t" + int_to_string(lag_at) + " to i64*");
     // Eval index
@@ -2702,7 +2702,7 @@ fn ll_aryset(las_g: Array<Int>, las_n: Array<Int>, las_s: Array<Int>) [IO] -> Un
     };
     // Load array pointer (param uses %p_name directly, local uses %v{i})
     let las_at: Int = ll_tmp(las_g);
-    match las_vf[0] >= 0 { true -> match las_g[51+las_vf[0]*4+2]==1 { true -> { do print_raw("    %t"+int_to_string(las_at)+" = add i64 %p_"); let las_po: Int=las_g[51+las_vf[0]*4]; let las_pl: Int=las_g[51+las_vf[0]*4+1]; for las_pk in range(0,las_pl) { do print_byte(las_s[las_po+las_pk]); }; do print(", 0"); }, false -> do print("    %t"+int_to_string(las_at)+" = load i64, i64* %v"+int_to_string(las_vf[0])) }, false -> { do print_raw("    %t"+int_to_string(las_at)+" = add i64 %p_"); for las_uk in range(0, las_g[42]) { do print_byte(las_s[las_g[40] + las_uk]); }; do print(", 0"); } };
+    match las_vf[0] >= 0 { true -> match las_g[51+las_vf[0]*4+2]==1 { true -> { do print_raw("    %t"+int_to_string(las_at)+" = add i64 %p_"); let las_po: Int=las_g[51+las_vf[0]*4]; let las_pl: Int=las_g[51+las_vf[0]*4+1]; for las_pk in range(0,las_pl) { do print_byte(las_s[las_po+las_pk]); }; do print(", 0"); }, false -> do print("    %t"+int_to_string(las_at)+" = load i64, i64* %v"+int_to_string(las_vf[0])) }, false -> do print("    %t"+int_to_string(las_at)+" = add i64 0, 0 ; unfound var") };
     let las_apt: Int = ll_tmp(las_g);
     do print("    %t" + int_to_string(las_apt) + " = inttoptr i64 %t" + int_to_string(las_at) + " to i64*");
     // Eval index (first child)
@@ -2900,11 +2900,11 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
         // Emit arm body immediately after comparison
         do print("m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_b" + int_to_string(lm_ai) + ":");
         lm_g[31] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 5];
-        lm_g[4130 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s);
-        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = lm_g[4130 + lm_g[4199] - 1];
-        match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] == 0 { true -> {
-            lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = ll_tmp(lm_g);
-            do print("    %t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai]) + " = add i64 0, 0");
+        lm_g[4019] = ll_expr(lm_g, lm_n, lm_s); // FIXED slot — safe from aryset clobber
+        lm_g[4200 + (lm_g[4199] - 1) * 32 + lm_ai] = lm_g[4019];
+        match lm_g[4200 + (lm_g[4199] - 1) * 32 + lm_ai] == 0 { true -> {
+            lm_g[4200 + (lm_g[4199] - 1) * 32 + lm_ai] = ll_tmp(lm_g);
+            do print("    %t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 32 + lm_ai]) + " = add i64 0, 0");
         }, false -> { } };
         // Join block
         do print("    br label %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_j" + int_to_string(lm_ai));
@@ -2922,7 +2922,7 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     do print_raw("    %t" + int_to_string(lm_g[4193]) + " = phi i64 ");
     for lm_pi in range(0, lm_g[4020 + lm_g[4199] - 1]) {
         match lm_pi > 0 { true -> do print_raw(", "), false -> { } };
-        do print_raw("[%t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_pi]) + ", %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_j" + int_to_string(lm_pi) + "]");
+        do print_raw("[%t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 32 + lm_pi]) + ", %m" + int_to_string(lm_g[4060 + lm_g[4199] - 1]) + "_j" + int_to_string(lm_pi) + "]");
     };
     do print("");
     lm_g[4199] = lm_g[4199] - 1; // restore depth
