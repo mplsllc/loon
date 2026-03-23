@@ -1,0 +1,32 @@
+// HTTP header parser — demonstrates string builtins
+// Tests: substring, string_index_of, string_trim, string_contains
+module http;
+
+fn main() [IO] -> Unit {
+    let line: String = "Content-Type: application/json";
+    let colon: Int = string_index_of(line, 58);
+    do print("colon at: " + int_to_string(colon));
+    let name: String = substring(line, 0, colon);
+    do print("name: " + name);
+    let value: String = substring(line, colon + 2, string_length(line) - colon - 2);
+    do print("value: " + value);
+
+    // Test contains
+    match string_contains(line, "json") {
+        true -> do print("contains json: yes"),
+        false -> do print("contains json: no"),
+    };
+
+    // Test starts_with
+    match string_starts_with(name, "Content") {
+        true -> do print("starts with Content: yes"),
+        false -> do print("starts with Content: no"),
+    };
+
+    // Test trim
+    let padded: String = "  hello  ";
+    let trimmed: String = string_trim(padded);
+    do print("trimmed: [" + trimmed + "]");
+
+    do exit(0);
+}

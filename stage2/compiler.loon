@@ -1854,23 +1854,16 @@ fn cg_call5(c5_g: Array<Int>, c5_n: Array<Int>, c5_s: Array<Int>) [IO] -> Unit {
     },
     false -> match c5_g[140] == 17 { true -> {
         // string_starts_with(str, prefix) → Bool
+        // Eval str → (rax=ptr, rdx=len), save to stack
         c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
         do emit_line("    push rax"); do emit_line("    push rdx");
+        // Eval prefix → (rax=ptr, rdx=len)
         c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
-        do emit_line("    mov rdx, rax"); do emit_line("    mov rcx, rdx"); // prefix ptr, len
-        // Wait — rdx is overwritten. Fix: save prefix separately
-        do emit_line("    pop rsi"); do emit_line("    pop rdi"); // str ptr, len
-        // Actually need to restructure. The string convention: rax=ptr, rdx=len
-        // After first eval: str_ptr=rax, str_len=rdx → push both
-        // After second eval: prefix_ptr=rax, prefix_len=rdx
-        // Need: rdi=str_ptr, rsi=str_len, rdx=prefix_ptr, rcx=prefix_len
-        // This is messy. Let me use a simpler approach: save to stack
-        do emit_line("    mov rcx, rdx"); // prefix_len (from second eval's rdx — but we overwrote it)
-        // The push/pop order is wrong. Let me fix:
-        // Actually the pushes saved str_ptr and str_len. pops restore them.
-        // But the second cg_expr for prefix returns ptr=rax, len=rdx
-        // So: rdx=prefix_len, rax=prefix_ptr. rdi=str_ptr (popped), rsi=str_len (popped)
-        // The emit order above is wrong. Let me redo:
+        // Set up: rdi=str_ptr, rsi=str_len, rdx=prefix_ptr, rcx=prefix_len
+        do emit_line("    mov rcx, rdx"); // rcx = prefix_len (BEFORE rdx is overwritten)
+        do emit_line("    mov rdx, rax"); // rdx = prefix_ptr
+        do emit_line("    pop rsi");      // rsi = str_len
+        do emit_line("    pop rdi");      // rdi = str_ptr
         do emit_line("    call _rt_string_starts_with");
     },
     false -> match c5_g[140] == 18 { true -> {
@@ -1886,8 +1879,10 @@ fn cg_call5(c5_g: Array<Int>, c5_n: Array<Int>, c5_s: Array<Int>) [IO] -> Unit {
         c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
         do emit_line("    push rax"); do emit_line("    push rdx");
         c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
-        do emit_line("    mov rdx, rax"); do emit_line("    mov rcx, rdx");
-        do emit_line("    pop rsi"); do emit_line("    pop rdi");
+        do emit_line("    mov rcx, rdx"); // sub_len (BEFORE rdx overwritten)
+        do emit_line("    mov rdx, rax"); // sub_ptr
+        do emit_line("    pop rsi");      // str_len
+        do emit_line("    pop rdi");      // str_ptr
         do emit_line("    call _rt_string_contains");
     },
     false -> match c5_g[140] == 20 { true -> {
