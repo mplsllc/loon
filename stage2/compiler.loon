@@ -2601,6 +2601,7 @@ fn ll_for(lfr_g: Array<Int>, lfr_n: Array<Int>, lfr_s: Array<Int>) [IO] -> Unit 
     lfr_g[51 + lfr_vi * 4] = lfr_n[lfr_ni * 10 + 2];
     lfr_g[51 + lfr_vi * 4 + 1] = lfr_n[lfr_ni * 10 + 3];
     lfr_g[51 + lfr_vi * 4 + 2] = 0;
+    lfr_g[51 + lfr_vi * 4 + 3] = 0; // type_info = Int
     lfr_g[50] = lfr_vi + 1;
     do print("    %v" + int_to_string(lfr_vi) + " = alloca i64");
     // Eval start expression (first child)
@@ -2857,8 +2858,9 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     // Match depth tracking — g[4199] = current depth, results at g[4200 + depth*16 + arm]
     lm_g[4199] = lm_g[4199] + 1;
     lm_g[31] = lm_disc;
-    // Store discriminant temp at depth-indexed slot (g[4180+depth]) so nested matches don't clobber it
-    lm_g[4180 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s);
+    // Store discriminant temp — use g[4179] as scratch to avoid aryset clobber on computed index
+    lm_g[4139] = ll_expr(lm_g, lm_n, lm_s);
+    lm_g[4140 + lm_g[4199] - 1] = lm_g[4139];
     // Phase 1: Emit ALL comparisons as a chain before any arm bodies
     lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_ni * 10 + 5]; // first arm node
     for lm_ai in range(0, lm_ac) {
@@ -2873,7 +2875,7 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
                     true -> {
                         // String comparison: strcmp(disc_ptr, pattern_str) == 0
                         lm_g[4192] = ll_tmp(lm_g);
-                        do print("    %t" + int_to_string(lm_g[4192]) + " = inttoptr i64 %t" + int_to_string(lm_g[4180 + lm_g[4199] - 1]) + " to i8*");
+                        do print("    %t" + int_to_string(lm_g[4192]) + " = inttoptr i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + " to i8*");
                         lm_g[4191] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 8]; // pattern string index
                         lm_g[4190] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 3] + 1; // pattern string length + 1
                         lm_g[4189] = ll_tmp(lm_g);
@@ -2885,7 +2887,7 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
                     },
                     false -> {
                         lm_g[4193] = ll_tmp(lm_g);
-                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4180 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
+                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
                     },
                 };
                 match lm_ai + 1 < lm_ac {
@@ -2906,7 +2908,8 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
         lm_g[4160 + lm_g[4199] * 2 + 1] = lm_g[4160 + lm_g[4199] * 2];
         do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_bi) + ":");
         lm_g[31] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 5]; // arm body
-        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = ll_expr(lm_g, lm_n, lm_s);
+        lm_g[4178] = ll_expr(lm_g, lm_n, lm_s); // scratch to avoid aryset clobber
+        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = lm_g[4178];
         // Ensure arm result is a valid i64 temp
         match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] == 0 { true -> {
             lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = ll_tmp(lm_g);
@@ -3114,6 +3117,10 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
         do print("declare i8* @malloc(i64)");
         do print("declare i32 @sprintf(i8*, i8*, ...)");
         do print("declare i64 @strlen(i8*)");
+        do print("declare i8* @_loon_i64_to_str(i64)");
+        do print("declare void @_loon_print_byte(i64)");
+        do print("declare i8* @_loon_read_file(i64)");
+        do print("declare i8* @_loon_get_arg(i64)");
         do print("declare i32 @strcmp(i8*, i8*)");
         do print("declare void @llvm.memcpy.p0.p0.i64(i8* nocapture, i8* nocapture readonly, i64, i1)");
     } };
