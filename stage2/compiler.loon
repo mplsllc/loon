@@ -2445,7 +2445,7 @@ fn ll_ident(li_g: Array<Int>, li_n: Array<Int>, li_s: Array<Int>) [IO] -> Int {
         },
     };
     // Set g[761] to the variable's type (7=Float) for callers like ll_binop
-    match li_vf[0] >= 0 { true -> { li_g[761] = li_g[51 + li_vf[0] * 4 + 3]; }, false -> { li_g[761] = 0; } };
+    match li_vf[0] >= 0 { true -> { li_g[761] = li_g[51 + li_vf[0] * 4 + 3] % 16; }, false -> { li_g[761] = 0; } };
     li_t
 }
 
@@ -2544,7 +2544,8 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                     false -> match lbu_bi == 9 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i8* @_loon_get_arg(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = ptrtoint i8* %t"+int_to_string(lbu_g[37])+" to i64"); lbu_g[36] },
                     false -> match lbu_bi == 5 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = inttoptr i64 %t"+int_to_string(lbu_g[35])+" to i8*"); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i64 @strlen(i8* %t"+int_to_string(lbu_g[36])+")"); lbu_g[37] },
                     false -> match lbu_bi == 6 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[31]=lbu_n[lbu_n[lbu_ni*10+5]*10+6]; lbu_g[36]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = inttoptr i64 %t"+int_to_string(lbu_g[35])+" to i8*"); lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = getelementptr i8, i8* %t"+int_to_string(lbu_g[37])+", i64 %t"+int_to_string(lbu_g[36])); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = load i8, i8* %t"+int_to_string(lbu_g[38])); lbu_g[750]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[750])+" = zext i8 %t"+int_to_string(lbu_g[39])+" to i64"); lbu_g[750] },
-                    false -> { lbu_g[35]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[35])+" = add i64 0, 0 ; stub "+int_to_string(lbu_bi)); lbu_g[35] } } } } } } },
+                    false -> match lbu_bi == 15 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[31]=lbu_n[lbu_n[lbu_ni*10+5]*10+6]; lbu_g[36]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = inttoptr i64 %t"+int_to_string(lbu_g[36])+" to i8*"); lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = call i64 @strlen(i8* %t"+int_to_string(lbu_g[37])+")"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 2, i8* %t"+int_to_string(lbu_g[37])+", i64 %t"+int_to_string(lbu_g[38])+")"); lbu_g[35] },
+                    false -> { lbu_g[35]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[35])+" = add i64 0, 0 ; stub "+int_to_string(lbu_bi)); lbu_g[35] } } } } } } } },
                 },
             },
             },
@@ -2859,11 +2860,11 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     // Store discriminant temp at depth-indexed slot (g[4180+depth]) so nested matches don't clobber it
     lm_g[4180 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s);
     // Phase 1: Emit ALL comparisons as a chain before any arm bodies
-    lm_g[4197] = lm_n[lm_ni * 10 + 5]; // first arm node
+    lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_ni * 10 + 5]; // first arm node
     for lm_ai in range(0, lm_ac) {
-        lm_g[4196] = lm_g[4197]; // current arm node
-        lm_g[4195] = lm_n[lm_g[4196] * 10 + 1]; // sub_type
-        lm_g[4194] = lm_n[lm_g[4196] * 10 + 8]; // pattern value
+        lm_g[4160 + lm_g[4199] * 2 + 1] = lm_g[4160 + lm_g[4199] * 2]; // current arm node
+        lm_g[4195] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 1]; // sub_type
+        lm_g[4194] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 8]; // pattern value
         match lm_g[4195] == 1 {
             true -> do print("    br label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
             false -> {
@@ -2879,14 +2880,14 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
             true -> match lm_g[4195] == 1 { true -> { }, false -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":") },
             false -> { },
         };
-        lm_g[4197] = lm_n[lm_g[4196] * 10 + 6]; // next arm
+        lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 6]; // next arm
     };
     // Phase 2: Emit ALL arm bodies after all comparisons
-    lm_g[4197] = lm_n[lm_ni * 10 + 5]; // reset to first arm
+    lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_ni * 10 + 5]; // reset to first arm
     for lm_bi in range(0, lm_ac) {
-        lm_g[4196] = lm_g[4197];
+        lm_g[4160 + lm_g[4199] * 2 + 1] = lm_g[4160 + lm_g[4199] * 2];
         do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_bi) + ":");
-        lm_g[31] = lm_n[lm_g[4196] * 10 + 5]; // arm body
+        lm_g[31] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 5]; // arm body
         lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = ll_expr(lm_g, lm_n, lm_s);
         // Ensure arm result is a valid i64 temp
         match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] == 0 { true -> {
@@ -2896,7 +2897,7 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
         do print("    br label %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_bi));
         do print("m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_bi) + ":");
         do print("    br label %m" + int_to_string(lm_mid) + "_end");
-        lm_g[4197] = lm_n[lm_g[4196] * 10 + 6]; // next arm
+        lm_g[4160 + lm_g[4199] * 2] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 6]; // next arm
     };
     do print("m" + int_to_string(lm_mid) + "_end:");
     lm_g[4193] = ll_tmp(lm_g);
