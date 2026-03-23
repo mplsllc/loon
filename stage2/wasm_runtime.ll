@@ -241,6 +241,28 @@ empty:
   ret i8* %eb
 }
 
+; --- memcpy (required by llvm.memcpy lowering on WASM) ---
+; WASM32 signature: (i32 dst, i32 src, i32 len) -> i32 (returns dst)
+define i32 @memcpy(i32 %dst, i32 %src, i32 %len) {
+entry:
+  %dp = inttoptr i32 %dst to i8*
+  %sp = inttoptr i32 %src to i8*
+  %len64 = zext i32 %len to i64
+  %zero = icmp eq i32 %len, 0
+  br i1 %zero, label %done, label %loop
+loop:
+  %i = phi i64 [0, %entry], [%next, %loop]
+  %spp = getelementptr i8, i8* %sp, i64 %i
+  %dpp = getelementptr i8, i8* %dp, i64 %i
+  %b = load i8, i8* %spp
+  store i8 %b, i8* %dpp
+  %next = add i64 %i, 1
+  %done2 = icmp uge i64 %next, %len64
+  br i1 %done2, label %done, label %loop
+done:
+  ret i32 %dst
+}
+
 ; --- _start entry point for WASI ---
 declare i32 @main()
 define void @_start() {
