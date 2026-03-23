@@ -2836,7 +2836,9 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
     // Match depth tracking — g[4199] = current depth, results at g[4200 + depth*16 + arm]
     lm_g[4199] = lm_g[4199] + 1;
     lm_g[31] = lm_disc;
-    lm_g[4198] = ll_expr(lm_g, lm_n, lm_s); // discriminant temp in g[] (immune to clobber)
+    // Store discriminant temp at depth-indexed slot (g[4180+depth]) so nested matches don't clobber it
+    lm_g[4180 + lm_g[4199] - 1] = ll_expr(lm_g, lm_n, lm_s);
+    // Phase 1: Emit ALL comparisons as a chain before any arm bodies
     lm_g[4197] = lm_n[lm_ni * 10 + 5]; // first arm node
     for lm_ai in range(0, lm_ac) {
         lm_g[4196] = lm_g[4197]; // current arm node
@@ -2846,28 +2848,34 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
             true -> do print("    br label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
             false -> {
                 lm_g[4193] = ll_tmp(lm_g);
-                do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4198]) + ", " + int_to_string(lm_g[4194]));
+                do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4180 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
                 match lm_ai + 1 < lm_ac {
                     true -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1)),
                     false -> do print("    br i1 %t" + int_to_string(lm_g[4193]) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ", label %m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai)),
                 };
             },
         };
-        do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_ai) + ":");
-        lm_g[31] = lm_n[lm_g[4196] * 10 + 5];
-        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = ll_expr(lm_g, lm_n, lm_s);
-        // Ensure arm result is a valid i64 temp (not stale %t0 from empty blocks)
-        match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] == 0 { true -> {
-            lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai] = ll_tmp(lm_g);
-            do print("    %t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_ai]) + " = add i64 0, 0");
-        }, false -> { } };
-        do print("    br label %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai));
-        do print("m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_ai) + ":");
-        do print("    br label %m" + int_to_string(lm_mid) + "_end");
         match lm_ai + 1 < lm_ac {
-            true -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":"),
+            true -> match lm_g[4195] == 1 { true -> { }, false -> do print("m" + int_to_string(lm_mid) + "_c" + int_to_string(lm_ai + 1) + ":") },
             false -> { },
         };
+        lm_g[4197] = lm_n[lm_g[4196] * 10 + 6]; // next arm
+    };
+    // Phase 2: Emit ALL arm bodies after all comparisons
+    lm_g[4197] = lm_n[lm_ni * 10 + 5]; // reset to first arm
+    for lm_bi in range(0, lm_ac) {
+        lm_g[4196] = lm_g[4197];
+        do print("m" + int_to_string(lm_mid) + "_b" + int_to_string(lm_bi) + ":");
+        lm_g[31] = lm_n[lm_g[4196] * 10 + 5]; // arm body
+        lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = ll_expr(lm_g, lm_n, lm_s);
+        // Ensure arm result is a valid i64 temp
+        match lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] == 0 { true -> {
+            lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi] = ll_tmp(lm_g);
+            do print("    %t" + int_to_string(lm_g[4200 + (lm_g[4199] - 1) * 16 + lm_bi]) + " = add i64 0, 0");
+        }, false -> { } };
+        do print("    br label %m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_bi));
+        do print("m" + int_to_string(lm_mid) + "_j" + int_to_string(lm_bi) + ":");
+        do print("    br label %m" + int_to_string(lm_mid) + "_end");
         lm_g[4197] = lm_n[lm_g[4196] * 10 + 6]; // next arm
     };
     do print("m" + int_to_string(lm_mid) + "_end:");
