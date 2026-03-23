@@ -18,18 +18,22 @@
   <style>
     .playground-container {
       margin-top: 2rem;
-      border-radius: 8px;
+      border-radius: 12px;
       overflow: hidden;
-      border: 1px solid var(--gray-200);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      border: 1px solid #3a3545;
+      box-shadow:
+        0 0 0 1px rgba(196, 43, 43, 0.08),
+        0 8px 40px rgba(0, 0, 0, 0.5),
+        0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
     .playground-toolbar {
-      background: var(--gray-800);
+      background: linear-gradient(180deg, #28242e 0%, #211e26 100%);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.5rem 1rem;
+      padding: 0.65rem 1.25rem;
+      border-bottom: 1px solid #3a3545;
     }
 
     .playground-toolbar-left {
@@ -39,8 +43,8 @@
     }
 
     .toolbar-dot {
-      width: 12px;
-      height: 12px;
+      width: 11px;
+      height: 11px;
       border-radius: 50%;
       display: inline-block;
     }
@@ -49,8 +53,8 @@
     .toolbar-dot-green { background: #38a169; }
 
     .toolbar-title {
-      color: var(--gray-400);
-      font-size: 0.8rem;
+      color: #8a8495;
+      font-size: 0.78rem;
       font-family: var(--font-mono);
       margin-left: 0.75rem;
     }
@@ -62,36 +66,43 @@
     }
 
     .example-select {
-      background: var(--gray-700);
-      color: var(--gray-300);
-      border: 1px solid var(--gray-600);
-      padding: 0.3rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.78rem;
+      background: #1a1720;
+      color: #b0a8c0;
+      border: 1px solid #3a3545;
+      padding: 0.32rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.76rem;
       font-family: var(--font-sans);
       cursor: pointer;
+      transition: border-color 0.15s;
     }
+    .example-select:hover { border-color: #C42B2B; }
 
     .toolbar-compile {
-      background: var(--teal-600);
+      background: #C42B2B;
       color: #fff;
       border: none;
-      padding: 0.4rem 1.2rem;
-      border-radius: 4px;
+      padding: 0.42rem 1.4rem;
+      border-radius: 6px;
       font-size: 0.82rem;
       font-weight: 600;
       cursor: pointer;
       font-family: var(--font-sans);
-      transition: background 0.15s;
+      transition: all 0.15s;
+      box-shadow: 0 2px 8px rgba(196, 43, 43, 0.3);
     }
-    .toolbar-compile:hover { background: var(--teal-700); }
-    .toolbar-compile:disabled { opacity: 0.5; cursor: default; }
-    .toolbar-compile.compiling { background: var(--gray-600); }
+    .toolbar-compile:hover {
+      background: #D94040;
+      box-shadow: 0 2px 12px rgba(196, 43, 43, 0.5);
+      transform: translateY(-1px);
+    }
+    .toolbar-compile:disabled { opacity: 0.4; cursor: default; box-shadow: none; transform: none; }
+    .toolbar-compile.compiling { background: #3a3545; box-shadow: none; }
 
     .playground-panels {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      min-height: 420px;
+      min-height: 440px;
     }
 
     .playground-panel {
@@ -100,34 +111,34 @@
     }
 
     .playground-panel-header {
-      background: var(--gray-900);
-      padding: 0.5rem 1rem;
-      font-size: 0.72rem;
-      font-weight: 600;
+      background: #18161c;
+      padding: 0.55rem 1.25rem;
+      font-size: 0.7rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-bottom: 1px solid var(--gray-700);
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid #2a2630;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .panel-editor .playground-panel-header { color: var(--teal-300); }
-    .panel-output .playground-panel-header { color: var(--gray-400); }
-    .panel-output .playground-panel-header.has-error { color: var(--red-500); }
-    .panel-output .playground-panel-header.has-success { color: var(--teal-300); }
+    .panel-editor .playground-panel-header { color: #8a8495; }
+    .panel-output .playground-panel-header { color: #6a6475; }
+    .panel-output .playground-panel-header.has-error { color: #C42B2B; }
+    .panel-output .playground-panel-header.has-success { color: #38a169; }
 
     .panel-editor {
-      border-right: 1px solid var(--gray-700);
+      border-right: 1px solid #2a2630;
     }
 
     #editor {
-      background: var(--code-bg);
-      color: #e2e8f0;
+      background: #0e0c12;
+      color: #d4cee0;
       font-family: var(--font-mono);
       font-size: 0.82rem;
-      line-height: 1.7;
-      padding: 1rem;
+      line-height: 1.75;
+      padding: 1.25rem;
       border: none;
       outline: none;
       resize: none;
@@ -136,15 +147,18 @@
       tab-size: 4;
       white-space: pre;
       overflow: auto;
+      caret-color: #C42B2B;
     }
+    #editor::selection { background: rgba(196, 43, 43, 0.25); }
+    #editor::-moz-selection { background: rgba(196, 43, 43, 0.25); }
 
     #output {
-      background: var(--code-bg);
-      color: var(--gray-300);
+      background: #0e0c12;
+      color: #b0a8c0;
       font-family: var(--font-mono);
       font-size: 0.8rem;
-      line-height: 1.7;
-      padding: 1rem;
+      line-height: 1.75;
+      padding: 1.25rem;
       margin: 0;
       flex: 1;
       overflow: auto;
@@ -152,25 +166,25 @@
       word-break: break-all;
     }
 
-    .output-error { color: var(--red-400); }
-    .output-success { color: var(--teal-300); }
-    .output-info { color: var(--gray-500); }
+    .output-error { color: #e05252; }
+    .output-success { color: #38a169; }
+    .output-info { color: #6a6475; }
 
     .status-bar {
-      background: var(--gray-900);
-      padding: 0.4rem 1rem;
-      font-size: 0.72rem;
-      color: var(--gray-500);
+      background: #18161c;
+      padding: 0.45rem 1.25rem;
+      font-size: 0.7rem;
+      color: #6a6475;
       font-family: var(--font-mono);
-      border-top: 1px solid var(--gray-700);
+      border-top: 1px solid #2a2630;
       display: flex;
       justify-content: space-between;
     }
 
     @media (max-width: 768px) {
       .playground-panels { grid-template-columns: 1fr; }
-      .panel-editor { border-right: none; border-bottom: 1px solid var(--gray-700); }
-      #editor { min-height: 200px; }
+      .panel-editor { border-right: none; border-bottom: 1px solid #2a2630; }
+      #editor { min-height: 220px; }
     }
   </style>
 </head>
