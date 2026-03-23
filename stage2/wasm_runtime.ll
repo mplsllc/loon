@@ -19,18 +19,39 @@ declare void @proc_exit(i32) #4
 attributes #4 = { "wasm-import-module"="wasi_snapshot_preview1" "wasm-import-name"="proc_exit" }
 
 ; --- Bump allocator (malloc) ---
-@_heap = global [33554432 x i8] zeroinitializer  ; 32MB heap
-@_heap_pos = global i64 0
+; Use linear memory directly, starting after all static data.
+; __heap_base is set by wasm-ld to the first address after globals/data.
+@_heap_ptr = global i32 0   ; current heap pointer (initialized at first malloc)
+@_heap_init = global i32 0  ; 0 = not initialized
+
+; Linker-provided symbol: first free address after static data
+@__heap_base = external global i32
 
 define i8* @malloc(i64 %size) {
 entry:
-  %pos = load i64, i64* @_heap_pos
-  %ptr = getelementptr [33554432 x i8], [33554432 x i8]* @_heap, i64 0, i64 %pos
-  ; Align to 8 bytes
-  %aligned = add i64 %size, 7
-  %mask = and i64 %aligned, -8
-  %new_pos = add i64 %pos, %mask
-  store i64 %new_pos, i64* @_heap_pos
+  ; On first call, initialize heap pointer to __heap_base
+  %init = load i32, i32* @_heap_init
+  %need_init = icmp eq i32 %init, 0
+  br i1 %need_init, label %do_init, label %alloc
+
+do_init:
+  %base = load i32, i32* @__heap_base
+  ; Align to 16 bytes
+  %aligned_base = add i32 %base, 15
+  %mask_base = and i32 %aligned_base, -16
+  store i32 %mask_base, i32* @_heap_ptr
+  store i32 1, i32* @_heap_init
+  br label %alloc
+
+alloc:
+  %pos = load i32, i32* @_heap_ptr
+  %ptr = inttoptr i32 %pos to i8*
+  ; Align size to 8 bytes
+  %s32 = trunc i64 %size to i32
+  %aligned = add i32 %s32, 7
+  %mask = and i32 %aligned, -8
+  %new_pos = add i32 %pos, %mask
+  store i32 %new_pos, i32* @_heap_ptr
   ret i8* %ptr
 }
 
