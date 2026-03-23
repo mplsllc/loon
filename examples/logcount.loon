@@ -1,0 +1,85 @@
+// logcount.loon — Count lines and error lines in a log file.
+// Usage: ./logcount logfile.txt
+//
+// The second real Loon program. Tests:
+// - File I/O (read_file, get_arg)
+// - String processing (char_at, loops)
+// - Array-based counters
+// - Pattern matching on bytes
+module logcount;
+
+// Check if line starting at pos contains "ERROR" (5 bytes: 69,82,82,79,82)
+fn has_error(src: String, pos: Int, len: Int) [] -> Bool {
+    let found: Array<Int> = Array(1);
+    found[0] = 0;
+    for i in range(pos, len) {
+        // Check for 'E' (69) followed by "RROR"
+        match string_char_at(src, i) == 69 {
+            true -> match i + 4 < len {
+                true -> match string_char_at(src, i + 1) == 82 {
+                    true -> match string_char_at(src, i + 2) == 82 {
+                        true -> match string_char_at(src, i + 3) == 79 {
+                            true -> match string_char_at(src, i + 4) == 82 {
+                                true -> { found[0] = 1; },
+                                false -> { },
+                            },
+                            false -> { },
+                        },
+                        false -> { },
+                    },
+                    false -> { },
+                },
+                false -> { },
+            },
+            false -> { },
+        };
+    };
+    match found[0] == 1 { true -> true, false -> false }
+}
+
+// Count lines and error lines
+fn analyze(src: String) [IO] -> Unit {
+    let slen: Int = string_length(src);
+    let counts: Array<Int> = Array(4);
+    // counts[0] = total lines, counts[1] = error lines, counts[2] = line start pos
+    counts[0] = 0;
+    counts[1] = 0;
+    counts[2] = 0;
+
+    for i in range(0, slen) {
+        match string_char_at(src, i) == 10 {
+            true -> {
+                // End of line — check for ERROR
+                counts[0] = counts[0] + 1;
+                match has_error(src, counts[2], i) {
+                    true -> { counts[1] = counts[1] + 1; },
+                    false -> { },
+                };
+                counts[2] = i + 1;
+            },
+            false -> { },
+        };
+    };
+
+    // Handle last line (no trailing newline)
+    match counts[2] < slen {
+        true -> {
+            counts[0] = counts[0] + 1;
+            match has_error(src, counts[2], slen) {
+                true -> { counts[1] = counts[1] + 1; },
+                false -> { },
+            };
+        },
+        false -> { },
+    };
+
+    do print("Lines: " + int_to_string(counts[0]));
+    do print("Errors: " + int_to_string(counts[1]));
+}
+
+fn main() [IO] -> Unit {
+    let path: String = get_arg(1);
+    let content: String = read_file(path);
+    do analyze(content);
+    do exit(0);
+}
