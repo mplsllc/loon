@@ -154,10 +154,11 @@
 
       <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">5.1 — Standard library</h3>
       <ul class="roadmap-items">
-        <li class="current">Strings — formatting, parsing, splitting</li>
-        <li>Collections — List, Map, Set with generics</li>
+        <li class="done">Strings — substring, starts_with, index_of, contains, trim</li>
+        <li class="done">Option/Result — concrete types for Int, String, Bool</li>
+        <li class="current">Collections — List, Map, Set (needs generics)</li>
         <li>IO — file system, directories, streams</li>
-        <li>HTTP — client and server</li>
+        <li>HTTP — client and server (via FFI)</li>
         <li>JSON — parsing and serialization</li>
         <li>Time — dates, durations, formatting</li>
       </ul>
@@ -206,8 +207,8 @@ sequential {
 }</pre>
       <p>The effect system makes this safe. Pure functions can always run in parallel. IO functions need explicit sequencing. The compiler enforces it.</p>
 
-      <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">5.6 — FFI</h3>
-      <p>Call C libraries from Loon. The FFI boundary is the <code>Unsafe:TrustBoundary</code> effect — crossing it is auditable and explicit.</p>
+      <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">5.6 — FFI ✓</h3>
+      <p>Call C libraries from Loon. <code>extern fn</code> declarations are implemented — the compiler emits extern directives that the linker resolves. The FFI boundary uses the <code>Unsafe:TrustBoundary</code> effect.</p>
       <pre class="roadmap-code">extern fn sqlite3_open(path: String)
     [IO, Unsafe:TrustBoundary] -&gt; Result&lt;DbHandle, Error&gt;;</pre>
     </div>
