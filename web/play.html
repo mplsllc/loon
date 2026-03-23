@@ -4,36 +4,49 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Playground — Loon</title>
-  <meta name="description" content="Try Loon in your browser. Write, compile, and see privacy type errors in real time — no installation required.">
-  <link rel="stylesheet" href="/style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
+  <meta name="description" content="Try Loon in your browser. The Loon Playground lets you write, compile, and run Loon code without installing anything.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <meta property="og:title" content="Loon Playground">
-  <meta property="og:description" content="Try Loon in your browser — write code, see privacy violations caught at compile time.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:description" content="Try Loon in your browser — no installation required. Coming soon.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://loonlang.org/play.html">
   <meta name="twitter:card" content="summary">
-  <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
-  <script src="/loon-highlight.js"></script>
   <style>
-    .playground-container {
-      margin-top: 2rem;
-      border-radius: 12px;
+    /* Playground-specific styles */
+    .playground-mock {
+      margin-top: 3rem;
+      border-radius: 8px;
       overflow: hidden;
-      border: 1px solid #3a3545;
-      box-shadow:
-        0 0 0 1px rgba(196, 43, 43, 0.08),
-        0 8px 40px rgba(0, 0, 0, 0.5),
-        0 2px 8px rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    .playground-mock::after {
+      content: "Coming Soon";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(13, 59, 62, 0.85);
+      padding: 0.75rem 2.5rem;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      z-index: 10;
+      pointer-events: none;
     }
 
     .playground-toolbar {
-      background: linear-gradient(180deg, #28242e 0%, #211e26 100%);
+      background: var(--gray-800);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.65rem 1.25rem;
-      border-bottom: 1px solid #3a3545;
+      padding: 0.5rem 1rem;
     }
 
     .playground-toolbar-left {
@@ -43,164 +56,175 @@
     }
 
     .toolbar-dot {
-      width: 11px;
-      height: 11px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       display: inline-block;
     }
+
     .toolbar-dot-red { background: #e05252; }
     .toolbar-dot-yellow { background: #e0b952; }
     .toolbar-dot-green { background: #38a169; }
 
     .toolbar-title {
-      color: #8a8495;
-      font-size: 0.78rem;
+      color: var(--gray-400);
+      font-size: 0.8rem;
       font-family: var(--font-mono);
       margin-left: 0.75rem;
     }
 
-    .toolbar-right {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .example-select {
-      background: #1a1720;
-      color: #b0a8c0;
-      border: 1px solid #3a3545;
-      padding: 0.32rem 0.6rem;
-      border-radius: 6px;
-      font-size: 0.76rem;
-      font-family: var(--font-sans);
-      cursor: pointer;
-      transition: border-color 0.15s;
-    }
-    .example-select:hover { border-color: #C42B2B; }
-
-    .toolbar-compile {
-      background: #C42B2B;
+    .toolbar-run {
+      background: var(--teal-600);
       color: #fff;
       border: none;
-      padding: 0.42rem 1.4rem;
-      border-radius: 6px;
-      font-size: 0.82rem;
+      padding: 0.35rem 1rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
       font-weight: 600;
-      cursor: pointer;
+      cursor: default;
+      opacity: 0.5;
       font-family: var(--font-sans);
-      transition: all 0.15s;
-      box-shadow: 0 2px 8px rgba(196, 43, 43, 0.3);
     }
-    .toolbar-compile:hover {
-      background: #D94040;
-      box-shadow: 0 2px 12px rgba(196, 43, 43, 0.5);
-      transform: translateY(-1px);
-    }
-    .toolbar-compile:disabled { opacity: 0.4; cursor: default; box-shadow: none; transform: none; }
-    .toolbar-compile.compiling { background: #3a3545; box-shadow: none; }
 
     .playground-panels {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      min-height: 440px;
+      min-height: 360px;
+      opacity: 0.55;
     }
 
     .playground-panel {
-      display: flex;
-      flex-direction: column;
+      padding: 0;
+      position: relative;
     }
 
     .playground-panel-header {
-      background: #18161c;
-      padding: 0.55rem 1.25rem;
-      font-size: 0.7rem;
-      font-weight: 700;
+      background: var(--gray-900);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      border-bottom: 1px solid #2a2630;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--gray-700);
     }
 
-    .panel-editor .playground-panel-header { color: #8a8495; }
-    .panel-output .playground-panel-header { color: #6a6475; }
-    .panel-output .playground-panel-header.has-error { color: #C42B2B; }
-    .panel-output .playground-panel-header.has-success { color: #38a169; }
-
-    .panel-editor {
-      border-right: 1px solid #2a2630;
+    .panel-editor .playground-panel-header {
+      color: var(--teal-300);
     }
 
-    #editor {
-      background: #0e0c12;
-      color: #d4cee0;
+    .panel-output .playground-panel-header {
+      color: var(--red-500);
+    }
+
+    .playground-panel pre {
+      background: var(--code-bg);
+      margin: 0;
+      padding: 1.25rem;
       font-family: var(--font-mono);
       font-size: 0.82rem;
-      line-height: 1.75;
-      padding: 1.25rem;
-      border: none;
-      outline: none;
-      resize: none;
-      width: 100%;
-      flex: 1;
-      tab-size: 4;
-      white-space: pre;
+      line-height: 1.7;
+      color: var(--gray-300);
+      height: 100%;
       overflow: auto;
-      caret-color: #C42B2B;
-    }
-    #editor::selection { background: rgba(196, 43, 43, 0.25); }
-    #editor::-moz-selection { background: rgba(196, 43, 43, 0.25); }
-
-    #output {
-      background: #0e0c12;
-      color: #b0a8c0;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      line-height: 1.75;
-      padding: 1.25rem;
-      margin: 0;
-      flex: 1;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
     }
 
-    .output-error { color: #e05252; }
-    .output-success { color: #38a169; }
-    .output-info { color: #6a6475; }
+    .panel-editor {
+      border-right: 1px solid var(--gray-700);
+    }
 
-    .status-bar {
-      background: #18161c;
-      padding: 0.45rem 1.25rem;
-      font-size: 0.7rem;
-      color: #6a6475;
+    .line-num {
+      color: var(--gray-500);
+      user-select: none;
+      display: inline-block;
+      width: 2.5em;
+      text-align: right;
+      margin-right: 1em;
+    }
+
+    .playground-note {
+      margin-top: 3rem;
+      text-align: center;
+    }
+
+    .playground-note p {
+      font-size: 1.05rem;
+      color: var(--gray-600);
+      line-height: 1.7;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .playground-install {
+      margin-top: 3rem;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .playground-install h3 {
+      font-size: 1.15rem;
+      color: var(--gray-900);
+      margin-bottom: 0.5rem;
+    }
+
+    .playground-install p {
+      font-size: 0.95rem;
+      color: var(--gray-600);
+      margin-bottom: 1.25rem;
+    }
+
+    .install-command {
+      background: var(--code-bg);
+      color: var(--teal-300);
       font-family: var(--font-mono);
-      border-top: 1px solid #2a2630;
-      display: flex;
-      justify-content: space-between;
+      font-size: 0.9rem;
+      padding: 0.85rem 1.5rem;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.01em;
+    }
+
+    .install-command .prompt {
+      color: var(--gray-500);
+      user-select: none;
     }
 
     @media (max-width: 768px) {
-      .playground-panels { grid-template-columns: 1fr; }
-      .panel-editor { border-right: none; border-bottom: 1px solid #2a2630; }
-      #editor { min-height: 220px; }
+      .playground-panels {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-editor {
+        border-right: none;
+        border-bottom: 1px solid var(--gray-700);
+      }
+
+      .playground-mock::after {
+        font-size: 1.2rem;
+        padding: 0.5rem 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
 
-<!-- HEADER -->
+<!-- ============================================================
+     HEADER / NAV
+     ============================================================ -->
 <header class="site-header">
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <span class="logo-name">Loon</span>
+        <span class="logo-tagline">incorrect code does not compile</span>
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/#why">Why Loon</a></li>
         <li><a href="/docs">Docs</a></li>
         <li><a href="/play" style="color: #fff;">Play</a></li>
         <li><a href="/license">License</a></li>
@@ -210,19 +234,23 @@
   </div>
 </header>
 
-<!-- HERO -->
+<!-- ============================================================
+     HERO
+     ============================================================ -->
 <section class="page-hero">
   <div class="container">
     <h1>Loon Playground</h1>
-    <p class="page-subtitle">Write Loon code, compile it in your browser, see what the compiler catches.</p>
+    <p class="page-subtitle">Try Loon in your browser — no installation required.</p>
   </div>
 </section>
 
-<!-- PLAYGROUND -->
+<!-- ============================================================
+     PLAYGROUND MOCK
+     ============================================================ -->
 <section class="page-content">
   <div class="container" style="max-width: 1100px;">
 
-    <div class="playground-container">
+    <div class="playground-mock">
       <div class="playground-toolbar">
         <div class="playground-toolbar-left">
           <span class="toolbar-dot toolbar-dot-red"></span>
@@ -230,68 +258,71 @@
           <span class="toolbar-dot toolbar-dot-green"></span>
           <span class="toolbar-title">playground.loon</span>
         </div>
-        <div class="toolbar-right">
-          <select class="example-select" id="examples">
-            <option value="">Examples...</option>
-            <option value="privacy">Privacy Violation</option>
-            <option value="hello">Hello World</option>
-            <option value="effect">Effect Violation</option>
-            <option value="adt">Algebraic Data Types</option>
-            <option value="auth">Authentication</option>
-            <option value="loon_call">The Loon Call</option>
-          </select>
-          <button class="toolbar-compile" id="compileBtn" disabled>Loading...</button>
-        </div>
+        <button class="toolbar-run" disabled>Run</button>
       </div>
 
       <div class="playground-panels">
         <div class="playground-panel panel-editor">
-          <div class="playground-panel-header">Source</div>
-          <textarea id="editor" spellcheck="false">module auth;
-
-fn login(
-    username: Public&lt;String&gt;,
-    password: Sensitive&lt;String&gt;
-) [IO] -> Unit {
-    // Public values can be logged
-    do print("Login: " + username);
-
-    // The compiler catches this — try removing it:
-    do print("Password: " + password);
-
-    do exit(0);
-}
-
-fn main() [IO] -> Unit {
-    let user: Public&lt;String&gt; = "alice";
-    let pw: Sensitive&lt;String&gt; = "hunter2";
-    do login(user, pw);
-}</textarea>
+          <div class="playground-panel-header">Editor</div>
+          <pre><code><span class="line-num"> 1</span>module auth;
+<span class="line-num"> 2</span>
+<span class="line-num"> 3</span>fn authenticate(
+<span class="line-num"> 4</span>  username: String,
+<span class="line-num"> 5</span>  password: Sensitive&lt;String&gt;
+<span class="line-num"> 6</span>) -&gt; [IO] Bool {
+<span class="line-num"> 7</span>  <span class="code-comment">// Check credentials against the database</span>
+<span class="line-num"> 8</span>  let valid = do check_password(username, password);
+<span class="line-num"> 9</span>
+<span class="line-num">10</span>  <span class="code-comment">// Log the attempt for auditing</span>
+<span class="line-num">11</span>  do print("Login: user=" + username
+<span class="line-num">12</span>    + " password=" + <span class="code-hl-bad">password</span>);
+<span class="line-num">13</span>
+<span class="line-num">14</span>  valid
+<span class="line-num">15</span>}</code></pre>
         </div>
 
         <div class="playground-panel panel-output">
-          <div class="playground-panel-header" id="outputHeader">Compiler Output</div>
-          <pre id="output"><span class="output-info">Press Compile or Ctrl+Enter to check your code.
+          <div class="playground-panel-header">Compiler Output</div>
+          <pre><code><span class="code-error">error[E301]: cannot log Sensitive value</span>
+<span class="code-error">  --> playground.loon:12:22</span>
+<span class="code-error">   |</span>
+<span class="code-error">12 |     + " password=" + password);</span>
+<span class="code-error">   |                      ^^^^^^^^</span>
+<span class="code-error">   |</span>
+<span class="code-error">   = password: Sensitive&lt;String&gt;</span>
+<span class="code-error">   = logging Sensitive data is prohibited</span>
+<span class="code-error">   = hint: use redact(password) to log a</span>
+<span class="code-error">     masked representation</span>
 
-The compiler runs in your browser via WebAssembly.
-Nothing is sent to a server.</span></pre>
+<span style="color: var(--gray-500);">Compilation failed: 1 error</span></code></pre>
         </div>
       </div>
+    </div>
 
-      <div class="status-bar">
-        <span id="status">Loading compiler...</span>
-        <span id="timing"></span>
-      </div>
+    <!-- Note -->
+    <div class="playground-note">
+      <p>The playground is under development. Loon compiles to WebAssembly, which makes browser execution viable.</p>
+    </div>
+
+    <!-- Install locally -->
+    <div class="playground-install">
+      <h3>Try Loon locally</h3>
+      <p>In the meantime, you can install Loon and try it on your machine.</p>
+      <div class="install-command"><span class="prompt">$ </span>curl -fsSL https://loonlang.org/install.sh | sh</div>
+      <br>
+      <a href="/docs/getting-started" class="btn btn-primary">Getting Started Guide</a>
     </div>
 
   </div>
 </section>
 
-<!-- FOOTER -->
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
 <footer class="site-footer">
   <div class="container footer-inner">
     <div class="footer-info">
-      <p class="footer-stewardship">Stewarded by <a href="https://mp.ls">MPLS LLC</a></p>
+      <p class="footer-stewardship">Stewarded by MPLS LLC</p>
       <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
     </div>
     <nav class="footer-nav" aria-label="Footer navigation">
@@ -304,249 +335,6 @@ Nothing is sent to a server.</span></pre>
     </nav>
   </div>
 </footer>
-
-<script type="module">
-import { LoonPlayground } from '/playground.js';
-
-const EXAMPLES = {
-  privacy: `module auth;
-
-fn login(
-    username: Public<String>,
-    password: Sensitive<String>
-) [IO] -> Unit {
-    do print("Login: " + username);
-
-    // The compiler catches this:
-    do print("Password: " + password);
-
-    do exit(0);
-}
-
-fn main() [IO] -> Unit {
-    let user: Public<String> = "alice";
-    let pw: Sensitive<String> = "hunter2";
-    do login(user, pw);
-}`,
-
-  hello: `module main;
-
-fn main() [IO] -> Unit {
-    do print("Hello, Loon!");
-    do exit(0);
-}`,
-
-  effect: `module test;
-
-// This function declares NO effects []
-// but tries to call print (which requires IO)
-fn pure_function() [] -> Int {
-    do print("side effect!");
-    42
-}
-
-fn main() [IO] -> Unit {
-    do exit(pure_function());
-}`,
-
-  adt: `module shapes;
-
-type Shape {
-    Circle(radius: Int),
-    Rectangle(width: Int, height: Int),
-    Point,
-}
-
-fn area(s: Shape) [] -> Int {
-    match s {
-        Circle(r) -> r * r,
-        Rectangle(w, h) -> w * h,
-        Point -> 0,
-    }
-}
-
-fn main() [IO] -> Unit {
-    let c: Shape = Circle(5);
-    let r: Shape = Rectangle(3, 4);
-    do print(int_to_string(area(c)));
-    do print(int_to_string(area(r)));
-    do exit(area(c));
-}`,
-
-  auth: `module auth;
-
-type AuthResult {
-    Success(token: Int),
-    Failure(reason: Int),
-}
-
-fn authenticate(
-    password: Sensitive<String>
-) [IO] -> AuthResult {
-    // do print(password);
-    // ^ COMPILE ERROR: cannot log Sensitive value
-    do print("authenticating...");
-    Success(42)
-}
-
-fn main() [IO] -> Unit {
-    let pw: Sensitive<String> = "hunter2";
-    let result: AuthResult = authenticate(pw);
-    do exit(match result {
-        Success(t) -> t,
-        Failure(r) -> r,
-    });
-}`,
-
-  loon_call: `module loon;
-
-type Call { Wail, Tremolo, Yodel, Hoot }
-
-fn describe(c: Call) [] -> String {
-    match c {
-        Wail ->    "Ooooo-AH-ooooo",
-        Tremolo -> "AH-ah-ah-ah-ah",
-        Yodel ->   "OOoo-AH-oo-AH",
-        Hoot ->    "oo..oo",
-    }
-}
-
-fn meaning(c: Call) [] -> String {
-    match c {
-        Wail ->    "I am here. Where are you?",
-        Tremolo -> "I am alarmed.",
-        Yodel ->   "This is my territory.",
-        Hoot ->    "All is well.",
-    }
-}
-
-fn main() [IO] -> Unit {
-    do print(describe(Hoot));
-    do print(meaning(Hoot));
-    do exit(0);
-}`
-};
-
-const editor = document.getElementById('editor');
-const output = document.getElementById('output');
-const outputHeader = document.getElementById('outputHeader');
-const compileBtn = document.getElementById('compileBtn');
-const exampleSelect = document.getElementById('examples');
-const statusEl = document.getElementById('status');
-const timingEl = document.getElementById('timing');
-
-// Fix HTML entities in textarea
-editor.value = editor.value.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-
-const pg = new LoonPlayground();
-
-async function initPlayground() {
-  try {
-    await pg.init('/compiler.wasm');
-    compileBtn.textContent = 'Compile';
-    compileBtn.disabled = false;
-    statusEl.textContent = 'Compiler ready (265 KB WASM)';
-  } catch (e) {
-    statusEl.textContent = 'Failed to load compiler: ' + e.message;
-    output.innerHTML = '<span class="output-error">Failed to load the Loon compiler.\n\n' + e.message + '</span>';
-  }
-}
-
-async function compile() {
-  const source = editor.value;
-  compileBtn.disabled = true;
-  compileBtn.textContent = 'Compiling...';
-  compileBtn.classList.add('compiling');
-  output.textContent = '';
-  outputHeader.className = 'playground-panel-header';
-
-  const start = performance.now();
-
-  try {
-    const result = await pg.compile(source);
-    const elapsed = (performance.now() - start).toFixed(0);
-    timingEl.textContent = elapsed + ' ms';
-
-    const stdout = (result.stdout || '').replace(/\x00/g, '');
-    const stderr = (result.stderr || '').replace(/\x00/g, '');
-
-    if (result.exitCode !== 0 || stderr) {
-      // Compiler error — this is the important output
-      outputHeader.textContent = 'Compiler Error';
-      outputHeader.className = 'playground-panel-header has-error';
-      // Format the error nicely
-      const errText = (stderr || stdout).trim();
-      output.innerHTML = '<span class="output-error">' + escapeHtml(errText) + '</span>';
-      statusEl.textContent = 'Compilation failed';
-    } else {
-      // Success
-      outputHeader.textContent = 'Compiler Output';
-      outputHeader.className = 'playground-panel-header has-success';
-
-      // Build a meaningful success message
-      const src = editor.value;
-      let checks = ['✓ All type checks passed', '✓ All effect declarations verified'];
-      if (src.includes('Sensitive') || src.includes('Public') || src.includes('Hashed') || src.includes('Encrypted')) {
-        checks.push('✓ Privacy type constraints enforced');
-      }
-      if (src.includes('match')) {
-        checks.push('✓ All match expressions exhaustive');
-      }
-
-      let msg = 'Program compiles. ' + elapsed + ' ms.\n\n';
-      msg += checks.join('\n');
-      msg += '\n\nTry introducing an error:\n';
-      msg += '  • Add  do print(password)  where password is Sensitive\n';
-      msg += '  • Remove an arm from a match expression\n';
-      msg += '  • Call an [IO] function from a pure [] function';
-
-      output.innerHTML = '<span class="output-success">' + escapeHtml(msg) + '</span>';
-      statusEl.textContent = 'Compiled in ' + elapsed + ' ms';
-    }
-  } catch (e) {
-    output.innerHTML = '<span class="output-error">Compiler error: ' + escapeHtml(e.message) + '</span>';
-    statusEl.textContent = 'Error';
-  }
-
-  compileBtn.disabled = false;
-  compileBtn.textContent = 'Compile';
-  compileBtn.classList.remove('compiling');
-}
-
-function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// Event handlers
-compileBtn.addEventListener('click', compile);
-editor.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault();
-    compile();
-  }
-  // Tab inserts spaces
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const start = editor.selectionStart;
-    editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(editor.selectionEnd);
-    editor.selectionStart = editor.selectionEnd = start + 4;
-  }
-});
-
-exampleSelect.addEventListener('change', () => {
-  const key = exampleSelect.value;
-  if (key && EXAMPLES[key]) {
-    editor.value = EXAMPLES[key];
-    output.innerHTML = '<span class="output-info">Click "Compile" or press Ctrl+Enter.</span>';
-    outputHeader.textContent = 'Output';
-    outputHeader.className = 'playground-panel-header';
-  }
-  exampleSelect.value = '';
-});
-
-// Init
-initPlayground();
-</script>
 
 </body>
 </html>
