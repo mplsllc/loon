@@ -13,11 +13,18 @@ build/
 *.asm
 !stage0/*.asm
 !stage1/*.asm
+!stage2/bootstrap.asm
 
-# Editor
+# Editor / IDE
 .vscode/
+.idea/
 *.swp
 *~
+
+# Claude Code
+CLAUDE.md
+.claude/
+.infisical.json
 
 # OS
 .DS_Store
