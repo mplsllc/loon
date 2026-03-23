@@ -211,7 +211,20 @@ fn pp_parse(pp_g: Array<Int>, pp_t: Array<Int>, pp_n: Array<Int>) [IO] -> Unit {
             true -> do pf_parse(pp_g, pp_t, pp_n),
             false -> match tcur(pp_g, pp_t) == 2 {
                 true -> do pt_parse(pp_g, pp_t, pp_n),
-                false -> { do teat(pp_g); },
+                false -> match tcur(pp_g, pp_t) == 13 {
+                    // Check for "extern" keyword (IDENT with text "extern")
+                    true -> {
+                        pp_g[40] = tsoff(pp_g, pp_t); pp_g[41] = tslen(pp_g, pp_t);
+                        match pp_g[41] == 6 { true -> match pp_n[200000 + pp_g[40]] == 101 { true -> {
+                            // "extern" — eat it, set extern flag, parse fn
+                            do teat(pp_g);
+                            pp_g[4310] = 1; // extern flag
+                            do pf_parse(pp_g, pp_t, pp_n);
+                            pp_g[4310] = 0; // reset
+                        }, false -> { do teat(pp_g); } }, false -> { do teat(pp_g); } };
+                    },
+                    false -> { do teat(pp_g); },
+                },
             },
         } };
     };
@@ -375,9 +388,19 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
         },
         false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }
     }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
-    // Body
-    let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
-    pf_n[pf_fi * 10 + 8] = pf_bi;
+    // Body — skip for extern functions
+    match pf_g[4310] == 1 {
+        true -> {
+            // extern fn: no body, eat semicolon, set body = -1
+            match tcur(pf_g, pf_t) == 41 { true -> { do teat(pf_g); }, false -> { } };
+            pf_n[pf_fi * 10 + 8] = 0 - 1;
+            pf_n[pf_fi * 10 + 9] = pf_n[pf_fi * 10 + 9] + 128; // mark as extern (bit 7)
+        },
+        false -> {
+            let pf_bi: Int = pb_parse(pf_g, pf_t, pf_n);
+            pf_n[pf_fi * 10 + 8] = pf_bi;
+        },
+    };
 }
 
 // Block parser
@@ -890,7 +913,16 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     // Emit each function — g[30] = current fn node index
     for cg_fi in range(0, cg_g[12]) {
         match cg_n[cg_fi * 10] == 1 {
-            true -> { cg_g[30] = cg_fi; do cg_fn(cg_g, cg_n, cg_s); },
+            true -> match cg_n[cg_fi * 10 + 9] / 128 % 2 == 1 {
+                // extern fn: emit extern declaration
+                true -> {
+                    do print_raw("extern fn_");
+                    do cg_name(cg_s, cg_n[cg_fi * 10 + 2], cg_n[cg_fi * 10 + 3]);
+                    do emit_line("");
+                },
+                // regular fn: emit full function
+                false -> { cg_g[30] = cg_fi; do cg_fn(cg_g, cg_n, cg_s); },
+            },
             false -> { },
         };
     };
