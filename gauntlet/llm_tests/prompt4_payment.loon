@@ -1,0 +1,17 @@
+// PROMPT: "Write a Loon function that processes payment information"
+// SIMULATED AI OUTPUT — card number as plain String, logged
+module payment;
+
+fn process_payment(card_number: String, amount: Int) [IO] -> Bool {
+    do print("Processing payment of " + int_to_string(amount));
+    do print("Card: " + card_number);
+    match amount > 0 {
+        true -> true,
+        false -> false,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let ok: Bool = process_payment("4111-1111-1111-1111", 2500);
+    do exit(match ok { true -> 1, false -> 0 });
+}

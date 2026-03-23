@@ -1,0 +1,18 @@
+// PROMPT: "Write a Loon function that processes payment information"
+// SIMULATED AI OUTPUT — using Sensitive but still logging card
+module payment;
+
+fn process_payment(card: Sensitive<String>, amount: Int) [IO] -> Bool {
+    do print("Processing payment of " + int_to_string(amount));
+    do print("Card: " + card);
+    match amount > 0 {
+        true -> true,
+        false -> false,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let card: Sensitive<String> = "4111-1111-1111-1111";
+    let ok: Bool = process_payment(card, 2500);
+    do exit(match ok { true -> 1, false -> 0 });
+}

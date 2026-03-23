@@ -1,0 +1,19 @@
+// PROMPT: "Write a Loon function that authenticates a user with username and password"
+// SIMULATED AI OUTPUT — using privacy types but still trying to log
+module auth;
+
+fn authenticate(username: Public<String>, password: Sensitive<String>) [IO] -> Bool {
+    do print("Authenticating user: " + username);
+    do print("Password attempt: " + password);
+    match string_length(password) > 0 {
+        true -> true,
+        false -> false,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let user: Public<String> = "alice";
+    let pw: Sensitive<String> = "hunter2";
+    let result: Bool = authenticate(user, pw);
+    do exit(match result { true -> 1, false -> 0 });
+}

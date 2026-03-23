@@ -1,0 +1,14 @@
+// PROMPT: "Write a Loon function that logs user activity"
+// SIMULATED AI OUTPUT — using privacy types but logging session token
+module logging;
+
+fn log_activity(username: Public<String>, action: Public<String>, session: Sensitive<String>) [IO] -> Unit {
+    do print("LOG: user=" + username + " action=" + action + " session=" + session);
+}
+
+fn main() [IO] -> Unit {
+    let user: Public<String> = "alice";
+    let token: Sensitive<String> = "sess_abc123secret";
+    do log_activity(user, "login", token);
+    do exit(0);
+}

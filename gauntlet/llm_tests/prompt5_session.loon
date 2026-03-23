@@ -1,0 +1,23 @@
+// PROMPT: "Write a Loon function that handles a session token"
+// SIMULATED AI OUTPUT — session token as plain String, stored and logged
+module session;
+
+fn create_session(user_id: Int) [IO] -> String {
+    let token: String = "sess_" + int_to_string(user_id) + "_token";
+    do print("Created session: " + token);
+    token
+}
+
+fn validate_session(token: String) [IO] -> Bool {
+    do print("Validating: " + token);
+    match string_length(token) > 5 {
+        true -> true,
+        false -> false,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let tok: String = create_session(42);
+    let valid: Bool = validate_session(tok);
+    do exit(match valid { true -> 1, false -> 0 });
+}

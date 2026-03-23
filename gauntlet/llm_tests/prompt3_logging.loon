@@ -1,0 +1,13 @@
+// PROMPT: "Write a Loon function that logs user activity"
+// SIMULATED AI OUTPUT — logs everything including session token
+module logging;
+
+fn log_activity(username: String, action: String, session_token: String) [IO] -> Unit {
+    do print("LOG: user=" + username + " action=" + action + " session=" + session_token);
+}
+
+fn main() [IO] -> Unit {
+    do log_activity("alice", "login", "sess_abc123secret");
+    do log_activity("alice", "view_profile", "sess_abc123secret");
+    do exit(0);
+}

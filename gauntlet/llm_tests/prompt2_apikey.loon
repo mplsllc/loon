@@ -1,0 +1,16 @@
+// PROMPT: "Write a Loon function that stores an API key and makes an authenticated request"
+// SIMULATED AI OUTPUT — API key as plain String, logged in debug
+module api;
+
+fn make_request(url: String, api_key: String) [IO] -> Int {
+    do print("Requesting: " + url);
+    do print("Using key: " + api_key);
+    200
+}
+
+fn main() [IO] -> Unit {
+    let key: String = "sk-live-abc123secret";
+    let status: Int = make_request("https://api.example.com/data", key);
+    do print("Status: " + int_to_string(status));
+    do exit(0);
+}

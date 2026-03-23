@@ -1,0 +1,17 @@
+// PROMPT: "Write a Loon function that authenticates a user with username and password"
+// SIMULATED AI OUTPUT — naive implementation that logs credentials
+module auth;
+
+fn authenticate(username: String, password: String) [IO] -> Bool {
+    do print("Authenticating user: " + username);
+    do print("Password attempt: " + password);
+    match password == "correct_password" {
+        true -> true,
+        false -> false,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let result: Bool = authenticate("alice", "hunter2");
+    do exit(match result { true -> 1, false -> 0 });
+}

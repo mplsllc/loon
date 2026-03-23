@@ -834,7 +834,15 @@ fn mkbin(mb_g: Array<Int>, mb_n: Array<Int>, mb_op: Int) [] -> Int {
     mb_n[mb_ni*10+5]=mb_g[18]; mb_n[mb_g[18]*10+6]=mb_g[19];
     // Propagate type_info: Float (7) wins if either operand is Float
     mb_n[mb_ni*10+7]=mb_n[mb_g[18]*10+7];
-    match mb_n[mb_g[19]*10+7] == 7 { true -> { mb_n[mb_ni*10+7] = 7; }, false -> { } };
+    match mb_n[mb_g[19]*10+7] % 16 == 7 { true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[19]*10+7]; }, false -> { } };
+    // Propagate privacy: highest privacy level wins
+    match mb_n[mb_g[19]*10+7] / 16 > mb_n[mb_g[18]*10+7] / 16 {
+        true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[19]*10+7] / 16 * 16 + mb_n[mb_ni*10+7] % 16; },
+        false -> match mb_n[mb_g[18]*10+7] / 16 > 0 {
+            true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[18]*10+7] / 16 * 16 + mb_n[mb_ni*10+7] % 16; },
+            false -> { },
+        },
+    };
     mb_ni
 }
 
@@ -2411,29 +2419,85 @@ fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -
                         tp_g[4502] = chk_bi(tp_g, tp_s);
                         match tp_g[4502] == 1 { true -> {
                             tp_g[4503] = tp_n[tp_ci * 10 + 5];
-                            match tp_g[4503] >= 0 { true -> match tp_n[tp_g[4503] * 10] == 10 { true -> {
-                                for tp_vi in range(0, tp_g[4501]) {
-                                    tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
-                                    tp_g[41] = tp_g[4510 + tp_vi * 2];
-                                    match tp_g[42] == tp_g[4510 + tp_vi * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                        do print("error: cannot log Sensitive value — use expose() with audit context");
-                                        tp_g[911] = tp_g[911] + 1;
+                            match tp_g[4503] >= 0 { true -> {
+                                // Check IDENT_REF args against sensitive var list
+                                match tp_n[tp_g[4503] * 10] == 10 { true -> {
+                                    for tp_vi in range(0, tp_g[4501]) {
+                                        tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
+                                        tp_g[41] = tp_g[4510 + tp_vi * 2];
+                                        match tp_g[42] == tp_g[4510 + tp_vi * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                            do print("error: cannot log Sensitive value — use expose() with audit context");
+                                            tp_g[911] = tp_g[911] + 1;
+                                        }, false -> { } }, false -> { } };
+                                    };
+                                }, false -> { } };
+                                // Check BINOP args — scan children for sensitive IDENT_REFs
+                                match tp_n[tp_g[4503] * 10] == 11 { true -> {
+                                    // Check left child
+                                    tp_g[4504] = tp_n[tp_g[4503] * 10 + 5]; // left child
+                                    tp_g[4505] = tp_n[tp_g[4504] * 10 + 6]; // right child (sibling of left)
+                                    // Check left
+                                    match tp_n[tp_g[4504] * 10] == 10 { true -> {
+                                        for tp_vb in range(0, tp_g[4501]) {
+                                            tp_g[40] = tp_n[tp_g[4504] * 10 + 2]; tp_g[42] = tp_n[tp_g[4504] * 10 + 3];
+                                            tp_g[41] = tp_g[4510 + tp_vb * 2];
+                                            match tp_g[42] == tp_g[4510 + tp_vb * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                                do print("error: cannot log Sensitive value — use expose() with audit context");
+                                                tp_g[911] = tp_g[911] + 1;
+                                            }, false -> { } }, false -> { } };
+                                        };
+                                    }, false -> { } };
+                                    // Check right
+                                    match tp_g[4505] >= 0 { true -> match tp_n[tp_g[4505] * 10] == 10 { true -> {
+                                        for tp_vb2 in range(0, tp_g[4501]) {
+                                            tp_g[40] = tp_n[tp_g[4505] * 10 + 2]; tp_g[42] = tp_n[tp_g[4505] * 10 + 3];
+                                            tp_g[41] = tp_g[4510 + tp_vb2 * 2];
+                                            match tp_g[42] == tp_g[4510 + tp_vb2 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                                do print("error: cannot log Sensitive value — use expose() with audit context");
+                                                tp_g[911] = tp_g[911] + 1;
+                                            }, false -> { } }, false -> { } };
+                                        };
                                     }, false -> { } }, false -> { } };
-                                };
-                            }, false -> { } }, false -> { } };
+                                    // Check nested BINOP (left or right is BINOP with sensitive child)
+                                    match tp_n[tp_g[4504] * 10] == 11 { true -> {
+                                        tp_g[4506] = tp_n[tp_g[4504] * 10 + 5];
+                                        tp_g[4507] = tp_n[tp_g[4506] * 10 + 6];
+                                        match tp_n[tp_g[4506] * 10] == 10 { true -> {
+                                            for tp_vb3 in range(0, tp_g[4501]) {
+                                                tp_g[40] = tp_n[tp_g[4506] * 10 + 2]; tp_g[42] = tp_n[tp_g[4506] * 10 + 3];
+                                                tp_g[41] = tp_g[4510 + tp_vb3 * 2];
+                                                match tp_g[42] == tp_g[4510 + tp_vb3 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[911] = tp_g[911] + 1; do print("error: cannot log Sensitive value — use expose() with audit context"); }, false -> { } }, false -> { } };
+                                            };
+                                        }, false -> { } };
+                                        match tp_g[4507] >= 0 { true -> match tp_n[tp_g[4507] * 10] == 10 { true -> {
+                                            for tp_vb4 in range(0, tp_g[4501]) {
+                                                tp_g[40] = tp_n[tp_g[4507] * 10 + 2]; tp_g[42] = tp_n[tp_g[4507] * 10 + 3];
+                                                tp_g[41] = tp_g[4510 + tp_vb4 * 2];
+                                                match tp_g[42] == tp_g[4510 + tp_vb4 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[911] = tp_g[911] + 1; do print("error: cannot log Sensitive value — use expose() with audit context"); }, false -> { } }, false -> { } };
+                                            };
+                                        }, false -> { } }, false -> { } };
+                                    }, false -> { } };
+                                }, false -> { } };
+                            }, false -> { } };
                         }, false -> { } };
                         match tp_g[4502] == 2 { true -> {
                             tp_g[4503] = tp_n[tp_ci * 10 + 5];
-                            match tp_g[4503] >= 0 { true -> match tp_n[tp_g[4503] * 10] == 10 { true -> {
-                                for tp_vi2 in range(0, tp_g[4501]) {
-                                    tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
-                                    tp_g[41] = tp_g[4510 + tp_vi2 * 2];
-                                    match tp_g[42] == tp_g[4510 + tp_vi2 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                        do print("error: cannot log Sensitive value — use expose() with audit context");
-                                        tp_g[911] = tp_g[911] + 1;
-                                    }, false -> { } }, false -> { } };
-                                };
-                            }, false -> { } }, false -> { } };
+                            match tp_g[4503] >= 0 { true -> {
+                                match tp_n[tp_g[4503] * 10] == 10 { true -> {
+                                    for tp_vi2 in range(0, tp_g[4501]) {
+                                        tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
+                                        tp_g[41] = tp_g[4510 + tp_vi2 * 2];
+                                        match tp_g[42] == tp_g[4510 + tp_vi2 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
+                                            do print("error: cannot log Sensitive value — use expose() with audit context");
+                                            tp_g[911] = tp_g[911] + 1;
+                                        }, false -> { } }, false -> { } };
+                                    };
+                                }, false -> { } };
+                                match tp_n[tp_g[4503] * 10] == 11 { true -> match tp_n[tp_g[4503] * 10 + 7] / 16 >= 2 { true -> {
+                                    do print("error: cannot log Sensitive value — use expose() with audit context");
+                                    tp_g[911] = tp_g[911] + 1;
+                                }, false -> { } }, false -> { } };
+                            }, false -> { } };
                         }, false -> { } };
                     }, false -> { } };
                 };
