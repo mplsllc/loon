@@ -1,0 +1,12 @@
+// TEST: privacy_string_param
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: integration
+module test;
+fn greet(name: Public<String>) [IO] -> Unit {
+    do print("Hello, " + name);
+}
+fn main() [IO] -> Unit {
+    let name: Public<String> = "alice";
+    do greet(name);
+    do exit(0);
+}

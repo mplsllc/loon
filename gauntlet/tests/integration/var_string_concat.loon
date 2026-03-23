@@ -1,0 +1,10 @@
+// TEST: var_string_concat
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: integration
+module test;
+fn main() [IO] -> Unit {
+    let a: Public<String> = "hello";
+    let b: Public<String> = "world";
+    do print(a + b);
+    do exit(0);
+}

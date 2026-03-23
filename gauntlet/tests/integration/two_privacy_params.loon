@@ -1,0 +1,14 @@
+// TEST: two_privacy_params
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: integration
+module test;
+fn show_both(a: Public<String>, b: Public<String>) [IO] -> Unit {
+    do print(a);
+    do print(b);
+}
+fn main() [IO] -> Unit {
+    let x: Public<String> = "hello";
+    let y: Public<String> = "world";
+    do show_both(x, y);
+    do exit(0);
+}

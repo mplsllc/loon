@@ -1,0 +1,24 @@
+// TEST: auth_system
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: integration
+module auth;
+fn hash_password(hp_pw: Sensitive<String>) [IO] -> Hashed<String> { "argon2id$stub" }
+fn verify_password(vp_pw: Sensitive<String>, vp_hash: Hashed<String>) [IO] -> Bool { true }
+type AuthResult { Success(token: Int), Failure(reason: Int) }
+fn register(db: Array<Int>, username: Public<String>, password: Sensitive<String>) [IO] -> AuthResult {
+    let hash: Hashed<String> = hash_password(password);
+    db[0] = string_length(username);
+    Success(1)
+}
+fn login(db: Array<Int>, username: Public<String>, password: Sensitive<String>) [IO] -> AuthResult {
+    let hash: Hashed<String> = hash_password(password);
+    match verify_password(password, hash) { true -> Success(42), false -> Failure(1) }
+}
+fn main() [IO] -> Unit {
+    let db: Array<Int> = Array(8);
+    let username: Public<String> = "alice";
+    let password: Sensitive<String> = "hunter2";
+    let r1: AuthResult = register(db, username, password);
+    let r2: AuthResult = login(db, username, password);
+    do exit(match r2 { Success(t) -> t, Failure(r) -> r });
+}
