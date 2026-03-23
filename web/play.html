@@ -239,13 +239,19 @@ fn login(
     username: Public&lt;String&gt;,
     password: Sensitive&lt;String&gt;
 ) [IO] -> Unit {
-    // This line compiles — Public values can be logged
-    do print("Login attempt: " + username);
+    // This line compiles fine — Public values can be logged
+    do print("Login: " + username);
 
-    // Uncomment to see the compiler catch it:
-    // do print("Password: " + password);
+    // This line will NOT compile — try it:
+    do print("Password: " + password);
 
     do exit(0);
+}
+
+fn main() [IO] -> Unit {
+    let user: Public&lt;String&gt; = "alice";
+    let pw: Sensitive&lt;String&gt; = "hunter2";
+    do login(user, pw);
 }</textarea>
         </div>
 
@@ -450,21 +456,43 @@ async function compile() {
     const stderr = (result.stderr || '').replace(/\x00/g, '');
 
     if (result.exitCode !== 0 || stderr) {
-      // Compiler error
+      // Compiler error — this is the important output
       outputHeader.textContent = 'Compiler Error';
       outputHeader.className = 'playground-panel-header has-error';
-      output.innerHTML = '<span class="output-error">' + escapeHtml(stderr || stdout) + '</span>';
-      statusEl.textContent = 'Compilation failed (exit ' + result.exitCode + ')';
+      // Format the error nicely
+      const errText = (stderr || stdout).trim();
+      output.innerHTML = '<span class="output-error">' + escapeHtml(errText) + '</span>';
+      statusEl.textContent = 'Compilation failed';
     } else {
-      // Success — show generated NASM
-      outputHeader.textContent = 'Generated Assembly (NASM x86-64)';
+      // Success — show confirmation + summary, not raw assembly
+      outputHeader.textContent = 'Compilation Successful';
       outputHeader.className = 'playground-panel-header has-success';
-      // Show first 100 lines
       const lines = stdout.split('\n');
-      const preview = lines.slice(0, 100).join('\n');
-      const suffix = lines.length > 100 ? '\n\n; ... (' + lines.length + ' total lines)' : '';
-      output.innerHTML = '<span class="output-success">' + escapeHtml(preview + suffix) + '</span>';
-      statusEl.textContent = 'Compiled successfully (' + lines.length + ' lines of assembly)';
+      // Count user functions
+      const fnCount = lines.filter(l => l.startsWith('fn_') && l.endsWith(':')).length;
+      const asmLines = lines.length;
+      let summary = '✓ Program compiled successfully\n\n';
+      summary += '  ' + fnCount + ' function' + (fnCount !== 1 ? 's' : '') + ' compiled\n';
+      summary += '  ' + asmLines + ' lines of x86-64 assembly generated\n';
+      summary += '  All type checks passed\n';
+      summary += '  All effect declarations verified\n';
+      // Check for privacy types used
+      const source = editor.value;
+      if (source.includes('Sensitive') || source.includes('Public') || source.includes('Hashed')) {
+        summary += '  Privacy type constraints enforced\n';
+      }
+      summary += '\n─────────────────────────────────────\n';
+      summary += '\nTo run this program natively:\n\n';
+      summary += '  nasm -f elf64 -o out.o out.asm\n';
+      summary += '  ld -o out out.o\n';
+      summary += '  ./out\n';
+      // Add a peek at the assembly
+      summary += '\n─────────────────────────────────────\n';
+      summary += '\nGenerated assembly (first 30 lines):\n\n';
+      summary += lines.slice(0, 30).join('\n');
+      if (asmLines > 30) summary += '\n\n; ... (' + asmLines + ' total lines)';
+      output.innerHTML = '<span class="output-success">' + escapeHtml(summary) + '</span>';
+      statusEl.textContent = 'Compiled successfully in ' + elapsed + ' ms';
     }
   } catch (e) {
     output.innerHTML = '<span class="output-error">Compiler error: ' + escapeHtml(e.message) + '</span>';
