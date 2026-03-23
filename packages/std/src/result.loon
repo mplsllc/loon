@@ -1,0 +1,21 @@
+// Standard library: Result types
+// Concrete instantiations for common error handling patterns.
+
+module std_result {
+    exports [unwrap_ok, is_ok, is_err]
+}
+
+type ResultInt { OkInt(value: Int), ErrInt(error: Int) }
+type ResultString { OkString(value: String), ErrString(error: String) }
+
+fn unwrap_ok_int(r: ResultInt, default: Int) [] -> Int {
+    match r { OkInt(v) -> v, ErrInt(e) -> default }
+}
+
+fn is_ok_int(r: ResultInt) [] -> Bool {
+    match r { OkInt(v) -> true, ErrInt(e) -> false }
+}
+
+fn is_err_int(r: ResultInt) [] -> Bool {
+    match r { OkInt(v) -> false, ErrInt(e) -> true }
+}

@@ -1,0 +1,27 @@
+// Standard library: Option types
+// Until generics are implemented, we provide concrete instantiations
+// for the most common types.
+
+module std_option {
+    exports [unwrap_int, unwrap_string, is_some_int, is_some_string]
+}
+
+type OptionInt { SomeInt(value: Int), NoneInt }
+type OptionString { SomeString(value: String), NoneString }
+type OptionBool { SomeBool(value: Bool), NoneBool }
+
+fn unwrap_int(o: OptionInt, default: Int) [] -> Int {
+    match o { SomeInt(v) -> v, NoneInt -> default }
+}
+
+fn unwrap_string(o: OptionString, default: String) [] -> String {
+    match o { SomeString(v) -> v, NoneString -> default }
+}
+
+fn is_some_int(o: OptionInt) [] -> Bool {
+    match o { SomeInt(v) -> true, NoneInt -> false }
+}
+
+fn is_some_string(o: OptionString) [] -> Bool {
+    match o { SomeString(v) -> true, NoneString -> false }
+}
