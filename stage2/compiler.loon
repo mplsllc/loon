@@ -2443,7 +2443,7 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
             match lbu_g[916] == 4 { true -> do print("    call void @proc_exit(i32 %t" + int_to_string(lbu_t) + ")"), false -> do print("    call void @exit(i32 %t" + int_to_string(lbu_t) + ")") };
             do print("    unreachable");
                 lbu_g[33] = 1;
-            lbu_t
+            lbu_at
         },
         false -> match lbu_bi == 1 {
             true -> {
@@ -2502,18 +2502,9 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                     lbu_g[751]
                 },
                 false -> match lbu_bi == 3 {
-                    // int_to_string: sprintf %ld → returns i8* ptr
-                    true -> {
-                        lbu_g[31] = lbu_n[lbu_ni * 10 + 5];
-                        lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s);
-                        lbu_g[36] = ll_tmp(lbu_g);
-                        do print("    %t" + int_to_string(lbu_g[36]) + " = call i8* @malloc(i64 24)");
-                        lbu_g[37] = ll_tmp(lbu_g);
-                        do print("    %t" + int_to_string(lbu_g[37]) + " = getelementptr [4 x i8], [4 x i8]* @_fmt_int, i64 0, i64 0");
-                        lbu_g[38] = ll_tmp(lbu_g);
-                        do print("    %t" + int_to_string(lbu_g[38]) + " = call i32 (i8*, i8*, ...) @sprintf(i8* %t" + int_to_string(lbu_g[36]) + ", i8* %t" + int_to_string(lbu_g[37]) + ", i64 %t" + int_to_string(lbu_g[35]) + ")");
-                        lbu_g[36]
-                    },
+                    true -> { lbu_g[31] = lbu_n[lbu_ni * 10 + 5]; lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s);
+                        match lbu_g[916] == 4 { true -> { lbu_g[37] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[37]) + " = call i8* @_loon_i64_to_str(i64 %t" + int_to_string(lbu_g[35]) + ")"); lbu_g[36] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[36]) + " = ptrtoint i8* %t" + int_to_string(lbu_g[37]) + " to i64"); },
+                        false -> { lbu_g[36] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[36]) + " = call i8* @malloc(i64 24)"); lbu_g[37] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[37]) + " = getelementptr [4 x i8], [4 x i8]* @_fmt_int, i64 0, i64 0"); lbu_g[38] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[38]) + " = call i32 (i8*, i8*, ...) @sprintf(i8* %t" + int_to_string(lbu_g[36]) + ", i8* %t" + int_to_string(lbu_g[37]) + ", i64 %t" + int_to_string(lbu_g[35]) + ")"); } }; lbu_g[36] },
                 false -> match lbu_bi == 14 {
                     // float_to_string: sprintf %g → returns i8* ptr
                     true -> {
@@ -2527,11 +2518,13 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                         do print("    %t" + int_to_string(lbu_g[38]) + " = call i32 (i8*, i8*, ...) @sprintf(i8* %t" + int_to_string(lbu_g[36]) + ", i8* %t" + int_to_string(lbu_g[37]) + ", double %t" + int_to_string(lbu_g[35]) + ")");
                         lbu_g[36]
                     },
-                    false -> {
-                        lbu_g[35] = ll_tmp(lbu_g);
-                        do print("    %t" + int_to_string(lbu_g[35]) + " = add i64 0, 0 ; builtin " + int_to_string(lbu_bi) + " stub");
-                        lbu_g[35]
-                    },
+                    false -> match lbu_bi == 2 { true -> { lbu_g[35]=lbu_n[lbu_ni*10+5]; match lbu_n[lbu_g[35]*10]==8 { true -> { lbu_g[36]=lbu_n[lbu_g[35]*10+8]; lbu_g[37]=lbu_n[lbu_g[35]*10+3]; lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = getelementptr ["+int_to_string(lbu_g[37])+" x i8], ["+int_to_string(lbu_g[37])+" x i8]* @_s"+int_to_string(lbu_g[36])+", i64 0, i64 0"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 1, i8* %t"+int_to_string(lbu_g[38])+", i64 "+int_to_string(lbu_g[37])+")"); }, false -> { lbu_g[31]=lbu_g[35]; lbu_g[36]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = inttoptr i64 %t"+int_to_string(lbu_g[36])+" to i8*"); lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = call i64 @strlen(i8* %t"+int_to_string(lbu_g[37])+")"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 1, i8* %t"+int_to_string(lbu_g[37])+", i64 %t"+int_to_string(lbu_g[38])+")"); } }; lbu_g[39] },
+                    false -> match lbu_bi == 10 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); do print("    call void @_loon_print_byte(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[35] },
+                    false -> match lbu_bi == 7 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i8* @_loon_read_file(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = ptrtoint i8* %t"+int_to_string(lbu_g[37])+" to i64"); lbu_g[36] },
+                    false -> match lbu_bi == 9 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i8* @_loon_get_arg(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = ptrtoint i8* %t"+int_to_string(lbu_g[37])+" to i64"); lbu_g[36] },
+                    false -> match lbu_bi == 5 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = inttoptr i64 %t"+int_to_string(lbu_g[35])+" to i8*"); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i64 @strlen(i8* %t"+int_to_string(lbu_g[36])+")"); lbu_g[37] },
+                    false -> match lbu_bi == 6 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[31]=lbu_n[lbu_n[lbu_ni*10+5]*10+6]; lbu_g[36]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = inttoptr i64 %t"+int_to_string(lbu_g[35])+" to i8*"); lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = getelementptr i8, i8* %t"+int_to_string(lbu_g[37])+", i64 %t"+int_to_string(lbu_g[36])); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = load i8, i8* %t"+int_to_string(lbu_g[38])); lbu_g[750]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[750])+" = zext i8 %t"+int_to_string(lbu_g[39])+" to i64"); lbu_g[750] },
+                    false -> { lbu_g[35]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[35])+" = add i64 0, 0 ; stub "+int_to_string(lbu_bi)); lbu_g[35] } } } } } } },
                 },
             },
             },
@@ -2646,9 +2639,9 @@ fn ll_aryget(lag_g: Array<Int>, lag_n: Array<Int>, lag_s: Array<Int>) [IO] -> In
         lag_g[41] = lag_g[51 + lag_fi * 4];
         match lag_g[42] == lag_g[51 + lag_fi * 4 + 1] { true -> match cg_name_eq(lag_g, lag_s) { true -> { lag_vf[0] = lag_fi; }, false -> { } }, false -> { } };
     };
-    // Load array pointer
+    // Load array pointer (param uses %p_name directly, local uses %v{i})
     let lag_at: Int = ll_tmp(lag_g);
-    do print("    %t" + int_to_string(lag_at) + " = load i64, i64* %v" + int_to_string(lag_vf[0]));
+    match lag_vf[0] >= 0 { true -> match lag_g[51+lag_vf[0]*4+2]==1 { true -> { do print_raw("    %t"+int_to_string(lag_at)+" = add i64 %p_"); let lag_po: Int=lag_g[51+lag_vf[0]*4]; let lag_pl: Int=lag_g[51+lag_vf[0]*4+1]; for lag_pk in range(0,lag_pl) { do print_byte(lag_s[lag_po+lag_pk]); }; do print(", 0"); }, false -> do print("    %t"+int_to_string(lag_at)+" = load i64, i64* %v"+int_to_string(lag_vf[0])) }, false -> do print("    %t"+int_to_string(lag_at)+" = load i64, i64* %v"+int_to_string(lag_vf[0])) };
     let lag_apt: Int = ll_tmp(lag_g);
     do print("    %t" + int_to_string(lag_apt) + " = inttoptr i64 %t" + int_to_string(lag_at) + " to i64*");
     // Eval index
@@ -2685,9 +2678,9 @@ fn ll_aryset(las_g: Array<Int>, las_n: Array<Int>, las_s: Array<Int>) [IO] -> Un
         las_g[41] = las_g[51 + las_fi * 4];
         match las_g[42] == las_g[51 + las_fi * 4 + 1] { true -> match cg_name_eq(las_g, las_s) { true -> { las_vf[0] = las_fi; }, false -> { } }, false -> { } };
     };
-    // Load array pointer
+    // Load array pointer (param uses %p_name directly, local uses %v{i})
     let las_at: Int = ll_tmp(las_g);
-    do print("    %t" + int_to_string(las_at) + " = load i64, i64* %v" + int_to_string(las_vf[0]));
+    match las_vf[0] >= 0 { true -> match las_g[51+las_vf[0]*4+2]==1 { true -> { do print_raw("    %t"+int_to_string(las_at)+" = add i64 %p_"); let las_po: Int=las_g[51+las_vf[0]*4]; let las_pl: Int=las_g[51+las_vf[0]*4+1]; for las_pk in range(0,las_pl) { do print_byte(las_s[las_po+las_pk]); }; do print(", 0"); }, false -> do print("    %t"+int_to_string(las_at)+" = load i64, i64* %v"+int_to_string(las_vf[0])) }, false -> do print("    %t"+int_to_string(las_at)+" = load i64, i64* %v"+int_to_string(las_vf[0])) };
     let las_apt: Int = ll_tmp(las_g);
     do print("    %t" + int_to_string(las_apt) + " = inttoptr i64 %t" + int_to_string(las_at) + " to i64*");
     // Eval index (first child)
@@ -3031,8 +3024,8 @@ fn ll_fn(lf_g: Array<Int>, lf_n: Array<Int>, lf_s: Array<Int>) [IO] -> Unit {
             do print("    store i64 0, i64* %v" + int_to_string(lf_zi));
         }, false -> { } };
     };
-    // If function didn't end with exit/unreachable, add a ret
-    match lf_g[33] == 0 { true -> match lf_g[4120] == 7 { true -> do print("    ret double 0.0"), false -> do print("    ret i64 0") }, false -> { } };
+    // Always emit ret (even if some branches hit unreachable, the phi needs it)
+    match lf_g[4120] == 7 { true -> do print("    ret double 0.0"), false -> do print("    ret i64 0") };
     do print("}");
     do print("");
 }
@@ -3057,6 +3050,10 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
         do print("declare void @proc_exit(i32) #1");
         do print("attributes #0 = { \"wasm-import-module\"=\"wasi_snapshot_preview1\" \"wasm-import-name\"=\"fd_write\" }");
         do print("attributes #1 = { \"wasm-import-module\"=\"wasi_snapshot_preview1\" \"wasm-import-name\"=\"proc_exit\" }");
+        do print("declare i8* @_loon_i64_to_str(i64)");
+        do print("declare void @_loon_print_byte(i64)");
+        do print("declare i8* @_loon_read_file(i64)");
+        do print("declare i8* @_loon_get_arg(i64)");
     }, false -> {
         do print("declare void @exit(i32) noreturn");
         do print("declare i64 @write(i32, i8*, i64)");

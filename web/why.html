@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why Loon — A programming language for the age of AI-generated code</title>
+  <meta name="description" content="AI writes plausible code that compiles, ships, and leaks your users' passwords. Loon's type system catches what humans forget to specify and AI doesn't know to check.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta property="og:title" content="Why Loon — The case for compile-time privacy types">
+  <meta property="og:description" content="AI writes plausible code that leaks passwords in log files. Loon's type system catches it before it ships.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/why.html">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Why Loon — compile-time privacy types">
+  <meta name="twitter:description" content="AI writes plausible code that leaks passwords in log files. Loon's type system catches it before it ships.">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <span class="logo-name">Loon</span>
+        <span class="logo-tagline">incorrect code does not compile</span>
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Why Loon exists</h1>
+    <p class="page-subtitle">A programming language designed for a world where AI writes most of the code.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container essay">
+
+    <p class="essay-lede">The problem is not that AI writes bad code. The problem is that AI writes plausible code &mdash; code that compiles, passes review, ships to production, and leaks your users' passwords in a log file.</p>
+
+    <!-- ============================================================ -->
+    <h2>The failure mode no one is talking about</h2>
+
+    <p>Every major AI coding tool &mdash; Copilot, Cursor, Claude, ChatGPT &mdash; generates code that is syntactically correct and functionally reasonable. It connects to the database. It returns the user object. It handles the happy path. The tests pass.</p>
+
+    <p>Then it logs the entire request body, including the password field, to stdout. Or it serializes the user struct &mdash; Social Security number included &mdash; into a JSON response because no one said not to. Or it stores the API key in a config object that gets dumped to a debug endpoint.</p>
+
+    <p>These are not hypothetical scenarios. They are the most common class of security bug in AI-assisted codebases. The AI does exactly what you asked. It just also does things you did not think to prohibit.</p>
+
+    <p>Consider this pattern, which every AI coding tool will happily generate:</p>
+
+<pre><code>fn handle_login(request: LoginRequest) -> Response {
+    log::info!("Login attempt: {:?}", request);
+    //                                 ^^^^^^^^
+    // request contains the password field.
+    // This compiles. This ships. This is a credential leak.
+
+    let user = db.authenticate(request.username, request.password)?;
+    Ok(user.into())
+    //     ^^^^^^^^
+    // user contains SSN, email, phone.
+    // into() serializes all fields.
+    // This is a PII leak.
+}</code></pre>
+
+    <p>This code compiles in Rust. It compiles in Go. It compiles in TypeScript. It compiles in every language that exists today. The type system of every mainstream language considers this program correct.</p>
+
+    <!-- ============================================================ -->
+    <h2>Why existing languages cannot solve this</h2>
+
+    <p>Rust proves that compile-time guarantees change how people write software. Its ownership system eliminated an entire class of memory safety bugs &mdash; use-after-free, double-free, data races &mdash; not through discipline or code review, but through type-level constraints that make the wrong thing impossible to express.</p>
+
+    <p>But Rust has no concept of data sensitivity. A <code>String</code> containing a password and a <code>String</code> containing a username are the same type. You can log either one, serialize either one, send either one over the network. The compiler cannot distinguish between them.</p>
+
+    <p>The same is true of every mainstream language:</p>
+
+    <ul>
+      <li><strong>Python:</strong> No type enforcement at all at runtime. Type hints are advisory. Nothing prevents <code>print(password)</code>.</li>
+      <li><strong>Go:</strong> Strong typing, but <code>string</code> is <code>string</code>. A password and a filename are interchangeable.</li>
+      <li><strong>TypeScript:</strong> Branded types can tag data, but nothing prevents casting or logging. It is a convention, not a constraint.</li>
+      <li><strong>Rust:</strong> Ownership prevents memory bugs. It does not prevent data classification bugs. You can <code>println!("{}", password)</code> and the compiler is fine with it.</li>
+      <li><strong>Java / C#:</strong> Annotation-based security is opt-in, runtime-checked, and routinely ignored.</li>
+    </ul>
+
+    <p>The gap is structural. No mainstream language can express "this value contains sensitive data and must not appear in logs, serialized output, or network responses" as a compile-time type constraint.</p>
+
+    <!-- ============================================================ -->
+    <h2>What Loon does differently</h2>
+
+    <p>Loon introduces <strong>privacy types</strong> as first-class compiler-enforced types. A <code>Sensitive&lt;String&gt;</code> is not a <code>String</code>. You cannot pass it to a function that expects <code>String</code>. You cannot log it. You cannot serialize it. You cannot concatenate it with a regular string and sneak it out. The compiler tracks sensitivity through every binding, every function call, every return value.</p>
+
+<pre><code>fn authenticate(password: Sensitive&lt;String&gt;) -> [IO] Bool {
+    // This is a compile error. Not a warning. Not a lint.
+    do print("Password: " + password);
+    // error[E301]: cannot log Sensitive value
+    //   password: Sensitive&lt;String&gt;
+    //   logging Sensitive data is prohibited
+
+    // You must explicitly declassify with an auditable operation.
+    let hash = do crypto_hash(declassify(password, "auth-check"));
+    do check_hash(hash, stored_hash)
+}</code></pre>
+
+    <p>The <code>declassify</code> operation is the only way to convert a <code>Sensitive</code> value to a regular value. It requires a string reason that appears in the audit log. It is visible in code review. It is greppable. When an AI agent generates code that declassifies data, the reason is right there in the source: why this value needed to leave the sensitivity boundary.</p>
+
+    <p>Loon also enforces effects. Every function declares what side effects it performs:</p>
+
+    <ul>
+      <li><code>[IO]</code> &mdash; reads or writes to the outside world</li>
+      <li><code>[Audit]</code> &mdash; writes to the audit log</li>
+      <li><code>[Crypto]</code> &mdash; handles cryptographic key material</li>
+    </ul>
+
+    <p>A function with no effect annotation is pure. It cannot call an IO function. It cannot write audit logs. It cannot touch the filesystem. The compiler verifies this across the entire call chain. If an AI agent generates a pure function that secretly reads a file, the compiler rejects it.</p>
+
+    <p>Together, privacy types and effects mean the compiler acts as the last line of defense between AI-generated code and production. The human says "return the user." The AI writes the code. The compiler checks: did it leak the password? Did it serialize the SSN? Did it perform IO in a pure context? Did it use a banned crypto algorithm? If any of these are true, the code does not compile.</p>
+
+    <!-- ============================================================ -->
+    <h2>Built from scratch, on purpose</h2>
+
+    <p>Loon's compiler was not built on LLVM, or GCC, or Rust, or any existing toolchain. It was bootstrapped from x86-64 assembly. Stage 0 is a hand-written lexer: 1,198 lines of assembly. Stage 1 is a hand-written parser and code generator: over 6,500 lines of assembly. Stage 2 is the self-hosting compiler: Loon compiling Loon.</p>
+
+    <p>This was not an exercise in masochism. It was a trust decision.</p>
+
+    <p>If your language's purpose is to enforce security invariants, the compiler itself is a security-critical component. A compiler built on LLVM inherits LLVM's 4 million lines of C++. A compiler built on the JVM inherits the JVM. Each dependency is an attack surface. Each dependency is a trust assumption.</p>
+
+    <p>Loon's trust chain starts at instructions you can read. The assembly is in the repository. The binary is reproducible. The bootstrap process is documented, tested on every commit, and auditable by anyone with an x86-64 machine and NASM.</p>
+
+    <p>One human directed the project. One AI collaborator wrote much of the assembly under human review. Every instruction was verified against the specification. The bootstrap was completed in four days. This matters because it demonstrates that the approach works: you can build a real compiler from bare metal with AI assistance, and the result is more auditable than a compiler with a million lines of inherited dependencies.</p>
+
+    <!-- ============================================================ -->
+    <h2>Who this is for</h2>
+
+    <p><strong>Security engineers</strong> who are tired of finding credential leaks in code review and want a language where those leaks are compile errors.</p>
+
+    <p><strong>Developers building agentic systems</strong> where AI writes code that runs in production. If your AI agent generates code that handles user data, you need a compiler that enforces data classification regardless of what the agent decides to do.</p>
+
+    <p><strong>Teams adopting AI coding tools</strong> who want guardrails that work at the language level, not the policy level. Linting rules get disabled. Code review gets rubber-stamped. Compiler errors do not get ignored.</p>
+
+    <p><strong>Anyone who has shipped a credential leak</strong> and spent the next week rotating keys, notifying users, and filing incident reports. Loon exists so that incident does not happen again.</p>
+
+    <!-- ============================================================ -->
+    <h2>What is honest</h2>
+
+    <p>Loon is pre-1.0. Here is what does not exist yet:</p>
+
+    <ul>
+      <li>The standard library is minimal. There is no package manager.</li>
+      <li>Performance optimization has not started. The compiler generates correct code, not fast code.</li>
+      <li>The WASM backend is in progress. You cannot run Loon in the browser today.</li>
+      <li>Editor support is early. There is no LSP server shipping yet.</li>
+      <li>The community is small. You will be an early adopter.</li>
+    </ul>
+
+    <p>Here is what works today:</p>
+
+    <ul>
+      <li>Privacy types are enforced at compile time. <code>Sensitive&lt;String&gt;</code> cannot be logged.</li>
+      <li>Effects are tracked across the call graph. Pure functions stay pure.</li>
+      <li>Match expressions are exhaustive. Missing cases are compile errors.</li>
+      <li>The compiler produces structured JSON errors that AI agents can parse.</li>
+      <li>68 gauntlet tests pass on every commit via GitHub Actions.</li>
+      <li>The entire compiler is in the repository. No vendored blobs. No opaque dependencies.</li>
+    </ul>
+
+    <p>The safety guarantees are real, they are tested, and they work. The ergonomics, ecosystem, and performance will improve. If you care about the guarantees more than the polish, Loon is ready for you to try.</p>
+
+    <div class="essay-cta">
+      <p>Ready to see the code?</p>
+      <a href="/docs" class="btn btn-primary">Read the Docs</a>
+      <a href="https://github.com/mplsllc/loon" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">View on GitHub</a>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by MPLS LLC</p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Playground — Loon</title>
+  <meta name="description" content="Try Loon in your browser. The Loon Playground lets you write, compile, and run Loon code without installing anything.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta property="og:title" content="Loon Playground">
+  <meta property="og:description" content="Try Loon in your browser — no installation required. Coming soon.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://loonlang.org/play.html">
+  <meta name="twitter:card" content="summary">
+  <style>
+    /* Playground-specific styles */
+    .playground-mock {
+      margin-top: 3rem;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    .playground-mock::after {
+      content: "Coming Soon";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(13, 59, 62, 0.85);
+      padding: 0.75rem 2.5rem;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .playground-toolbar {
+      background: var(--gray-800);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+    }
+
+    .playground-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toolbar-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .toolbar-dot-red { background: #e05252; }
+    .toolbar-dot-yellow { background: #e0b952; }
+    .toolbar-dot-green { background: #38a169; }
+
+    .toolbar-title {
+      color: var(--gray-400);
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      margin-left: 0.75rem;
+    }
+
+    .toolbar-run {
+      background: var(--teal-600);
+      color: #fff;
+      border: none;
+      padding: 0.35rem 1rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: default;
+      opacity: 0.5;
+      font-family: var(--font-sans);
+    }
+
+    .playground-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 360px;
+      opacity: 0.55;
+    }
+
+    .playground-panel {
+      padding: 0;
+      position: relative;
+    }
+
+    .playground-panel-header {
+      background: var(--gray-900);
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--gray-700);
+    }
+
+    .panel-editor .playground-panel-header {
+      color: var(--teal-300);
+    }
+
+    .panel-output .playground-panel-header {
+      color: var(--red-500);
+    }
+
+    .playground-panel pre {
+      background: var(--code-bg);
+      margin: 0;
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: var(--gray-300);
+      height: 100%;
+      overflow: auto;
+    }
+
+    .panel-editor {
+      border-right: 1px solid var(--gray-700);
+    }
+
+    .line-num {
+      color: var(--gray-500);
+      user-select: none;
+      display: inline-block;
+      width: 2.5em;
+      text-align: right;
+      margin-right: 1em;
+    }
+
+    .playground-note {
+      margin-top: 3rem;
+      text-align: center;
+    }
+
+    .playground-note p {
+      font-size: 1.05rem;
+      color: var(--gray-600);
+      line-height: 1.7;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .playground-install {
+      margin-top: 3rem;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .playground-install h3 {
+      font-size: 1.15rem;
+      color: var(--gray-900);
+      margin-bottom: 0.5rem;
+    }
+
+    .playground-install p {
+      font-size: 0.95rem;
+      color: var(--gray-600);
+      margin-bottom: 1.25rem;
+    }
+
+    .install-command {
+      background: var(--code-bg);
+      color: var(--teal-300);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      padding: 0.85rem 1.5rem;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.01em;
+    }
+
+    .install-command .prompt {
+      color: var(--gray-500);
+      user-select: none;
+    }
+
+    @media (max-width: 768px) {
+      .playground-panels {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-editor {
+        border-right: none;
+        border-bottom: 1px solid var(--gray-700);
+      }
+
+      .playground-mock::after {
+        font-size: 1.2rem;
+        padding: 0.5rem 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER / NAV
+     ============================================================ -->
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <span class="logo-name">Loon</span>
+        <span class="logo-tagline">incorrect code does not compile</span>
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/#why">Why Loon</a></li>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="/play" style="color: #fff;">Play</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="page-hero">
+  <div class="container">
+    <h1>Loon Playground</h1>
+    <p class="page-subtitle">Try Loon in your browser — no installation required.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     PLAYGROUND MOCK
+     ============================================================ -->
+<section class="page-content">
+  <div class="container" style="max-width: 1100px;">
+
+    <div class="playground-mock">
+      <div class="playground-toolbar">
+        <div class="playground-toolbar-left">
+          <span class="toolbar-dot toolbar-dot-red"></span>
+          <span class="toolbar-dot toolbar-dot-yellow"></span>
+          <span class="toolbar-dot toolbar-dot-green"></span>
+          <span class="toolbar-title">playground.loon</span>
+        </div>
+        <button class="toolbar-run" disabled>Run</button>
+      </div>
+
+      <div class="playground-panels">
+        <div class="playground-panel panel-editor">
+          <div class="playground-panel-header">Editor</div>
+          <pre><code><span class="line-num"> 1</span>module auth;
+<span class="line-num"> 2</span>
+<span class="line-num"> 3</span>fn authenticate(
+<span class="line-num"> 4</span>  username: String,
+<span class="line-num"> 5</span>  password: Sensitive&lt;String&gt;
+<span class="line-num"> 6</span>) -&gt; [IO] Bool {
+<span class="line-num"> 7</span>  <span class="code-comment">// Check credentials against the database</span>
+<span class="line-num"> 8</span>  let valid = do check_password(username, password);
+<span class="line-num"> 9</span>
+<span class="line-num">10</span>  <span class="code-comment">// Log the attempt for auditing</span>
+<span class="line-num">11</span>  do print("Login: user=" + username
+<span class="line-num">12</span>    + " password=" + <span class="code-hl-bad">password</span>);
+<span class="line-num">13</span>
+<span class="line-num">14</span>  valid
+<span class="line-num">15</span>}</code></pre>
+        </div>
+
+        <div class="playground-panel panel-output">
+          <div class="playground-panel-header">Compiler Output</div>
+          <pre><code><span class="code-error">error[E301]: cannot log Sensitive value</span>
+<span class="code-error">  --> playground.loon:12:22</span>
+<span class="code-error">   |</span>
+<span class="code-error">12 |     + " password=" + password);</span>
+<span class="code-error">   |                      ^^^^^^^^</span>
+<span class="code-error">   |</span>
+<span class="code-error">   = password: Sensitive&lt;String&gt;</span>
+<span class="code-error">   = logging Sensitive data is prohibited</span>
+<span class="code-error">   = hint: use redact(password) to log a</span>
+<span class="code-error">     masked representation</span>
+
+<span style="color: var(--gray-500);">Compilation failed: 1 error</span></code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <div class="playground-note">
+      <p>The playground is under development. Loon compiles to WebAssembly, which makes browser execution viable.</p>
+    </div>
+
+    <!-- Install locally -->
+    <div class="playground-install">
+      <h3>Try Loon locally</h3>
+      <p>In the meantime, you can install Loon and try it on your machine.</p>
+      <div class="install-command"><span class="prompt">$ </span>curl -fsSL https://loonlang.org/install.sh | sh</div>
+      <br>
+      <a href="/docs/getting-started" class="btn btn-primary">Getting Started Guide</a>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by MPLS LLC</p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

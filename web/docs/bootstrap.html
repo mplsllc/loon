@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Bootstrap Story — Loon</title>
+  <meta name="description" content="How Loon bootstrapped from bare metal x86-64 assembly to a self-hosting compiler in two days, with no borrowed toolchain.">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta property="og:title" content="The Bootstrap Story — Loon">
+  <meta property="og:description" content="How Loon bootstrapped from bare metal x86-64 assembly to a self-hosting compiler, with no borrowed toolchain.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://loonlang.org/docs/bootstrap.html">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <span class="logo-name">Loon</span>
+        <span class="logo-tagline">incorrect code does not compile</span>
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>How Loon Bootstrapped from Bare Metal</h1>
+    <p class="page-subtitle">A technical account of building a self-hosting programming language from x86-64 assembly in two days, with no borrowed toolchain.</p>
+  </div>
+</section>
+
+<section class="page-content">
+  <div class="container essay">
+
+    <p class="essay-lede">Loon is a programming language designed for a world where AI writes most of the code. The insight: when an LLM generates code from a natural language prompt, it produces what was asked for &mdash; but not what wasn't asked for. It doesn't add bounds checks the prompt didn't mention. It doesn't verify effects the specification didn't require. It doesn't catch the security violation the developer didn't think of.</p>
+
+    <p>Loon's type system catches what the human forgot to say and the AI didn't know to check.</p>
+
+    <p>To build that language, we needed a compiler. To trust that compiler, we needed to build it from scratch &mdash; every byte traceable to a deliberate choice. No Rust. No C. No existing language toolchain. Just Linux syscalls and x86-64 instructions.</p>
+
+    <p>This is the story of that bootstrap.</p>
+
+    <!-- ============================================================ -->
+    <h2>Stage 0 &mdash; The assembly lexer</h2>
+
+    <p><strong>Goal:</strong> Read a <code>.loon</code> source file and emit tokens to stdout.</p>
+
+    <p>The first program was <code>echo.asm</code> &mdash; 47 lines of x86-64 assembly that read a file using the <code>read</code> syscall and wrote it back using <code>write</code>. It proved we could do I/O without libc.</p>
+
+    <p>The lexer grew from there. Character-by-character dispatch: letters become identifiers, digits become numbers, <code>//</code> starts a comment, <code>"</code> starts a string. Each token emitted as one line to stdout: <code>KW_FN 3:1</code> or <code>LIT_INT "42" 5:12</code>.</p>
+
+    <p>The lexer was 1,198 lines of hand-written NASM assembly. Every label prefixed with <code>lex_</code> to avoid collisions. Every buffer statically allocated in <code>.bss</code>. No heap. No malloc. No runtime.</p>
+
+    <p><strong>What we learned:</strong> The token format became the interface contract between stages. Getting it right mattered more than getting the lexer fast. We wrote <code>ast-format.md</code> and locked it before writing a single line of parser code.</p>
+
+    <!-- ============================================================ -->
+    <h2>Stage 1 &mdash; The assembly compiler</h2>
+
+    <p><strong>Goal:</strong> Read tokens from stdin, parse into an AST, emit NASM x86-64 assembly to stdout.</p>
+
+    <p>Stage 1 was the real compiler &mdash; 6,542 lines of hand-written assembly across 7 files:</p>
+
+<pre><code>compiler.asm       &mdash; entry point, _start, .bss buffers (236 lines)
+token_reader.asm   &mdash; tok_*: stdin &rarr; token array (551 lines)
+parser.asm         &mdash; par_*: tokens &rarr; AST nodes (1,118 lines)
+expr_parser.asm    &mdash; expr_*: expression precedence climbing (1,660 lines)
+codegen.asm        &mdash; cg_*: AST &rarr; NASM output (1,547 lines)
+codegen_expr.asm   &mdash; cgx_*: expression codegen (1,181 lines)
+codegen_match.asm  &mdash; cgm_*: match codegen (249 lines)</code></pre>
+
+    <p>Every function followed a strict prefix convention. Every register usage was documented. The calling convention: 16 bytes per parameter (ptr + len for strings and arrays, value + unused for integers).</p>
+
+    <p>The AST was a flat array of 10-integer nodes. No pointers, no dynamic allocation, no garbage collector. Just index arithmetic: <code>node[i*10 + 5]</code> is the first child of node <code>i</code>.</p>
+
+    <p><strong>The hardest bug in Stage 1:</strong> The slot walker (<code>cg_walk_slots</code>) assigned stack offsets to LET and FOR nodes before codegen. It used an iterative explicit-stack traversal because recursive traversal in assembly was too error-prone. Getting the traversal order right &mdash; depth-first with sibling chaining &mdash; took three attempts.</p>
+
+    <h3>Build pipeline</h3>
+
+<pre><code>./stage0/lexer input.loon | ./stage1/compiler > output.asm
+nasm -f elf64 -o output.o output.asm && ld -o output output.o</code></pre>
+
+    <p>After M2.2, the first compiled Loon program ran. <code>strace</code> showed:</p>
+
+<pre><code>execve("/tmp/effects", ...)
+write(1, "Sum: 7", 6)
+write(1, "\n", 1)
+write(1, "Hello, Loon", 11)
+write(1, "\n", 1)
+exit(0)</code></pre>
+
+    <p>Five syscalls. No hidden allocations. No runtime startup. No dynamic linker. Every byte of output traceable to a <code>write</code> syscall the compiler emitted.</p>
+
+    <!-- ============================================================ -->
+    <h2>Stage 2 &mdash; Loon written in Loon</h2>
+
+    <p><strong>Goal:</strong> Rewrite the compiler in Loon-0 (the bootstrap subset), compile it with Stage 1, then compile itself.</p>
+
+    <h3>M2.0&ndash;M2.2: Translation</h3>
+
+    <p>The first three milestones were direct translation &mdash; the same lexer, parser, and codegen logic rewritten in Loon-0 instead of assembly. Each line of Loon-0 replaced 3&ndash;5 lines of assembly. The compiler shrank from 7,355 lines of assembly to ~1,200 lines of Loon-0.</p>
+
+    <p>Loon-0 is deliberately minimal: <code>fn</code>, <code>let</code>, <code>match</code> on Int/Bool, <code>for</code>, arrays, strings. No ADTs, no generics, no closures. The compiler used flat integer arrays with manual offset arithmetic &mdash; the same pattern as Stage 1, just readable.</p>
+
+    <p>The internal representation: a global state array <code>gs[]</code> with 1,024+ entries holding everything from the token position to the variable table to the match nesting depth. Functions communicated through <code>gs[]</code> slots:</p>
+
+<pre><code>gs[0]    = source length
+gs[1]    = lexer position
+gs[12]   = node count
+gs[13]   = token position
+gs[31]   = current expression node
+gs[32]   = label counter
+gs[33]   = stack offset accumulator
+gs[50]   = variable count
+gs[51+]  = variable table (name_off, name_len, offset, type) &times; 4
+gs[115-120] = match codegen state
+gs[220+] = walker explicit stack</code></pre>
+
+    <h3>M2.3: Self-hosting</h3>
+
+    <p>The most satisfying commit in the project:</p>
+
+<pre><code>804d4a8 M2.3 COMPLETE &mdash; Stage 2 is self-hosting</code></pre>
+
+    <p>Four bugs found during self-compilation:</p>
+
+    <ul>
+      <li><strong>Sequential match clobbering</strong> &mdash; <code>cg_call4</code> used three sequential match statements on <code>gs[140]</code>. Between matches, <code>cg_expr</code> modified <code>gs[140]</code>. The second and third matches saw clobbered values. Fix: nested matches.</li>
+      <li><strong>Array access r10 clobbering</strong> &mdash; <code>s[g[1]]</code> clobbered the outer array pointer in r10 when evaluating the nested index. Fix: push/pop r10 around index evaluation.</li>
+      <li><strong>Builtin name collision</strong> &mdash; <code>por_parse</code> (9 chars, 'p') matched <code>print_raw</code> by length + first character. Fix: additional character checks. (This bug class appeared three times before being permanently fixed with full string comparison.)</li>
+      <li><strong>String type propagation</strong> &mdash; Binary <code>+</code> on strings was compiled as integer addition because BINOP nodes never got <code>type_info=2</code>. Fix: propagate type from left operand through <code>mkbin</code>.</li>
+    </ul>
+
+    <p>Each bug was invisible on test files and only surfaced when the compiler compiled itself. This is the bootstrap working exactly as designed &mdash; the seed compiler gets battle-tested by compiling something real.</p>
+
+    <p>After the fix: <code>diff /tmp/stage2_s2.asm /tmp/stage2_s3.asm</code> &mdash; empty. Fixed point reached. The compiler writes itself. Assembly is history.</p>
+
+    <h3>M2.4: Algebraic data types</h3>
+
+    <p>The first genuinely new feature:</p>
+
+<pre><code>type Shape {
+    Circle(radius: Int),
+    Rectangle(width: Int, height: Int),
+    Point,
+}</code></pre>
+
+    <p>Runtime representation: tagged unions on the bump heap. Tag at offset 0 (8 bytes), fields following. Variant constructors bump-allocate and initialize. Match reads the tag, dispatches, extracts fields.</p>
+
+    <p>Exhaustive match checking: if any variant is missing from a match and there's no wildcard <code>_</code>, compilation fails.</p>
+
+    <p><strong>Bug found:</strong> The lexer never had a case for <code>/</code> (division operator). First use was <code>tag / 256</code> for variant tag extraction. Latent since day one. The first real program to use division.</p>
+
+    <p><strong>Bug found:</strong> The string table overflowed at ~88KB source files. The source bytes + token string values exceeded the 131,072-entry buffer. Fix: expand to 262,144.</p>
+
+    <h3>M2.5: Effect verification</h3>
+
+<pre><code>fn pure_function() [] -> Int {
+    do print("side effect!");  // &larr; COMPILE ERROR
+    42
+}</code></pre>
+
+    <p>The effect checker scans each function declared <code>[]</code> (pure) for <code>do</code> calls to IO functions. If found: structured error with function name.</p>
+
+    <p><strong>What it found on first run:</strong> Five functions in the compiler itself were declared <code>[]</code> but called <code>print</code>/<code>exit</code> for error handling. The effect checker caught its own compiler's violations.</p>
+
+    <p>The <code>--json</code> flag outputs structured errors:</p>
+
+<pre><code>{"error":"undeclared_effect","function":"pure_fn"}</code></pre>
+
+    <h3>M2.6: Pipe, string match, type checking</h3>
+
+    <p>Three features in one commit:</p>
+
+    <ul>
+      <li><strong>Pipe operator:</strong> <code>5 |> double |> increment</code> desugars to <code>increment(double(5))</code></li>
+      <li><strong>String match:</strong> <code>match s { "fn" -> 0, "let" -> 1, _ -> 99 }</code></li>
+      <li><strong>Type mismatch:</strong> <code>let x: Int = "hello"</code> &rarr; compile error</li>
+    </ul>
+
+    <h3>The calculator &mdash; Option B pays off</h3>
+
+    <p>Before rewriting the compiler, we wrote a real program: an arithmetic calculator with lexer, recursive descent parser, and tree evaluator.</p>
+
+    <p>It found two bugs that 14 test files couldn't reach:</p>
+
+    <ul>
+      <li><strong>Name collision #3:</strong> <code>parse_expr</code> (10 chars, 'p', char[5]='_') matched <code>print_byte</code>. The character sampling approach for builtin detection was fundamentally fragile.</li>
+      <li><strong>Walker stack overflow:</strong> The lexer's 8 levels of nested match exceeded the 700-entry explicit stack.</li>
+    </ul>
+
+    <p>The permanent fix for #1: full byte-by-byte string comparison against every builtin name. No more sampling. No more collisions.</p>
+
+    <h3>M2.7 partial + Security gauntlet</h3>
+
+    <p>The security gauntlet tested every class of violation Loon promises to prevent:</p>
+
+<pre><code>CAUGHT:  7/11
+  &#10003; Effect violation
+  &#10003; Type mismatch (literals)
+  &#10003; Non-exhaustive match
+  &#10003; Undefined variable
+  &#10003; Wrong argument count
+  &#10003; Immutable reassignment
+  &#10003; Return type mismatch
+
+MISSED:  2/11
+  &#183; Call argument types (needs type inference)
+  &#183; Division by zero (runtime)
+
+DEFERRED: 2/11
+  &#183; Division by zero (Stage 3 runtime)
+  &#183; Array bounds (Stage 3 runtime)</code></pre>
+
+    <p>Seven compile-time safety checks. The seven most common mistakes AI agents make when generating code.</p>
+
+    <!-- ============================================================ -->
+    <h2>The numbers</h2>
+
+    <table class="timeline-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Stage 0 (lexer)</td>
+          <td>1,198 lines of x86-64 assembly</td>
+        </tr>
+        <tr>
+          <td>Stage 1 (compiler)</td>
+          <td>6,542 lines of x86-64 assembly</td>
+        </tr>
+        <tr>
+          <td>Stage 2 (self-hosting compiler)</td>
+          <td>1,956 lines of Loon-0</td>
+        </tr>
+        <tr>
+          <td>Total assembly written</td>
+          <td>7,740 lines</td>
+        </tr>
+        <tr>
+          <td>Total assembly still used</td>
+          <td>0 lines (retired at M2.3)</td>
+        </tr>
+        <tr>
+          <td>Bugs found during bootstrap</td>
+          <td>20+</td>
+        </tr>
+        <tr>
+          <td>Bugs found by real programs</td>
+          <td>5 (that tests couldn't reach)</td>
+        </tr>
+        <tr>
+          <td>Bugs in chk_bi name collision</td>
+          <td>3 (same class, finally fixed permanently)</td>
+        </tr>
+        <tr>
+          <td>Safety checks</td>
+          <td>7/11 compile-time</td>
+        </tr>
+        <tr>
+          <td>Test programs</td>
+          <td>14 (all passing)</td>
+        </tr>
+        <tr>
+          <td>Real programs</td>
+          <td>3 (loon_call, calculator, security_gauntlet)</td>
+        </tr>
+        <tr>
+          <td>Time</td>
+          <td>~2 days</td>
+        </tr>
+        <tr>
+          <td>People</td>
+          <td>1 human + 1 AI collaborator</td>
+        </tr>
+        <tr>
+          <td>Lines of code borrowed</td>
+          <td>0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================ -->
+    <h2>What the bootstrap proved</h2>
+
+    <p><strong>Self-hosting finds bugs tests can't reach.</strong> Every self-compilation milestone (M2.3, M2.4, M2.5, M2.6) found bugs that the test suite missed. The compiler compiling itself exercises code paths that toy programs never touch.</p>
+
+    <p><strong>Real programs find bugs self-hosting can't reach.</strong> The calculator found two bugs (name collision, walker overflow) that the compiler never triggered because the compiler doesn't use division or 8-level match nesting.</p>
+
+    <p><strong>Character sampling is not string comparison.</strong> The <code>chk_bi</code> name collision appeared three times across three milestones before being permanently fixed. Each time, adding one more character check delayed the next collision. The permanent fix was obvious in retrospect: compare the full string. Don't sample.</p>
+
+    <p><strong>The assembly seed compiled itself out of relevance.</strong> At M2.5, Stage 1's token buffer (26,214 max tokens) couldn't hold the compiler's 26,789 tokens. The bootstrap chain became: Stage 1 &rarr; M2.4 &rarr; M2.5 &rarr; current. Stage 1 can never compile the full compiler again. The assembly is archaeology.</p>
+
+    <p><strong>Effect verification works.</strong> The effect checker's first run caught five real violations in the compiler itself. Functions that called <code>print</code> and <code>exit</code> for error handling but declared themselves pure. The system works.</p>
+
+    <p><strong>7/11 is a meaningful number.</strong> The seven caught violations are the ones that cause the most damage in AI-generated code: wrong types, missing match arms, undefined variables, undeclared side effects, wrong argument counts, immutable reassignment, return type mismatches. An AI agent writing Loon gets precise, machine-readable feedback for each one.</p>
+
+    <!-- ============================================================ -->
+    <h2>What comes next</h2>
+
+    <p>Stage 3 replaces the hand-rolled NASM codegen with LLVM IR emission. Real optimization. Cross-platform compilation. WebAssembly target. Float type. Runtime safety checks. The package manager and LSP server.</p>
+
+    <p>The foundation is solid. The safety story is real. The bootstrap is complete.</p>
+
+    <p>Now make it fast.</p>
+
+    <div class="essay-cta">
+      <p>Read the code yourself.</p>
+      <a href="https://github.com/mplsllc/loon" class="btn btn-primary">View on GitHub</a>
+      <a href="/docs" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">Back to Docs</a>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by MPLS LLC</p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

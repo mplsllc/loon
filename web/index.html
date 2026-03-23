@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loon — A programming language where incorrect code does not compile</title>
+  <meta name="description" content="Loon is a programming language with compile-time privacy types, effect tracking, and exhaustive checking. Built from bare metal for a world where AI writes the code.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta property="og:title" content="Loon — A programming language where incorrect code does not compile">
+  <meta property="og:description" content="Privacy types, effect tracking, and exhaustive checking — enforced by the compiler. Built from bare metal x86-64 assembly.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://loonlang.org">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Loon — incorrect code does not compile">
+  <meta name="twitter:description" content="The compiler catches what AI agents forget to check. Privacy types enforced at compile time.">
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER / NAV
+     ============================================================ -->
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">
+      <a href="/">
+        <span class="logo-name">Loon</span>
+        <span class="logo-tagline">incorrect code does not compile</span>
+      </a>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <ul>
+        <li><a href="#why">Why Loon</a></li>
+        <li><a href="#language">Language</a></li>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================================================
+     ACT 1 — THE PROBLEM (Hero)
+     ============================================================ -->
+<section class="hero" id="why">
+  <div class="container">
+    <h1>The compiler catches what AI agents forget to check.</h1>
+    <p class="hero-sub">AI writes most of the code now. The vibe coder says "connect to the database and return the user." They don't say "don't log the password." Loon's type system says it for them.</p>
+
+    <div class="code-compare">
+      <div class="code-panel code-panel-bad">
+        <div class="code-panel-header">
+          <span class="code-panel-label">This compiles in Python, Go, TypeScript, Rust</span>
+        </div>
+        <pre><code><span class="code-comment"># No language prevents this today</span>
+logging.info(f"Login: user={<span class="code-hl-bad">username</span>} password={<span class="code-hl-bad">password</span>}")
+
+<span class="code-comment"># It ships. It logs passwords to Datadog.</span>
+<span class="code-comment"># You find out from a security audit.</span></code></pre>
+      </div>
+
+      <div class="code-panel code-panel-good">
+        <div class="code-panel-header">
+          <span class="code-panel-label">This does not compile in Loon</span>
+        </div>
+        <pre><code><span class="code-comment">// Loon catches it before it ships</span>
+do print("Login: " + username + " password=" + <span class="code-hl-good">password</span>);
+
+<span class="code-error">error[E301]: cannot log Sensitive value</span>
+<span class="code-error">  password: Sensitive&lt;String&gt;</span>
+<span class="code-error">  logging Sensitive data is prohibited</span></code></pre>
+      </div>
+    </div>
+
+    <div class="hero-ctas">
+      <a href="/docs" class="btn btn-primary">Read the Docs</a>
+      <a href="/play" class="btn btn-secondary btn-disabled" aria-disabled="true">Try in Browser <span class="badge">coming soon</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ACT 2 — THE LANGUAGE
+     ============================================================ -->
+<section class="language-section" id="language">
+  <div class="container">
+
+    <!-- By the numbers -->
+    <div class="stats-section">
+      <h2>By the numbers</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number">68/68</span>
+          <span class="stat-label">gauntlet tests passing</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">9</span>
+          <span class="stat-label">compile-time checks</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">6</span>
+          <span class="stat-label">privacy rules</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">5</span>
+          <span class="stat-label">compilation targets</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">Self-hosting</span>
+          <span class="stat-label">compiler</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">0</span>
+          <span class="stat-label">external dependencies</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key features -->
+    <div class="features-section">
+      <h2>What the compiler enforces</h2>
+
+      <div class="feature-grid">
+
+        <div class="feature-card">
+          <h3>Privacy Types</h3>
+          <p><code>Sensitive&lt;String&gt;</code> cannot be logged, serialized, or sent over the network. Not a lint warning. Not a runtime check. A compile error. The type system tracks sensitivity through every function call, every variable binding, every return value.</p>
+          <pre class="feature-code"><code>fn authenticate(password: Sensitive&lt;String&gt;) -&gt; [IO] Bool {
+  do print(password);
+  <span class="code-error">// error[E301]: cannot log Sensitive value</span>
+}</code></pre>
+        </div>
+
+        <div class="feature-card">
+          <h3>Effect System</h3>
+          <p>Every function declares what it does. <code>[IO]</code> means it touches the outside world. <code>[Audit]</code> means it writes audit logs. <code>[Crypto]</code> means it handles key material. The compiler verifies the entire call chain. A pure function cannot call an IO function — no exceptions, no escape hatches.</p>
+          <pre class="feature-code"><code>fn read_config(path: String) -&gt; [IO] String {
+  do read_file(path)
+}
+
+fn validate(s: String) -&gt; Bool {
+  do read_config("x");
+  <span class="code-error">// error: pure function cannot perform [IO]</span>
+}</code></pre>
+        </div>
+
+        <div class="feature-card">
+          <h3>Exhaustive Match</h3>
+          <p>Every variant of a type must be handled. Forget a case and the compiler rejects it. This catches the bugs that AI code generators produce most often: the unhandled edge case, the missing error path, the None that becomes a null pointer dereference in production.</p>
+          <pre class="feature-code"><code>match result {
+  | Ok(value) -&gt; use(value)
+  <span class="code-error">// error: non-exhaustive match</span>
+  <span class="code-error">// missing: Err(e)</span>
+}</code></pre>
+        </div>
+
+        <div class="feature-card">
+          <h3>Structured Errors</h3>
+          <p>Compiler errors are JSON. When an AI agent writes Loon code and the compiler rejects it, the agent gets a machine-readable error with the exact location, the violated rule, and a suggested fix. No regex parsing of error messages. The feedback loop is tight and deterministic.</p>
+          <pre class="feature-code"><code>{"error": "E301",
+ "message": "cannot log Sensitive value",
+ "location": {"line": 4, "col": 12},
+ "variable": "password",
+ "type": "Sensitive&lt;String&gt;"}</code></pre>
+        </div>
+
+        <div class="feature-card">
+          <h3>Bootstrapped from Assembly</h3>
+          <p>Loon's compiler is built from 8,553 lines of x86-64 assembly. No C runtime. No LLVM. No borrowed toolchain. The trust chain starts at instructions you can read and verify. Every byte of the compiler is accounted for in this repository.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bootstrap timeline -->
+    <div class="timeline-section">
+      <h2>Bootstrap timeline</h2>
+      <table class="timeline-table">
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>What</th>
+            <th>How</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Stage 0</strong></td>
+            <td>Hand-written assembly lexer</td>
+            <td>1,198 lines of x86-64 asm</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 1</strong></td>
+            <td>Hand-written assembly compiler</td>
+            <td>6,542 lines of x86-64 asm</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 2</strong></td>
+            <td>Loon compiler written in Loon</td>
+            <td>Self-hosting</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 3</strong></td>
+            <td>LLVM backend, WASM, Float, LSP</td>
+            <td>Cross-platform</td>
+          </tr>
+          <tr class="timeline-current">
+            <td><strong>Stage 4</strong></td>
+            <td>Privacy types, effect system</td>
+            <td>Complete</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     ACT 3 — THE MISSION (License / Philosophy)
+     ============================================================ -->
+<section class="mission-section" id="mission">
+  <div class="container">
+    <h2>The MPLS License</h2>
+    <p class="mission-lead">Loon is free to use, read, modify, and distribute for individuals, small organizations, nonprofits, and educational institutions. The source is open. The compiler is yours.</p>
+
+    <div class="mission-columns">
+      <div class="mission-col mission-col-allowed">
+        <h3>Permitted</h3>
+        <ul>
+          <li>Personal and commercial use by individuals</li>
+          <li>Organizations under $1M revenue and under 100K users</li>
+          <li>Academic and research use</li>
+          <li>Nonprofit use</li>
+          <li>Modification and redistribution under the same terms</li>
+        </ul>
+      </div>
+      <div class="mission-col mission-col-prohibited">
+        <h3>Prohibited</h3>
+        <ul>
+          <li>Mass surveillance systems</li>
+          <li>Autonomous weapons platforms</li>
+          <li>Tools of political oppression</li>
+          <li>Manipulative behavioral systems</li>
+          <li>Use by organizations that violate these principles</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="mission-footer">Software is not neutral. A language designed to prevent data leaks should not itself be used to build surveillance infrastructure. <a href="/license">Read the full license.</a></p>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-info">
+      <p class="footer-stewardship">Stewarded by MPLS LLC</p>
+      <p class="footer-tagline">Built from bare metal. No borrowed toolchain.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <ul>
+        <li><a href="/docs">Docs</a></li>
+        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="/license">License</a></li>
+        <li><a href="/security">Security</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
