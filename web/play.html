@@ -270,10 +270,11 @@ fn main() [IO] -> Unit {
         </div>
 
         <div class="playground-panel panel-output">
-          <div class="playground-panel-header" id="outputHeader">Output</div>
-          <pre id="output"><span class="output-info">Click "Compile" to run the Loon compiler in your browser.
+          <div class="playground-panel-header" id="outputHeader">Compiler Output</div>
+          <pre id="output"><span class="output-info">Press Compile or Ctrl+Enter to check your code.
 
-The compiler runs entirely in WebAssembly — nothing is sent to a server.</span></pre>
+The compiler runs in your browser via WebAssembly.
+Nothing is sent to a server.</span></pre>
         </div>
       </div>
 
@@ -478,35 +479,11 @@ async function compile() {
       output.innerHTML = '<span class="output-error">' + escapeHtml(errText) + '</span>';
       statusEl.textContent = 'Compilation failed';
     } else {
-      // Success — show confirmation + summary, not raw assembly
-      outputHeader.textContent = 'Compilation Successful';
+      // Success
+      outputHeader.textContent = 'Compiler Output';
       outputHeader.className = 'playground-panel-header has-success';
-      const lines = stdout.split('\n');
-      // Count user functions
-      const fnCount = lines.filter(l => l.startsWith('fn_') && l.endsWith(':')).length;
-      const asmLines = lines.length;
-      let summary = '✓ Program compiled successfully\n\n';
-      summary += '  ' + fnCount + ' function' + (fnCount !== 1 ? 's' : '') + ' compiled\n';
-      summary += '  ' + asmLines + ' lines of x86-64 assembly generated\n';
-      summary += '  All type checks passed\n';
-      summary += '  All effect declarations verified\n';
-      // Check for privacy types used
-      const source = editor.value;
-      if (source.includes('Sensitive') || source.includes('Public') || source.includes('Hashed')) {
-        summary += '  Privacy type constraints enforced\n';
-      }
-      summary += '\n─────────────────────────────────────\n';
-      summary += '\nTo run this program natively:\n\n';
-      summary += '  nasm -f elf64 -o out.o out.asm\n';
-      summary += '  ld -o out out.o\n';
-      summary += '  ./out\n';
-      // Add a peek at the assembly
-      summary += '\n─────────────────────────────────────\n';
-      summary += '\nGenerated assembly (first 30 lines):\n\n';
-      summary += lines.slice(0, 30).join('\n');
-      if (asmLines > 30) summary += '\n\n; ... (' + asmLines + ' total lines)';
-      output.innerHTML = '<span class="output-success">' + escapeHtml(summary) + '</span>';
-      statusEl.textContent = 'Compiled successfully in ' + elapsed + ' ms';
+      output.innerHTML = '<span class="output-success">✓ No errors — compiled successfully</span>';
+      statusEl.textContent = 'Compiled in ' + elapsed + ' ms';
     }
   } catch (e) {
     output.innerHTML = '<span class="output-error">Compiler error: ' + escapeHtml(e.message) + '</span>';
