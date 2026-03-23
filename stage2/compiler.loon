@@ -96,7 +96,7 @@ fn lex_sym(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { let lc
 // lex_dispatch — route to word/num/str/sym lexer based on first char
 fn lex_dispatch(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[7] = lg[2]; lg[8] = lg[3]; let lc: Int = xpeek(lg, ls); match lc == 47 { true -> match lg[1] + 1 < lg[0] { true -> match ls[lg[1] + 1] == 47 { true -> { let _ls1: Int = xadv(lg, ls); let _ls2: Int = xadv(lg, ls); lg[6] = 1; }, false -> do lex_sym(lg, lt, ls) }, false -> do lex_sym(lg, lt, ls) }, false -> match lc == 34 { true -> do lex_str(lg, lt, ls), false -> match is_alpha(lc) { true -> do lex_word(lg, lt, ls), false -> match is_digit(lc) { true -> do lex_num(lg, lt, ls), false -> do lex_sym(lg, lt, ls) } } } }; }
 // lex_all — tokenize entire source, skip whitespace and comments
-fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = 200000; lg[6] = 0; for _li in range(0, 999999) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
+fn lex_all(lg: Array<Int>, lt: Array<Int>, ls: Array<Int>) [IO] -> Unit { lg[1] = 0; lg[2] = 1; lg[3] = 1; lg[4] = 0; lg[5] = 300000; lg[6] = 0; for _li in range(0, 999999) { match xend(lg) { true -> { }, false -> { let lc: Int = xpeek(lg, ls); match lg[6] == 1 { true -> match lc == 10 { true -> { lg[6] = 0; let _ln: Int = xadv(lg, ls); }, false -> { let _lcc: Int = xadv(lg, ls); } }, false -> match is_ws(lc) { true -> { let _lw: Int = xadv(lg, ls); }, false -> do lex_dispatch(lg, lt, ls) } }; } }; }; lg[7] = lg[2]; lg[8] = lg[3]; do xemit(lg, lt, 44); }
 
 // ===== Token access =====
 fn tcur(_g: Array<Int>, _t: Array<Int>) [] -> Int { _t[_g[13] * 5] }
@@ -871,7 +871,7 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
 
     // .bss section
     do emit_line("section .bss");
-    do emit_line("    _bump_heap resb 16777216");
+    do emit_line("    _bump_heap resb 33554432");
     do emit_line("    _big_stack resb 8388608");
     do emit_line("    _argc resq 1");
     do emit_line("    _argv resq 1");
@@ -2326,6 +2326,25 @@ fn ll_tmp(ll_g: Array<Int>) [] -> Int {
     ll_n
 }
 
+// LLVM: emit string concat (a + b where both are String type)
+fn ll_strcat(sc_g: Array<Int>, sc_lt: Int, sc_rt: Int) [IO] -> Int {
+    sc_g[35]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[35])+" = inttoptr i64 %t"+int_to_string(sc_lt)+" to i8*");
+    sc_g[36]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[36])+" = call i64 @strlen(i8* %t"+int_to_string(sc_g[35])+")");
+    sc_g[37]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[37])+" = inttoptr i64 %t"+int_to_string(sc_rt)+" to i8*");
+    sc_g[38]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[38])+" = call i64 @strlen(i8* %t"+int_to_string(sc_g[37])+")");
+    sc_g[39]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[39])+" = add i64 %t"+int_to_string(sc_g[36])+", %t"+int_to_string(sc_g[38]));
+    sc_g[750]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[750])+" = add i64 %t"+int_to_string(sc_g[39])+", 1");
+    sc_g[751]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[751])+" = call i8* @malloc(i64 %t"+int_to_string(sc_g[750])+")");
+    do print("    call void @llvm.memcpy.p0.p0.i64(i8* %t"+int_to_string(sc_g[751])+", i8* %t"+int_to_string(sc_g[35])+", i64 %t"+int_to_string(sc_g[36])+", i1 false)");
+    sc_g[753]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[753])+" = getelementptr i8, i8* %t"+int_to_string(sc_g[751])+", i64 %t"+int_to_string(sc_g[36]));
+    do print("    call void @llvm.memcpy.p0.p0.i64(i8* %t"+int_to_string(sc_g[753])+", i8* %t"+int_to_string(sc_g[37])+", i64 %t"+int_to_string(sc_g[38])+", i1 false)");
+    sc_g[754]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[754])+" = getelementptr i8, i8* %t"+int_to_string(sc_g[751])+", i64 %t"+int_to_string(sc_g[39]));
+    do print("    store i8 0, i8* %t"+int_to_string(sc_g[754]));
+    sc_g[755]=ll_tmp(sc_g); do print("    %t"+int_to_string(sc_g[755])+" = ptrtoint i8* %t"+int_to_string(sc_g[751])+" to i64");
+    sc_g[761]=2;
+    sc_g[755]
+}
+
 // LLVM: emit BINOP expression
 fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
     let lb_ni: Int = lb_g[31];
@@ -2356,6 +2375,7 @@ fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
                 },
             };
         },
+        false -> match lb_g[760] == 2 { true -> match lb_op == 0 { true -> { lb_g[4190] = ll_strcat(lb_g, lb_lt, lb_rt); }, false -> { lb_g[4190] = lb_t; } },
         false -> {
             // Integer arithmetic/comparison
             match lb_op <= 4 {
@@ -2382,8 +2402,8 @@ fn ll_binop(lb_g: Array<Int>, lb_n: Array<Int>, lb_s: Array<Int>) [IO] -> Int {
                 },
             };
         },
-    };
-    lb_t
+    } };
+    match lb_g[760] == 2 { true -> lb_g[4190], false -> lb_t }
 }
 
 // LLVM: emit variable reference
@@ -2518,7 +2538,7 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                         do print("    %t" + int_to_string(lbu_g[38]) + " = call i32 (i8*, i8*, ...) @sprintf(i8* %t" + int_to_string(lbu_g[36]) + ", i8* %t" + int_to_string(lbu_g[37]) + ", double %t" + int_to_string(lbu_g[35]) + ")");
                         lbu_g[36]
                     },
-                    false -> match lbu_bi == 2 { true -> { lbu_g[35]=lbu_n[lbu_ni*10+5]; match lbu_n[lbu_g[35]*10]==8 { true -> { lbu_g[36]=lbu_n[lbu_g[35]*10+8]; lbu_g[37]=lbu_n[lbu_g[35]*10+3]; lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = getelementptr ["+int_to_string(lbu_g[37])+" x i8], ["+int_to_string(lbu_g[37])+" x i8]* @_s"+int_to_string(lbu_g[36])+", i64 0, i64 0"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 1, i8* %t"+int_to_string(lbu_g[38])+", i64 "+int_to_string(lbu_g[37])+")"); }, false -> { lbu_g[31]=lbu_g[35]; lbu_g[36]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = inttoptr i64 %t"+int_to_string(lbu_g[36])+" to i8*"); lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = call i64 @strlen(i8* %t"+int_to_string(lbu_g[37])+")"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 1, i8* %t"+int_to_string(lbu_g[37])+", i64 %t"+int_to_string(lbu_g[38])+")"); } }; lbu_g[39] },
+                    false -> match lbu_bi == 2 { true -> { lbu_g[35]=lbu_n[lbu_ni*10+5]; match lbu_n[lbu_g[35]*10]==8 { true -> { lbu_g[36]=lbu_n[lbu_g[35]*10+8]; lbu_g[37]=lbu_n[lbu_g[35]*10+3]+1; lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = getelementptr ["+int_to_string(lbu_g[37])+" x i8], ["+int_to_string(lbu_g[37])+" x i8]* @_s"+int_to_string(lbu_g[36])+", i64 0, i64 0"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 1, i8* %t"+int_to_string(lbu_g[38])+", i64 "+int_to_string(lbu_g[37])+")"); }, false -> { lbu_g[31]=lbu_g[35]; lbu_g[36]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = inttoptr i64 %t"+int_to_string(lbu_g[36])+" to i8*"); lbu_g[38]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[38])+" = call i64 @strlen(i8* %t"+int_to_string(lbu_g[37])+")"); lbu_g[39]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[39])+" = call i64 @write(i32 1, i8* %t"+int_to_string(lbu_g[37])+", i64 %t"+int_to_string(lbu_g[38])+")"); } }; lbu_g[39] },
                     false -> match lbu_bi == 10 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); do print("    call void @_loon_print_byte(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[35] },
                     false -> match lbu_bi == 7 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i8* @_loon_read_file(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = ptrtoint i8* %t"+int_to_string(lbu_g[37])+" to i64"); lbu_g[36] },
                     false -> match lbu_bi == 9 { true -> { lbu_g[31]=lbu_n[lbu_ni*10+5]; lbu_g[35]=ll_expr(lbu_g,lbu_n,lbu_s); lbu_g[37]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[37])+" = call i8* @_loon_get_arg(i64 %t"+int_to_string(lbu_g[35])+")"); lbu_g[36]=ll_tmp(lbu_g); do print("    %t"+int_to_string(lbu_g[36])+" = ptrtoint i8* %t"+int_to_string(lbu_g[37])+" to i64"); lbu_g[36] },
@@ -2906,6 +2926,7 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
             do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s)));
             le_g[761] = 0; // Int
         } }; le_t },
+    false -> match le_nt == 8 { true -> { le_g[35]=le_n[le_ni*10+8]; le_g[36]=le_n[le_ni*10+3]+1; le_g[37]=ll_tmp(le_g); do print("    %t"+int_to_string(le_g[37])+" = getelementptr ["+int_to_string(le_g[36])+" x i8], ["+int_to_string(le_g[36])+" x i8]* @_s"+int_to_string(le_g[35])+", i64 0, i64 0"); le_g[38]=ll_tmp(le_g); do print("    %t"+int_to_string(le_g[38])+" = ptrtoint i8* %t"+int_to_string(le_g[37])+" to i64"); le_g[761]=2; le_g[38] },
     false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8])); le_bt },
     false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
     false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
@@ -2922,7 +2943,7 @@ fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     false -> match le_nt == 21 { true -> { do ll_aryset(le_g, le_n, le_s); let le_st: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_st) + " = add i64 0, 0"); le_st },
     false -> match le_nt == 24 { true -> ll_vnew(le_g, le_n, le_s),
     false -> { let le_t2: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt)); le_t2 }
-    } } } } } } } } } } } } } } } }
+    } } } } } } } } } } } } } } } } }
 }
 
 
@@ -3074,6 +3095,7 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
         do print("declare i8* @malloc(i64)");
         do print("declare i32 @sprintf(i8*, i8*, ...)");
         do print("declare i64 @strlen(i8*)");
+        do print("declare void @llvm.memcpy.p0.p0.i64(i8* nocapture, i8* nocapture readonly, i64, i1)");
     } };
     do print("");
     // String literals — walk nodes for STR_LIT (8) and STR_MATCH_ARM (26)
@@ -3084,7 +3106,7 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
             true -> {
                 let el_off: Int = el_gn[el_si * 10 + 2];
                 let el_len: Int = el_gn[el_si * 10 + 3];
-                do print_raw("@_s" + int_to_string(el_gs[29]) + " = private unnamed_addr constant [" + int_to_string(el_len) + " x i8] c\"");
+                do print_raw("@_s" + int_to_string(el_gs[29]) + " = private unnamed_addr constant [" + int_to_string(el_len + 1) + " x i8] c\"");
                 for el_sj in range(0, el_len) {
                     let el_ch: Int = el_gb[el_off + el_sj];
                     // Printable ASCII except backslash and quote
@@ -3093,7 +3115,7 @@ fn cg_emit_llvm(el_gs: Array<Int>, el_gn: Array<Int>, el_gb: Array<Int>) [IO] ->
                         false -> match el_ch == 10 { true -> do print_raw("\\0A"), false -> match el_ch == 9 { true -> do print_raw("\\09"), false -> do print_raw("\\00") } },
                     };
                 };
-                do print("\"");
+                do print("\\00\"");
                 el_gn[el_si * 10 + 8] = el_gs[29]; // store string index
                 el_gs[29] = el_gs[29] + 1;
             },
@@ -3239,7 +3261,7 @@ fn main() [IO] -> Unit {
     let gs: Array<Int> = Array(8192);
     let gb: Array<Int> = Array(524288);
     let gt: Array<Int> = Array(300000);
-    let gn: Array<Int> = Array(500000);
+    let gn: Array<Int> = Array(700000);
     gs[910] = match a1len == 6 { true -> 1, false -> 0 };
     gs[915] = mf[0];
     gs[916] = mf[1];
