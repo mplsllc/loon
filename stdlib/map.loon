@@ -1,0 +1,80 @@
+// stdlib/map.loon — Integer key-value map
+// Implementation: association list with parallel key/value storage
+// Layout: m[0]=count, m[1+i*2]=key, m[1+i*2+1]=value
+//
+// Usage:
+//   let m: Array<Int> = map_new(16);
+//   do map_set(m, key, value);
+//   let v: Option<Int> = map_get(m, key);
+module map;
+
+type Option<T> { Some(value: Int), None }
+
+// Create a new map with given capacity
+fn map_new(cap: Int) [] -> Array<Int> {
+    let m: Array<Int> = Array(cap * 2 + 1);
+    m[0] = 0;
+    m
+}
+
+// Set a key-value pair. Updates if key exists, inserts if new.
+fn map_set(m: Array<Int>, key: Int, val: Int) [] -> Unit {
+    let count: Int = m[0];
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    for i in range(0, count) {
+        match m[1 + i * 2] == key { true -> { found[0] = i; }, false -> { } };
+    };
+    match found[0] >= 0 {
+        true -> { m[1 + found[0] * 2 + 1] = val; },
+        false -> { m[1 + count * 2] = key; m[1 + count * 2 + 1] = val; m[0] = count + 1; },
+    };
+}
+
+// Get a value by key. Returns Option: Some(value) or None.
+fn map_get(m: Array<Int>, key: Int) [] -> Option {
+    let count: Int = m[0];
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    for i in range(0, count) {
+        match m[1 + i * 2] == key { true -> { found[0] = i; }, false -> { } };
+    };
+    match found[0] >= 0 { true -> Some(m[1 + found[0] * 2 + 1]), false -> None }
+}
+
+// Check if a key exists in the map
+fn map_has(m: Array<Int>, key: Int) [] -> Bool {
+    let count: Int = m[0];
+    let found: Array<Int> = Array(1); found[0] = 0;
+    for i in range(0, count) {
+        match m[1 + i * 2] == key { true -> { found[0] = 1; }, false -> { } };
+    };
+    match found[0] == 1 { true -> true, false -> false }
+}
+
+// Get the number of entries
+fn map_size(m: Array<Int>) [] -> Int { m[0] }
+
+// Remove a key. Returns the removed value or None.
+fn map_remove(m: Array<Int>, key: Int) [] -> Option {
+    let count: Int = m[0];
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    for i in range(0, count) {
+        match m[1 + i * 2] == key { true -> { found[0] = i; }, false -> { } };
+    };
+    match found[0] >= 0 {
+        true -> {
+            let val: Int = m[1 + found[0] * 2 + 1];
+            // Shift last entry into the gap
+            let last: Int = count - 1;
+            m[1 + found[0] * 2] = m[1 + last * 2];
+            m[1 + found[0] * 2 + 1] = m[1 + last * 2 + 1];
+            m[0] = count - 1;
+            Some(val)
+        },
+        false -> None,
+    }
+}
+
+// Get value or default if key doesn't exist
+fn map_get_or(m: Array<Int>, key: Int, default: Int) [] -> Int {
+    match map_get(m, key) { Some(v) -> v, None -> default }
+}

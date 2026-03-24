@@ -1,0 +1,104 @@
+// config_map.loon — Config parser using Map for key-value storage
+// Demonstrates: Map operations, string builtins, Option, privacy types
+module config;
+
+type Option<T> { Some(value: Int), None }
+
+fn map_new(cap: Int) [] -> Array<Int> {
+    let m: Array<Int> = Array(cap * 2 + 1); m[0] = 0; m
+}
+fn map_set(m: Array<Int>, key: Int, val: Int) [] -> Unit {
+    let count: Int = m[0];
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    for i in range(0, count) { match m[1+i*2]==key { true -> { found[0]=i; }, false -> { } }; };
+    match found[0] >= 0 { true -> { m[1+found[0]*2+1]=val; }, false -> { m[1+count*2]=key; m[1+count*2+1]=val; m[0]=count+1; } };
+}
+fn map_get(m: Array<Int>, key: Int) [] -> Option {
+    let count: Int = m[0];
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    for i in range(0, count) { match m[1+i*2]==key { true -> { found[0]=i; }, false -> { } }; };
+    match found[0] >= 0 { true -> Some(m[1+found[0]*2+1]), false -> None }
+}
+fn map_size(m: Array<Int>) [] -> Int { m[0] }
+
+// Parse config: read file, split into lines, find = separator, store key hash → line offset
+fn parse_config(source: String) [] -> Array<Int> {
+    let slen: Int = string_length(source);
+    let m: Array<Int> = map_new(32);
+    let pos: Array<Int> = Array(1); pos[0] = 0;
+    let line_num: Array<Int> = Array(1); line_num[0] = 0;
+    for _l in range(0, 128) {
+        match pos[0] < slen {
+            true -> {
+                // Find end of line
+                let nl_pos: Array<Int> = Array(1); nl_pos[0] = slen;
+                for j in range(pos[0], slen) {
+                    match string_char_at(source, j) == 10 {
+                        true -> match nl_pos[0] == slen { true -> { nl_pos[0] = j; }, false -> { } },
+                        false -> { },
+                    };
+                };
+                // Find = separator
+                let eq_pos: Array<Int> = Array(1); eq_pos[0] = 0 - 1;
+                for k in range(pos[0], nl_pos[0]) {
+                    match string_char_at(source, k) == 61 {
+                        true -> match eq_pos[0] == 0 - 1 { true -> { eq_pos[0] = k; }, false -> { } },
+                        false -> { },
+                    };
+                };
+                // If = found, store key hash → value position
+                match eq_pos[0] >= 0 {
+                    true -> {
+                        // Simple hash: sum of key bytes
+                        let hash: Array<Int> = Array(1); hash[0] = 0;
+                        for h in range(pos[0], eq_pos[0]) {
+                            hash[0] = hash[0] + string_char_at(source, h);
+                        };
+                        do map_set(m, hash[0], eq_pos[0] + 1); // value starts after =
+                    },
+                    false -> { },
+                };
+                pos[0] = nl_pos[0] + 1;
+                line_num[0] = line_num[0] + 1;
+            },
+            false -> { },
+        };
+    };
+    m
+}
+
+// Hash a key string (same algorithm as parse)
+fn key_hash(key: String) [] -> Int {
+    let h: Array<Int> = Array(1); h[0] = 0;
+    let klen: Int = string_length(key);
+    for i in range(0, klen) { h[0] = h[0] + string_char_at(key, i); };
+    h[0]
+}
+
+fn main() [IO] -> Unit {
+    let source: String = read_file(get_arg(1));
+    let config: Array<Int> = parse_config(source);
+    do print("Config entries: " + int_to_string(map_size(config)));
+
+    // Look up keys
+    let port_h: Int = key_hash("port");
+    let host_h: Int = key_hash("host");
+    let key_h: Int = key_hash("api_key");
+    let miss_h: Int = key_hash("missing");
+
+    let p: Int = match map_get(config, port_h) { Some(v) -> 1, None -> 0 };
+    let h: Int = match map_get(config, host_h) { Some(v) -> 1, None -> 0 };
+    let k: Int = match map_get(config, key_h) { Some(v) -> 1, None -> 0 };
+    let ms: Int = match map_get(config, miss_h) { Some(v) -> 1, None -> 0 };
+    do print("port: " + int_to_string(p));
+    do print("host: " + int_to_string(h));
+    do print("api_key: " + int_to_string(k));
+    do print("missing: " + int_to_string(ms));
+
+    // Privacy: api_key should be Sensitive
+    let api_secret: Sensitive<String> = "sk-live-secret";
+    // do print(api_secret);  // COMPILE ERROR
+    do print("Secrets protected");
+
+    do exit(p + h + k + ms);
+}
