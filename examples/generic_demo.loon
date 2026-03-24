@@ -1,0 +1,60 @@
+// generic_demo.loon — demonstrates generics in a real program
+// Uses Option<T>, Result<T,E>, List<T> together
+module demo;
+
+type Option<T> { Some(value: Int), None }
+type Result<T, E> { Ok(value: Int), Err(code: Int) }
+type List<T> { Cons(head: Int, tail: List), Nil }
+
+// Safe division with Result
+fn safe_div(a: Int, b: Int) [] -> Result {
+    match b == 0 { true -> Err(0 - 1), false -> Ok(a / b) }
+}
+
+// Find element in list
+fn list_find(lst: List, target: Int) [] -> Option {
+    match lst {
+        Cons(h, t) -> match h == target { true -> Some(h), false -> list_find(t, target) },
+        Nil -> None,
+    }
+}
+
+// Sum all elements
+fn list_sum(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> h + list_sum(t), Nil -> 0 }
+}
+
+// Count elements
+fn list_len(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> 1 + list_len(t), Nil -> 0 }
+}
+
+// Unwrap helpers
+fn unwrap_or(opt: Option, default: Int) [] -> Int {
+    match opt { Some(v) -> v, None -> default }
+}
+
+fn result_or(res: Result, default: Int) [] -> Int {
+    match res { Ok(v) -> v, Err(e) -> default }
+}
+
+fn main() [IO] -> Unit {
+    // Build a list: [10, 20, 30, 40, 50]
+    let l5: List<Int> = Cons(50, Nil);
+    let l4: List<Int> = Cons(40, l5);
+    let l3: List<Int> = Cons(30, l4);
+    let l2: List<Int> = Cons(20, l3);
+    let l1: List<Int> = Cons(10, l2);
+
+    do print("List: [10, 20, 30, 40, 50]");
+    do print("Sum: " + int_to_string(list_sum(l1)));
+    do print("Len: " + int_to_string(list_len(l1)));
+    do print("Find 30: " + int_to_string(unwrap_or(list_find(l1, 30), 0)));
+    do print("Find 99: " + int_to_string(unwrap_or(list_find(l1, 99), 0)));
+
+    // Safe division
+    do print("42/6 = " + int_to_string(result_or(safe_div(42, 6), 0)));
+    do print("42/0 = " + int_to_string(result_or(safe_div(42, 0), 0)));
+
+    do exit(list_sum(l1) + list_len(l1));
+}
