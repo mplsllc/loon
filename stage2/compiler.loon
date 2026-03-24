@@ -244,6 +244,22 @@ fn pt_parse(pt_g: Array<Int>, pt_t: Array<Int>, pt_n: Array<Int>) [IO] -> Unit {
     pt_g[pt_base + 1] = tslen(pt_g, pt_t);
     pt_n[pt_ti * 10 + 8] = pt_idx; // extra = type table index
     do teat(pt_g); // eat type name
+    // Check for generic type parameters: <T> or <T, E>
+    // Store param count at gs[type_base + 20], param names at gs[type_base + 21..29]
+    pt_g[pt_base + 20] = 0; // generic param count (0 = not generic)
+    match tcur(pt_g, pt_t) == 31 { true -> { // LT = <
+        do teat(pt_g); // eat <
+        for _gp in range(0, 4) {
+            match tcur(pt_g, pt_t) == 32 { true -> { }, false -> { // not >
+                pt_g[pt_base + 21 + pt_g[pt_base + 20] * 2] = tsoff(pt_g, pt_t); // param name off
+                pt_g[pt_base + 21 + pt_g[pt_base + 20] * 2 + 1] = tslen(pt_g, pt_t); // param name len
+                pt_g[pt_base + 20] = pt_g[pt_base + 20] + 1;
+                do teat(pt_g); // eat param name
+                match tcur(pt_g, pt_t) == 42 { true -> { do teat(pt_g); }, false -> { } }; // eat comma
+            } };
+        };
+        match tcur(pt_g, pt_t) == 32 { true -> { do teat(pt_g); }, false -> { } }; // eat >
+    }, false -> { } };
     do teat(pt_g); // eat LBRACE
     // Parse variants
     let pt_vc: Array<Int> = Array(1); pt_vc[0] = 0;
