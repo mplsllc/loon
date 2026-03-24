@@ -1,0 +1,14 @@
+// TEST: generic_list
+// EXPECT: COMPILES OK, exit 6
+// CATEGORY: structural
+module test;
+type List<T> { Cons(head: Int, tail: List), Nil }
+fn list_sum(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> h + list_sum(t), Nil -> 0 }
+}
+fn main() [IO] -> Unit {
+    let l3: List<Int> = Cons(3, Nil);
+    let l2: List<Int> = Cons(2, l3);
+    let l1: List<Int> = Cons(1, l2);
+    do exit(list_sum(l1));
+}

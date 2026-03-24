@@ -1,0 +1,20 @@
+// stdlib/list.loon — Linked list (concrete Int specialization)
+// Will be replaced by generic List<T> when field type substitution lands.
+module list;
+
+type IntList { Cons(head: Int, tail: IntList), Nil }
+
+fn list_sum(lst: IntList) [] -> Int {
+    match lst { Cons(h, t) -> h + list_sum(t), Nil -> 0 }
+}
+
+fn list_len(lst: IntList) [] -> Int {
+    match lst { Cons(h, t) -> 1 + list_len(t), Nil -> 0 }
+}
+
+fn list_contains(lst: IntList, target: Int) [] -> Bool {
+    match lst {
+        Cons(h, t) -> match h == target { true -> true, false -> list_contains(t, target) },
+        Nil -> false,
+    }
+}
