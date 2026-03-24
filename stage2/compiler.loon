@@ -541,10 +541,86 @@ fn pe_parse(pe_g: Array<Int>, pe_t: Array<Int>, pe_n: Array<Int>) [IO] -> Int {
     let pe_tt: Int = tcur(pe_g, pe_t);
     match pe_tt == 3 { true -> pm_parse(pe_g, pe_t, pe_n),
     false -> match pe_tt == 4 { true -> pfor_parse(pe_g, pe_t, pe_n),
+    
     false -> ppipe_parse(pe_g, pe_t, pe_n) } }
 }
 
 // Level 0: |> (pipe) — desugars a |> f to f(a)
+// Parse lambda: fn(params) effects -> RetType { body }
+// Lambda lifting: creates a top-level FN_DECL with generated name _lam_N
+// Returns: IDENT_REF node pointing to the generated function name
+fn plambda_parse(pl2_g: Array<Int>, pl2_t: Array<Int>, pl2_n: Array<Int>) [IO] -> Int {
+    do teat(pl2_g); // eat KW_FN
+    // Generate unique name: _lam_N in the string table
+    let pl2_lam_id: Int = pl2_g[49]; pl2_g[49] = pl2_g[49] + 1;
+    let pl2_name_off: Int = pl2_g[5];
+    // Write "_lam_" to string table
+    pl2_n[200000 + pl2_g[5]] = 95; pl2_g[5] = pl2_g[5] + 1; // _
+    pl2_n[200000 + pl2_g[5]] = 108; pl2_g[5] = pl2_g[5] + 1; // l
+    pl2_n[200000 + pl2_g[5]] = 97; pl2_g[5] = pl2_g[5] + 1; // a
+    pl2_n[200000 + pl2_g[5]] = 109; pl2_g[5] = pl2_g[5] + 1; // m
+    pl2_n[200000 + pl2_g[5]] = 95; pl2_g[5] = pl2_g[5] + 1; // _
+    // Write the ID digits
+    let pl2_id_str: String = int_to_string(pl2_lam_id);
+    let pl2_id_len: Int = string_length(pl2_id_str);
+    for pl2_di in range(0, pl2_id_len) {
+        pl2_n[200000 + pl2_g[5]] = string_char_at(pl2_id_str, pl2_di);
+        pl2_g[5] = pl2_g[5] + 1;
+    };
+    let pl2_name_len: Int = pl2_g[5] - pl2_name_off;
+    // Create FN_DECL node for the lambda
+    let pl2_fn_ni: Int = nalloc(pl2_g, pl2_n);
+    pl2_n[pl2_fn_ni * 10] = 1; // NODE_FN_DECL
+    pl2_n[pl2_fn_ni * 10 + 2] = pl2_name_off;
+    pl2_n[pl2_fn_ni * 10 + 3] = pl2_name_len;
+    // Parse params: (param: Type, ...)
+    do teat(pl2_g); // eat (
+    let pl2_pc: Array<Int> = Array(1); pl2_pc[0] = 0;
+    let pl2_first_p: Array<Int> = Array(1); pl2_first_p[0] = 0 - 1;
+    let pl2_last_p: Array<Int> = Array(1); pl2_last_p[0] = 0 - 1;
+    for _plp in range(0, 16) {
+        match tcur(pl2_g, pl2_t) == 20 { true -> { }, false -> match tcur(pl2_g, pl2_t) == 44 { true -> { }, false -> {
+            // Parse one param
+            let pl2_pi: Int = nalloc(pl2_g, pl2_n);
+            pl2_n[pl2_pi * 10] = 2; // NODE_PARAM
+            pl2_n[pl2_pi * 10 + 2] = tsoff(pl2_g, pl2_t);
+            pl2_n[pl2_pi * 10 + 3] = tslen(pl2_g, pl2_t);
+            do teat(pl2_g); // eat param name
+            match tcur(pl2_g, pl2_t) == 40 { true -> { do teat(pl2_g); }, false -> { } }; // eat :
+            // Parse type (simple: just eat the type name)
+            pl2_n[pl2_pi * 10 + 7] = 0; // default Int
+            match tslen(pl2_g, pl2_t) == 6 { true -> { pl2_n[pl2_pi * 10 + 7] = 2; }, false -> { } }; // String
+            do teat(pl2_g); // eat type name
+            match tcur(pl2_g, pl2_t) == 42 { true -> { do teat(pl2_g); }, false -> { } }; // eat ,
+            match pl2_first_p[0] == 0 - 1 { true -> { pl2_first_p[0] = pl2_pi; }, false -> { pl2_n[pl2_last_p[0] * 10 + 6] = pl2_pi; } };
+            pl2_last_p[0] = pl2_pi;
+            pl2_pc[0] = pl2_pc[0] + 1;
+        } } };
+    };
+    match tcur(pl2_g, pl2_t) == 20 { true -> { do teat(pl2_g); }, false -> { } }; // eat )
+    pl2_n[pl2_fn_ni * 10 + 4] = pl2_pc[0];
+    pl2_n[pl2_fn_ni * 10 + 5] = pl2_first_p[0];
+    // Parse effects: [IO] or []
+    match tcur(pl2_g, pl2_t) == 21 { true -> { do teat(pl2_g); // eat [
+        match tcur(pl2_g, pl2_t) == 22 { true -> { do teat(pl2_g); }, false -> { do teat(pl2_g); do teat(pl2_g); } }; // eat effects + ]
+    }, false -> { } };
+    // Parse -> RetType
+    match tcur(pl2_g, pl2_t) == 38 { true -> { do teat(pl2_g); // eat ->
+        pl2_n[pl2_fn_ni * 10 + 7] = 0; // default Int return
+        match tslen(pl2_g, pl2_t) == 6 { true -> { pl2_n[pl2_fn_ni * 10 + 7] = 2; }, false -> { } }; // String
+        do teat(pl2_g); // eat return type
+    }, false -> { } };
+    // Parse body block
+    let pl2_body: Int = pb_parse(pl2_g, pl2_t, pl2_n);
+    pl2_n[pl2_fn_ni * 10 + 8] = pl2_body; // extra = body block
+    // Return IDENT_REF to the generated name (function reference)
+    let pl2_ref: Int = nalloc(pl2_g, pl2_n);
+    pl2_n[pl2_ref * 10] = 10; // NODE_IDENT_REF
+    pl2_n[pl2_ref * 10 + 2] = pl2_name_off;
+    pl2_n[pl2_ref * 10 + 3] = pl2_name_len;
+    pl2_ref
+}
+
 fn ppipe_parse(pp2_g: Array<Int>, pp2_t: Array<Int>, pp2_n: Array<Int>) [IO] -> Int {
     let pp2_l: Array<Int> = Array(1); pp2_l[0] = por_parse(pp2_g, pp2_t, pp2_n);
     for _pp2 in range(0, 256) { match tcur(pp2_g, pp2_t) == 39 { true -> {
