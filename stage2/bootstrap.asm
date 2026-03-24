@@ -35355,7 +35355,7 @@ fn_cg_marm_b:
     push r10
     mov rax, 857
     push rax
-    mov rax, 860
+    mov rax, 6000
     push rax
     mov r10, qword [rbp-16]
     push r10
@@ -35543,7 +35543,7 @@ fn_cg_marm_b:
     push r10
     mov rax, 857
     push rax
-    mov rax, 860
+    mov rax, 6000
     push rax
     mov r10, qword [rbp-16]
     push r10
@@ -36624,7 +36624,7 @@ fn_cg_marm_adt_b:
     push r10
     mov rax, 857
     push rax
-    mov rax, 860
+    mov rax, 6000
     push rax
     mov r10, qword [rbp-16]
     push r10
@@ -37020,7 +37020,7 @@ fn_cg_marm_adt_b:
     push r10
     mov rax, 857
     push rax
-    mov rax, 860
+    mov rax, 6000
     push rax
     mov r10, qword [rbp-16]
     push r10
@@ -37743,7 +37743,7 @@ fn_cg_match_str:
     push r10
     mov rax, 857
     push rax
-    mov rax, 860
+    mov rax, 6000
     push rax
     mov r10, qword [rbp-16]
     push r10
@@ -37927,7 +37927,7 @@ fn_cg_match_str:
     push r10
     mov rax, 857
     push rax
-    mov rax, 860
+    mov rax, 6000
     push rax
     mov r10, qword [rbp-16]
     push r10
@@ -47602,7 +47602,7 @@ fn_tc_check_undef:
 .Lm581_a0:
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov r10, qword [rbp-112]
     push r10
@@ -47638,7 +47638,7 @@ fn_tc_check_undef:
     mov qword [r10 + rcx*8], rax
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov r10, qword [rbp-112]
     push r10
@@ -47714,7 +47714,7 @@ fn_tc_check_undef:
 .Lm582_a0:
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov r10, qword [rbp-112]
     push r10
@@ -47750,7 +47750,7 @@ fn_tc_check_undef:
     mov qword [r10 + rcx*8], rax
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov r10, qword [rbp-112]
     push r10
@@ -47826,7 +47826,7 @@ fn_tc_check_undef:
 .Lm583_a0:
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov r10, qword [rbp-112]
     push r10
@@ -47862,7 +47862,7 @@ fn_tc_check_undef:
     mov qword [r10 + rcx*8], rax
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov r10, qword [rbp-112]
     push r10
@@ -48028,7 +48028,7 @@ fn_tc_check_undef:
     jge .Lf586_end
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov rax, qword [rbp-192]
     push rax
@@ -48073,7 +48073,7 @@ fn_tc_check_undef:
     push rax
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 920
+    mov rax, 4400
     push rax
     mov rax, qword [rbp-192]
     push rax

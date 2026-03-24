@@ -20,11 +20,13 @@
 //              Max ~200 entries. DO NOT use slots 51-849 for other purposes.
 // [850..855]   Match codegen state (was g[115..120] — moved to fix var table collision)
 // [856..857]   Match depth counter(856), save pointer(857) (was g[121..122])
-// [860..920]   Match depth-indexed save stack (was g[200+depth*6])
+// [860..920]   FREED — was match save stack (moved to g[6000+])
+// [4400..5999]  Type checker undef name storage (was g[920..999] — 40 names, now 800)
+// [6000..6599]  Match depth-indexed save stack (was g[860..920] — 10 levels, now 100)
 // [900]        Type count (for ADTs)
 // [905..911]   Type checker state: current node, error kind, expected, received, json flag, error count
 // [915]        Target backend selector (0=nasm, 1=llvm)
-// [920..999]   Type checker undef var scanning (name pairs)
+// [920..999]   FREED — was undef name scanning (moved to g[4400+])
 // [1024..2047] Type table: per-type data (64 slots × 16 types)
 // [2048..4095] Walker explicit stack (iterative DFS, max 2000 entries)
 //
@@ -1581,11 +1583,11 @@ fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit 
 // cg_marm_b — emit match arm body block
 fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
     do print_raw(".Lm"); do print_raw(int_to_string(ab_g[852])); do print_raw("_a"); do print_raw(int_to_string(ab_g[854])); do emit_line(":");
-    ab_g[856]=ab_g[856]+1; ab_g[857]=860+ab_g[856]*6;
+    ab_g[856]=ab_g[856]+1; ab_g[857]=6000+ab_g[856]*6;
     ab_g[ab_g[857]]=ab_g[850]; ab_g[ab_g[857]+1]=ab_g[851]; ab_g[ab_g[857]+2]=ab_g[852];
     ab_g[ab_g[857]+3]=ab_g[853]; ab_g[ab_g[857]+4]=ab_g[854]; ab_g[ab_g[857]+5]=ab_g[855];
     ab_g[31]=ab_n[ab_g[853]*10+5]; do cg_expr(ab_g, ab_n, ab_s);
-    ab_g[857]=860+ab_g[856]*6;
+    ab_g[857]=6000+ab_g[856]*6;
     ab_g[850]=ab_g[ab_g[857]]; ab_g[851]=ab_g[ab_g[857]+1]; ab_g[852]=ab_g[ab_g[857]+2];
     ab_g[853]=ab_g[ab_g[857]+3]; ab_g[854]=ab_g[ab_g[857]+4]; ab_g[855]=ab_g[ab_g[857]+5];
     ab_g[856]=ab_g[856]-1;
@@ -1658,7 +1660,7 @@ fn cg_marm_adt_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> U
 fn cg_marm_adt_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit {
     do print_raw(".Lm"); do print_raw(int_to_string(ab_g[852])); do print_raw("_a"); do print_raw(int_to_string(ab_g[854])); do emit_line(":");
     // Save match state (depth-indexed)
-    ab_g[856]=ab_g[856]+1; ab_g[857]=860+ab_g[856]*6;
+    ab_g[856]=ab_g[856]+1; ab_g[857]=6000+ab_g[856]*6;
     ab_g[ab_g[857]]=ab_g[850]; ab_g[ab_g[857]+1]=ab_g[851]; ab_g[ab_g[857]+2]=ab_g[852];
     ab_g[ab_g[857]+3]=ab_g[853]; ab_g[ab_g[857]+4]=ab_g[854]; ab_g[ab_g[857]+5]=ab_g[855];
     // Get field count and first child
@@ -1679,7 +1681,7 @@ fn cg_marm_adt_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> U
     // ab_ci[0] is now the body expression
     ab_g[31] = ab_ci[0]; do cg_expr(ab_g, ab_n, ab_s);
     // Restore match state
-    ab_g[857]=860+ab_g[856]*6;
+    ab_g[857]=6000+ab_g[856]*6;
     ab_g[850]=ab_g[ab_g[857]]; ab_g[851]=ab_g[ab_g[857]+1]; ab_g[852]=ab_g[ab_g[857]+2];
     ab_g[853]=ab_g[ab_g[857]+3]; ab_g[854]=ab_g[ab_g[857]+4]; ab_g[855]=ab_g[ab_g[857]+5];
     ab_g[856]=ab_g[856]-1;
@@ -1716,11 +1718,11 @@ fn cg_match_str(ms_g: Array<Int>, ms_n: Array<Int>, ms_s: Array<Int>) [IO] -> Un
     ms_g[853]=ms_n[ms_g[850]*10+5]; ms_g[854]=0;
     for _msb in range(0, ms_g[851]) {
         do print_raw(".Lm"); do print_raw(int_to_string(ms_g[852])); do print_raw("_a"); do print_raw(int_to_string(ms_g[854])); do emit_line(":");
-        ms_g[856]=ms_g[856]+1; ms_g[857]=860+ms_g[856]*6;
+        ms_g[856]=ms_g[856]+1; ms_g[857]=6000+ms_g[856]*6;
         ms_g[ms_g[857]]=ms_g[850]; ms_g[ms_g[857]+1]=ms_g[851]; ms_g[ms_g[857]+2]=ms_g[852];
         ms_g[ms_g[857]+3]=ms_g[853]; ms_g[ms_g[857]+4]=ms_g[854]; ms_g[ms_g[857]+5]=0;
         ms_g[31]=ms_n[ms_g[853]*10+5]; do cg_expr(ms_g, ms_n, ms_s);
-        ms_g[857]=860+ms_g[856]*6;
+        ms_g[857]=6000+ms_g[856]*6;
         ms_g[850]=ms_g[ms_g[857]]; ms_g[851]=ms_g[ms_g[857]+1]; ms_g[852]=ms_g[ms_g[857]+2];
         ms_g[853]=ms_g[ms_g[857]+3]; ms_g[854]=ms_g[ms_g[857]+4];
         ms_g[856]=ms_g[856]-1;
@@ -2340,13 +2342,13 @@ fn tc_check_undef(tu_g: Array<Int>, tu_n: Array<Int>, tu_s: Array<Int>) [IO] -> 
                 match tu_n[tu_bi * 10] == 22 { true -> match tu_end[0] == tu_g[12] { true -> { tu_end[0] = tu_bi; }, false -> { } }, false -> { } };
             };
             // Collect declared names: params (type 2) and let bindings (type 4) and for vars (type 18)
-            // Store in g[920..999] as (off, len) pairs — room for 40 names
+            // Store in g[4400..5999] as (off, len) pairs — room for 800 names
             let tu_dc: Array<Int> = Array(1); tu_dc[0] = 0;
             for tu_ni in range(tu_fi, tu_end[0]) {
                 let tu_nt: Int = tu_n[tu_ni * 10];
-                match tu_nt == 2 { true -> { tu_g[920 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[920 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
-                match tu_nt == 4 { true -> { tu_g[920 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[920 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
-                match tu_nt == 18 { true -> { tu_g[920 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[920 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
+                match tu_nt == 2 { true -> { tu_g[4400 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[4400 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
+                match tu_nt == 4 { true -> { tu_g[4400 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[4400 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
+                match tu_nt == 18 { true -> { tu_g[4400 + tu_dc[0] * 2] = tu_n[tu_ni * 10 + 2]; tu_g[4400 + tu_dc[0] * 2 + 1] = tu_n[tu_ni * 10 + 3]; tu_dc[0] = tu_dc[0] + 1; }, false -> { } };
             };
             // Check every IDENT_REF (type 10) in this function against declared names
             for tu_ni2 in range(tu_fi + 1, tu_end[0]) {
@@ -2355,8 +2357,8 @@ fn tc_check_undef(tu_g: Array<Int>, tu_n: Array<Int>, tu_s: Array<Int>) [IO] -> 
                     let tu_ref_len: Int = tu_n[tu_ni2 * 10 + 3];
                     let tu_found: Array<Int> = Array(1); tu_found[0] = 0;
                     for tu_di in range(0, tu_dc[0]) {
-                        match tu_g[920 + tu_di * 2 + 1] == tu_ref_len { true -> {
-                            tu_g[40] = tu_ref_off; tu_g[41] = tu_g[920 + tu_di * 2]; tu_g[42] = tu_ref_len;
+                        match tu_g[4400 + tu_di * 2 + 1] == tu_ref_len { true -> {
+                            tu_g[40] = tu_ref_off; tu_g[41] = tu_g[4400 + tu_di * 2]; tu_g[42] = tu_ref_len;
                             match cg_name_eq(tu_g, tu_s) { true -> { tu_found[0] = 1; }, false -> { } };
                         }, false -> { } };
                     };
