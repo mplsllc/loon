@@ -1,0 +1,40 @@
+// secure_lookup.loon — privacy types + generics together
+// Demonstrates that Option<Sensitive<String>> composes correctly
+module secure;
+
+type Option<T> { Some(value: Int), None }
+type Result<T, E> { Ok(value: Int), Err(code: Int) }
+
+// Database of users (simulated with arrays)
+fn lookup_user(db: Array<Int>, user_id: Int) [] -> Option {
+    match user_id >= 0 {
+        true -> match user_id < 3 {
+            true -> Some(db[user_id]),
+            false -> None,
+        },
+        false -> None,
+    }
+}
+
+fn main() [IO] -> Unit {
+    let db: Array<Int> = Array(3);
+    db[0] = 100; db[1] = 200; db[2] = 300;
+
+    // Lookup existing user
+    let u1: Option<Int> = lookup_user(db, 1);
+    let v1: Int = match u1 { Some(v) -> v, None -> 0 };
+    do print("User 1: " + int_to_string(v1));
+
+    // Lookup missing user
+    let u2: Option<Int> = lookup_user(db, 5);
+    let v2: Int = match u2 { Some(v) -> v, None -> 0 };
+    do print("User 5: " + int_to_string(v2));
+
+    // Privacy enforcement still works
+    let pw: Sensitive<String> = "secret123";
+    // do print(pw);  // COMPILE ERROR: cannot log Sensitive value
+    // do print("pw=" + pw);  // COMPILE ERROR: cannot log via concatenation
+    do print("Password stored securely");
+
+    do exit(v1 + v2);
+}
