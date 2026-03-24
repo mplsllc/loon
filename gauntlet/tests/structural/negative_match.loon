@@ -1,0 +1,10 @@
+// TEST: negative_match
+// EXPECT: COMPILES OK, exit 6
+// CATEGORY: structural
+module test;
+fn classify(x: Int) [] -> Int {
+    match x { -1 -> 1, 0 -> 2, 1 -> 3, _ -> 0 }
+}
+fn main() [IO] -> Unit {
+    do exit(classify(0 - 1) + classify(0) + classify(1) + classify(5));
+}

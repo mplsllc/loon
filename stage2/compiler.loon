@@ -759,7 +759,13 @@ fn pm_parse(pm2_g: Array<Int>, pm2_t: Array<Int>, pm2_n: Array<Int>) [IO] -> Int
             match pm2_pt == 11 { true -> { pm2_n[pm2_ai*10+8]=1; do teat(pm2_g); },
             false -> match pm2_pt == 12 { true -> { pm2_n[pm2_ai*10+8]=0; do teat(pm2_g); },
             false -> match pm2_pt == 14 { true -> { pm2_n[pm2_ai*10+2]=tsoff(pm2_g,pm2_t); pm2_n[pm2_ai*10+3]=tslen(pm2_g,pm2_t); do teat(pm2_g); },
-            false -> { pm2_n[pm2_ai*10+1]=1; do teat(pm2_g); } } } };
+            false -> match pm2_pt == 25 { true -> {
+                do teat(pm2_g);
+                pm2_n[pm2_ai*10+2]=tsoff(pm2_g,pm2_t); pm2_n[pm2_ai*10+3]=tslen(pm2_g,pm2_t);
+                pm2_n[pm2_ai*10+9]=1;
+                do teat(pm2_g);
+            },
+            false -> { pm2_n[pm2_ai*10+1]=1; do teat(pm2_g); } } } } };
             do teat(pm2_g);
             let pm2_body: Int = pe_parse(pm2_g, pm2_t, pm2_n);
             pm2_n[pm2_ai*10+4]=1; pm2_n[pm2_ai*10+5]=pm2_body;
@@ -1575,7 +1581,11 @@ fn cg_marm_c(ac_g: Array<Int>, ac_n: Array<Int>, ac_s: Array<Int>) [IO] -> Unit 
         do print_raw("    jmp .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     }, false -> {
         ac_g[40]=ac_n[ac_g[853]*10+2]; ac_g[41]=ac_n[ac_g[853]*10+3];
-        match ac_g[41] > 0 { true -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(str2int(ac_g, ac_s))); },
+        match ac_g[41] > 0 { true -> {
+            ac_g[42] = str2int(ac_g, ac_s);
+            match ac_n[ac_g[853]*10+9]==1 { true -> { ac_g[42] = 0 - ac_g[42]; }, false -> { } };
+            do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_g[42]));
+        },
         false -> { do print_raw("    cmp r15, "); do emit_line(int_to_string(ac_n[ac_g[853]*10+8])); } };
         do print_raw("    je .Lm"); do print_raw(int_to_string(ac_g[852])); do print_raw("_a"); do emit_line(int_to_string(ac_g[854]));
     } };
@@ -3314,7 +3324,9 @@ fn ll_match(lm_g: Array<Int>, lm_n: Array<Int>, lm_s: Array<Int>) [IO] -> Int {
                         lm_g[4193] = ll_tmp(lm_g);
                         lm_g[40] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 2];
                         lm_g[41] = lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 3];
-                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + ", " + int_to_string(match lm_g[41] > 0 { true -> str2int(lm_g, lm_s), false -> lm_g[4720 + lm_g[4199] - 1] }));
+                        lm_g[4194] = match lm_g[41] > 0 { true -> str2int(lm_g, lm_s), false -> lm_g[4720 + lm_g[4199] - 1] };
+                        match lm_n[lm_g[4160 + lm_g[4199] * 2 + 1] * 10 + 9] == 1 { true -> { lm_g[4194] = 0 - lm_g[4194]; }, false -> { } };
+                        do print("    %t" + int_to_string(lm_g[4193]) + " = icmp eq i64 %t" + int_to_string(lm_g[4140 + lm_g[4199] - 1]) + ", " + int_to_string(lm_g[4194]));
                     },
                 };
                 match lm_ai + 1 < lm_g[4020 + lm_g[4199] - 1] {
