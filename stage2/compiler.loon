@@ -1991,7 +1991,22 @@ fn cg_call5(c5_g: Array<Int>, c5_n: Array<Int>, c5_s: Array<Int>) [IO] -> Unit {
         do emit_line("    mov rdi, rax"); do emit_line("    mov rsi, rdx");
         do emit_line("    call _rt_string_trim");
     },
-    false -> { } } } } } };
+    false -> match c5_g[140] == 13 { true -> {
+        // string_equals(str1, str2) → Bool
+        // Eval str1 → (rax=ptr1, rdx=len1), save on stack
+        c5_g[31]=c5_n[c5_g[139]*10+5]; do cg_expr(c5_g, c5_n, c5_s);
+        do emit_line("    push rax"); do emit_line("    push rdx");
+        // Eval str2 → (rax=ptr2, rdx=len2)
+        c5_g[31]=c5_n[c5_n[c5_g[139]*10+5]*10+6]; do cg_expr(c5_g, c5_n, c5_s);
+        // Now: rax=ptr2, rdx=len2. Stack: [ptr1, len1]
+        // Need: rdi=ptr1, rsi=len1, rdx=ptr2, rcx=len2
+        do emit_line("    mov rcx, rdx"); // rcx = len2 (save before rdx overwrite)
+        do emit_line("    mov rdx, rax"); // rdx = ptr2
+        do emit_line("    pop rsi");      // rsi = len1
+        do emit_line("    pop rdi");      // rdi = ptr1
+        do emit_line("    call _rt_string_equals");
+    },
+    false -> { } } } } } } };
 }
 
 // cg_bi_char — emit string_char_at builtin
