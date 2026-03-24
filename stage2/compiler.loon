@@ -2923,7 +2923,10 @@ fn ll_builtin(lbu_g: Array<Int>, lbu_n: Array<Int>, lbu_s: Array<Int>) [IO] -> I
                     lbu_g[751]
                 },
                 false -> match lbu_bi == 3 {
-                    true -> { lbu_g[31] = lbu_n[lbu_ni * 10 + 5]; lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s); lbu_g[37] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[37]) + " = call i8* @_loon_i64_to_str(i64 %t" + int_to_string(lbu_g[35]) + ")"); lbu_g[36] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[36]) + " = ptrtoint i8* %t" + int_to_string(lbu_g[37]) + " to i64"); lbu_g[36] },
+                    true -> { lbu_g[31] = lbu_n[lbu_ni * 10 + 5]; lbu_g[35] = ll_expr(lbu_g, lbu_n, lbu_s);
+                        match lbu_g[916] == 4 { true -> { lbu_g[37] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[37]) + " = call i8* @_loon_i64_to_str(i64 %t" + int_to_string(lbu_g[35]) + ")"); lbu_g[36] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[36]) + " = ptrtoint i8* %t" + int_to_string(lbu_g[37]) + " to i64"); },
+                        false -> { lbu_g[36] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[36]) + " = call i8* @malloc(i64 24)"); lbu_g[37] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[37]) + " = getelementptr [4 x i8], [4 x i8]* @_fmt_int, i64 0, i64 0"); lbu_g[38] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[38]) + " = call i32 (i8*, i8*, ...) @sprintf(i8* %t" + int_to_string(lbu_g[36]) + ", i8* %t" + int_to_string(lbu_g[37]) + ", i64 %t" + int_to_string(lbu_g[35]) + ")"); lbu_g[38] = ll_tmp(lbu_g); do print("    %t" + int_to_string(lbu_g[38]) + " = ptrtoint i8* %t" + int_to_string(lbu_g[36]) + " to i64"); lbu_g[36] = lbu_g[38]; } };
+                    lbu_g[36] },
                 false -> match lbu_bi == 14 {
                     // float_to_string: sprintf %g → returns i8* ptr
                     true -> {
