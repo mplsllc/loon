@@ -1,0 +1,74 @@
+// stdlib/prelude.loon — commonly used types and functions
+// These are the building blocks for Loon programs.
+// When generics fully land, concrete types become generic.
+module prelude;
+
+// ========== Option<T> ==========
+type Option<T> { Some(value: Int), None }
+
+fn unwrap_or(opt: Option, default: Int) [] -> Int {
+    match opt { Some(v) -> v, None -> default }
+}
+
+fn is_some(opt: Option) [] -> Bool {
+    match opt { Some(v) -> true, None -> false }
+}
+
+fn is_none(opt: Option) [] -> Bool {
+    match opt { Some(v) -> false, None -> true }
+}
+
+// ========== Result<T, E> ==========
+type Result<T, E> { Ok(value: Int), Err(code: Int) }
+
+fn unwrap_result(res: Result, default: Int) [] -> Int {
+    match res { Ok(v) -> v, Err(e) -> default }
+}
+
+fn is_ok(res: Result) [] -> Bool {
+    match res { Ok(v) -> true, Err(e) -> false }
+}
+
+fn is_err(res: Result) [] -> Bool {
+    match res { Ok(v) -> false, Err(e) -> true }
+}
+
+fn err_code(res: Result) [] -> Int {
+    match res { Ok(v) -> 0, Err(e) -> e }
+}
+
+// ========== List<T> ==========
+type List<T> { Cons(head: Int, tail: List), Nil }
+
+fn list_sum(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> h + list_sum(t), Nil -> 0 }
+}
+
+fn list_len(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> 1 + list_len(t), Nil -> 0 }
+}
+
+fn list_head(lst: List) [] -> Option {
+    match lst { Cons(h, t) -> Some(h), Nil -> None }
+}
+
+fn list_contains(lst: List, target: Int) [] -> Bool {
+    match lst {
+        Cons(h, t) -> match h == target { true -> true, false -> list_contains(t, target) },
+        Nil -> false,
+    }
+}
+
+fn list_find(lst: List, target: Int) [] -> Option {
+    match lst {
+        Cons(h, t) -> match h == target { true -> Some(h), false -> list_find(t, target) },
+        Nil -> None,
+    }
+}
+
+fn list_count(lst: List, target: Int) [] -> Int {
+    match lst {
+        Cons(h, t) -> match h == target { true -> 1 + list_count(t, target), false -> list_count(t, target) },
+        Nil -> 0,
+    }
+}
