@@ -1536,8 +1536,15 @@ fn cg_var(cv_g: Array<Int>, cv_n: Array<Int>, cv_s: Array<Int>) [IO] -> Unit {
     }, false -> match cv_tp % 16 == 4 { true -> { // Array (inc. privacy-wrapped): load ptr + len
         do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
         do print_raw("    mov rdx, qword [rbp-"); do print_raw(int_to_string(cv_off - 8)); do emit_line("]");
-    }, false -> { // Int/Bool/other: load into rax
-        do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
+    }, false -> match cv_off == 8 {
+        true -> match cg_is_fn(cv_g, cv_n, cv_s) == 1 {
+            // Function reference: load function address
+            true -> { do print_raw("    lea rax, [rel fn_"); do cg_name(cv_s, cv_n[cv_ni * 10 + 2], cv_n[cv_ni * 10 + 3]); do emit_line("]"); },
+            false -> { do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]"); },
+        },
+        false -> { // Regular variable load
+            do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cv_off)); do emit_line("]");
+        },
     } } }
 }
 
@@ -2057,11 +2064,24 @@ fn cg_user_call(uc_g: Array<Int>, uc_n: Array<Int>, uc_s: Array<Int>) [IO] -> Un
     // Pop args into registers (in reverse — last pushed = first popped)
     // For N args: pop arg_N into highest regs first, then arg_1 into rdi/rsi
     do cg_pop_args(uc_ac);
-    // Emit call
-    do print_raw("    call fn_");
+    // Emit call — direct for known functions, indirect for function pointers
     let uc_no: Int = uc_n[uc_ni * 10 + 2]; let uc_nl: Int = uc_n[uc_ni * 10 + 3];
-    do cg_name(uc_s, uc_no, uc_nl);
-    do emit_line("");
+    uc_g[40] = uc_no; uc_g[41] = uc_nl;
+    match cg_is_fn(uc_g, uc_n, uc_s) == 1 {
+        true -> {
+            // Direct call to known function
+            do print_raw("    call fn_");
+            do cg_name(uc_s, uc_no, uc_nl);
+            do emit_line("");
+        },
+        false -> {
+            // Indirect call through function pointer variable
+            uc_g[40] = uc_no; uc_g[41] = uc_nl;
+            let uc_fp_off: Int = cg_find_var(uc_g, uc_s);
+            do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(uc_fp_off)); do emit_line("]");
+            do emit_line("    call rax");
+        },
+    };
     // Clean up stack-passed args for 4+ params
     match uc_ac >= 4 { true -> {
         do print_raw("    add rsp, "); do emit_line(int_to_string(uc_ac * 16));
@@ -2138,6 +2158,22 @@ fn cg_find_var(fv_g: Array<Int>, fv_s: Array<Int>) [] -> Int {
         }, false -> { } };
     };
     fv_res[0]
+}
+
+// cg_is_fn — check if name at g[40]/g[41] is a top-level function. Returns 1 if yes, 0 if no.
+fn cg_is_fn(cf_g: Array<Int>, cf_n: Array<Int>, cf_s: Array<Int>) [] -> Int {
+    let cf_o: Int = cf_g[40]; let cf_l: Int = cf_g[41];
+    let cf_found: Array<Int> = Array(1); cf_found[0] = 0;
+    for cf_i in range(0, cf_g[12]) {
+        match cf_n[cf_i * 10] == 1 { true -> {
+            match cf_n[cf_i * 10 + 3] == cf_l { true -> {
+                cf_g[40] = cf_o; cf_g[41] = cf_n[cf_i * 10 + 2]; cf_g[42] = cf_l;
+                match cg_name_eq(cf_g, cf_s) { true -> { cf_found[0] = 1; }, false -> { } };
+                cf_g[40] = cf_o; cf_g[41] = cf_l;
+            }, false -> { } };
+        }, false -> { } };
+    };
+    cf_found[0]
 }
 
 // cg_find_var_type — look up variable type in var table
@@ -2386,8 +2422,13 @@ fn tc_check_undef(tu_g: Array<Int>, tu_n: Array<Int>, tu_s: Array<Int>) [IO] -> 
                         }, false -> { } };
                     };
                     match tu_found[0] == 0 { true -> {
-                        tu_g[905] = tu_ni2; tu_g[906] = 3; tu_g[907] = 0; tu_g[908] = 0;
-                        do tc_error(tu_g, tu_n, tu_s);
+                        // Check if it's a function name used as a value (function reference)
+                        tu_g[40] = tu_ref_off; tu_g[41] = tu_ref_len;
+                        let tu_is_fn: Int = cg_is_fn(tu_g, tu_n, tu_s);
+                        match tu_is_fn == 1 { true -> { }, false -> {
+                            tu_g[905] = tu_ni2; tu_g[906] = 3; tu_g[907] = 0; tu_g[908] = 0;
+                            do tc_error(tu_g, tu_n, tu_s);
+                        } };
                     }, false -> { } };
                 }, false -> { } };
             };
@@ -2468,10 +2509,35 @@ fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> U
                         }, false -> { } };
                     }, false -> { } };
                 };
-                // Undefined function check
+                // Undefined function check — skip if callee is a local variable (function pointer)
                 match ta_found[0] == 0 { true -> {
-                    ta_g[905] = ta_ni; ta_g[906] = 6; ta_g[907] = 0; ta_g[908] = 0;
-                    do tc_error(ta_g, ta_n, ta_s);
+                    // Scan the current function's scope for a matching variable name
+                    ta_g[40] = ta_n[ta_ni * 10 + 2]; ta_g[42] = ta_n[ta_ni * 10 + 3];
+                    let ta_is_var: Array<Int> = Array(1); ta_is_var[0] = 0;
+                    // Find enclosing FN_DECL
+                    let ta_fn_start: Array<Int> = Array(1); ta_fn_start[0] = 0;
+                    for ta_si in range(0, ta_ni) {
+                        match ta_n[ta_si * 10] == 1 { true -> { ta_fn_start[0] = ta_si; }, false -> { } };
+                    };
+                    // Scan from fn_start to ta_ni for PARAM(2) and LET(4) nodes
+                    for ta_vi in range(ta_fn_start[0], ta_ni) {
+                        let ta_vnt: Int = ta_n[ta_vi * 10];
+                        match ta_vnt == 2 { true -> {
+                            match ta_n[ta_vi * 10 + 3] == ta_g[42] { true -> {
+                                ta_g[41] = ta_n[ta_vi * 10 + 2];
+                                match cg_name_eq(ta_g, ta_s) { true -> { ta_is_var[0] = 1; }, false -> { } };
+                            }, false -> { } };
+                        }, false -> match ta_vnt == 4 { true -> {
+                            match ta_n[ta_vi * 10 + 3] == ta_g[42] { true -> {
+                                ta_g[41] = ta_n[ta_vi * 10 + 2];
+                                match cg_name_eq(ta_g, ta_s) { true -> { ta_is_var[0] = 1; }, false -> { } };
+                            }, false -> { } };
+                        }, false -> { } } };
+                    };
+                    match ta_is_var[0] == 0 { true -> {
+                        ta_g[905] = ta_ni; ta_g[906] = 6; ta_g[907] = 0; ta_g[908] = 0;
+                        do tc_error(ta_g, ta_n, ta_s);
+                    }, false -> { } }; // Variable found — allow indirect call
                 }, false -> { } };
             }, false -> { } };
         }, false -> { } };

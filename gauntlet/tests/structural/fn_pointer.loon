@@ -1,0 +1,10 @@
+// TEST: fn_pointer
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: structural
+module test;
+fn double(x: Int) [] -> Int { x * 2 }
+fn apply(f: Int, x: Int) [] -> Int { f(x) }
+fn main() [IO] -> Unit {
+    let f: Int = double;
+    do exit(apply(f, 21));
+}
