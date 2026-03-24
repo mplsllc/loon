@@ -1,0 +1,18 @@
+// TEST: lambda_list_map
+// EXPECT: COMPILES OK, exit 18
+// CATEGORY: structural
+module test;
+type List<T> { Cons(head: Int, tail: List), Nil }
+fn list_map(lst: List, f: Int) [] -> List {
+    match lst { Cons(h, t) -> Cons(f(h), list_map(t, f)), Nil -> Nil }
+}
+fn list_sum(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> h + list_sum(t), Nil -> 0 }
+}
+fn main() [IO] -> Unit {
+    let l3: List<Int> = Cons(3, Nil);
+    let l2: List<Int> = Cons(2, l3);
+    let l1: List<Int> = Cons(1, l2);
+    let tripled: List<Int> = list_map(l1, fn(x: Int) [] -> Int { x * 3 });
+    do exit(list_sum(tripled));
+}

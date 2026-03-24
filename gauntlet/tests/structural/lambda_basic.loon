@@ -1,0 +1,9 @@
+// TEST: lambda_basic
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: structural
+module test;
+fn apply(f: Int, x: Int) [] -> Int { f(x) }
+fn main() [IO] -> Unit {
+    let f: Int = fn(x: Int) [] -> Int { x * 2 };
+    do exit(apply(f, 21));
+}

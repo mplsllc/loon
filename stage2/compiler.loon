@@ -686,9 +686,79 @@ fn ppri_parse(pr_g: Array<Int>, pr_t: Array<Int>, pr_n: Array<Int>) [IO] -> Int 
     false -> match pr_tt == 12 { true -> { let pr_b2: Int = nalloc(pr_g, pr_n); pr_n[pr_b2*10]=9; pr_n[pr_b2*10+8]=0; do teat(pr_g); pr_b2 },
     false -> match pr_tt == 19 { true -> { do teat(pr_g); let pr_ei: Int = pe_parse(pr_g, pr_t, pr_n); do teat(pr_g); pr_ei },
     false -> match pr_tt == 17 { true -> pb_parse(pr_g, pr_t, pr_n),
-    false -> pic_parse(pr_g, pr_t, pr_n) } } } } } } }
+    false -> match pr_tt == 0 { true -> plam_parse(pr_g, pr_t, pr_n),
+    false -> pic_parse(pr_g, pr_t, pr_n) } } } } } } } }
 }
 // Convert a CALL node to VARIANT_CONSTRUCT if name matches a variant
+// Parse lambda expression: fn(params) effects -> RetType { body }
+// Creates NODE_LAMBDA (28) with params as children, body in extra field
+// The generated name _lam_N is stored in the string table for codegen
+fn plam_parse(pl_g: Array<Int>, pl_t: Array<Int>, pl_n: Array<Int>) [IO] -> Int {
+    do teat(pl_g); // eat KW_FN
+    let pl_ni: Int = nalloc(pl_g, pl_n);
+    pl_n[pl_ni * 10] = 28; // NODE_LAMBDA
+    // Generate name: _lam_N in string table at gn[200000+]
+    let pl_name_off: Int = pl_g[5];
+    pl_n[200000 + pl_g[5]] = 95; pl_g[5] = pl_g[5] + 1;  // _
+    pl_n[200000 + pl_g[5]] = 108; pl_g[5] = pl_g[5] + 1; // l
+    pl_n[200000 + pl_g[5]] = 97; pl_g[5] = pl_g[5] + 1;  // a
+    pl_n[200000 + pl_g[5]] = 109; pl_g[5] = pl_g[5] + 1; // m
+    pl_n[200000 + pl_g[5]] = 95; pl_g[5] = pl_g[5] + 1;  // _
+    let pl_id: Int = pl_g[49]; pl_g[49] = pl_g[49] + 1;
+    let pl_ids: String = int_to_string(pl_id);
+    let pl_idl: Int = string_length(pl_ids);
+    for pl_di in range(0, pl_idl) { pl_n[200000 + pl_g[5]] = string_char_at(pl_ids, pl_di); pl_g[5] = pl_g[5] + 1; };
+    let pl_name_len: Int = pl_g[5] - pl_name_off;
+    pl_n[pl_ni * 10 + 2] = pl_name_off;
+    pl_n[pl_ni * 10 + 3] = pl_name_len;
+    // Parse params: (name: Type, ...)
+    do teat(pl_g); // eat (
+    let pl_pc: Array<Int> = Array(1); pl_pc[0] = 0;
+    let pl_fp: Array<Int> = Array(1); pl_fp[0] = 0 - 1;
+    let pl_lp: Array<Int> = Array(1); pl_lp[0] = 0 - 1;
+    for _plp in range(0, 8) {
+        match tcur(pl_g, pl_t) == 20 { true -> { }, false -> match tcur(pl_g, pl_t) == 44 { true -> { }, false -> {
+            let pl_pi: Int = nalloc(pl_g, pl_n);
+            pl_n[pl_pi * 10] = 2; // NODE_PARAM
+            pl_n[pl_pi * 10 + 2] = tsoff(pl_g, pl_t);
+            pl_n[pl_pi * 10 + 3] = tslen(pl_g, pl_t);
+            do teat(pl_g); // eat param name
+            match tcur(pl_g, pl_t) == 40 { true -> { do teat(pl_g); }, false -> { } }; // eat :
+            // Parse type annotation
+            pl_n[pl_pi * 10 + 7] = 0; // default Int
+            let pl_tlen: Int = tslen(pl_g, pl_t);
+            match pl_tlen == 6 { true -> { pl_n[pl_pi * 10 + 7] = 2; }, false -> { } }; // String=6 chars
+            match pl_tlen == 4 { true -> match pl_n[200000 + tsoff(pl_g, pl_t)] == 66 { true -> { pl_n[pl_pi * 10 + 7] = 1; }, false -> { } }, false -> { } }; // Bool
+            do teat(pl_g); // eat type name
+            match tcur(pl_g, pl_t) == 42 { true -> { do teat(pl_g); }, false -> { } }; // eat ,
+            match pl_fp[0] == 0 - 1 { true -> { pl_fp[0] = pl_pi; }, false -> { pl_n[pl_lp[0] * 10 + 6] = pl_pi; } };
+            pl_lp[0] = pl_pi; pl_pc[0] = pl_pc[0] + 1;
+        } } };
+    };
+    match tcur(pl_g, pl_t) == 20 { true -> { do teat(pl_g); }, false -> { } }; // eat )
+    pl_n[pl_ni * 10 + 4] = pl_pc[0]; // child_count = param count
+    pl_n[pl_ni * 10 + 5] = pl_fp[0]; // first_child = first param
+    // Parse effects: [IO] or []
+    pl_n[pl_ni * 10 + 9] = 0; // default: no effects
+    match tcur(pl_g, pl_t) == 21 { true -> {
+        do teat(pl_g); // eat [
+        match tcur(pl_g, pl_t) == 22 { true -> { do teat(pl_g); }, // empty []
+        false -> { pl_n[pl_ni * 10 + 9] = 1; do teat(pl_g); do teat(pl_g); } }; // [IO] etc
+    }, false -> { } };
+    // Parse -> RetType
+    pl_n[pl_ni * 10 + 7] = 0; // default Int return
+    match tcur(pl_g, pl_t) == 38 { true -> {
+        do teat(pl_g); // eat ->
+        let pl_rlen: Int = tslen(pl_g, pl_t);
+        match pl_rlen == 6 { true -> { pl_n[pl_ni * 10 + 7] = 2; }, false -> { } }; // String
+        do teat(pl_g); // eat return type
+    }, false -> { } };
+    // Parse body block
+    let pl_body: Int = pb_parse(pl_g, pl_t, pl_n);
+    pl_n[pl_ni * 10 + 8] = pl_body; // extra = body block
+    pl_ni
+}
+
 fn pic_to_vari(pv_g: Array<Int>, pv_n: Array<Int>, pv_ci: Int) [] -> Unit {
     pv_g[40]=pv_n[pv_ci*10+2]; pv_g[41]=pv_n[pv_ci*10+3];
     let pv_vr: Int = chk_vari(pv_g, pv_n);
@@ -1582,7 +1652,8 @@ fn cg_expr3(e3_g: Array<Int>, e3_n: Array<Int>, e3_s: Array<Int>) [IO] -> Unit {
     false -> match e3_g[140] == 19 { true -> do cg_arynew(e3_g, e3_n, e3_s),
     false -> match e3_g[140] == 20 { true -> do cg_aryget(e3_g, e3_n, e3_s),
     false -> match e3_g[140] == 24 { true -> do cg_variant_new(e3_g, e3_n, e3_s),
-    false -> do cg_expr2(e3_g, e3_n, e3_s) } } } } } }
+    false -> match e3_g[140] == 28 { true -> do cg_lambda(e3_g, e3_n, e3_s),
+    false -> do cg_expr2(e3_g, e3_n, e3_s) } } } } } } }
 }
 
 // cg_expr2: handles unary, do, call
@@ -1701,6 +1772,65 @@ fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit 
 }
 
 // Variant constructor: Circle(5) → bump-allocate [tag, field0, field1, ...]
+// cg_lambda — emit lambda as inline function, return its address
+// Strategy: jmp past the function body, emit the body, lea the address
+fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
+    let cl_ni: Int = cl_g[31];
+    let cl_name_off: Int = cl_n[cl_ni * 10 + 2];
+    let cl_name_len: Int = cl_n[cl_ni * 10 + 3];
+    let cl_pc: Int = cl_n[cl_ni * 10 + 4]; // param count
+    let cl_body: Int = cl_n[cl_ni * 10 + 8]; // body block
+    let cl_lid: Int = cl_g[32]; cl_g[32] = cl_g[32] + 1; // unique ID for skip label
+    // Jump past the lambda body
+    do print_raw("    jmp _lam_end_"); do emit_line(int_to_string(cl_lid));
+    // Emit the function
+    do print_raw("fn_"); do cg_name(cl_s, cl_name_off, cl_name_len); do emit_line(":");
+    do emit_line("    push rbp");
+    do emit_line("    mov rbp, rsp");
+    // Save old variable table state
+    let cl_sv50: Int = cl_g[50];
+    cl_g[50] = 0;
+    // Register params in variable table
+    let cl_pi: Array<Int> = Array(1);
+    cl_pi[0] = cl_n[cl_ni * 10 + 5]; // first param
+    let cl_soff: Array<Int> = Array(1); cl_soff[0] = 0;
+    for _clp in range(0, cl_pc) {
+        let cl_pty: Int = cl_n[cl_pi[0] * 10 + 7];
+        match cl_pty % 16 == 2 { true -> { cl_soff[0] = cl_soff[0] + 16; }, false -> match cl_pty % 16 == 4 { true -> { cl_soff[0] = cl_soff[0] + 16; }, false -> { cl_soff[0] = cl_soff[0] + 8; } } };
+        cl_g[34] = cl_pi[0]; cl_g[35] = cl_soff[0]; do cg_add_var(cl_g, cl_n, cl_s);
+        cl_pi[0] = cl_n[cl_pi[0] * 10 + 6];
+    };
+    // Walk body for let bindings
+    cl_g[33] = cl_soff[0];
+    match cl_body >= 0 { true -> { cl_g[31] = cl_body; do cg_walk_slots(cl_g, cl_n, cl_s); }, false -> { } };
+    cl_soff[0] = cl_g[33];
+    match cl_soff[0] % 16 == 0 { true -> { }, false -> { cl_soff[0] = cl_soff[0] + 16 - cl_soff[0] % 16; } };
+    match cl_soff[0] == 0 { true -> { cl_soff[0] = 16; }, false -> { } };
+    do print_raw("    sub rsp, "); do emit_line(int_to_string(cl_soff[0]));
+    // Store params from registers to stack slots
+    let cl_ri: Array<Int> = Array(1); cl_ri[0] = 0;
+    let cl_sp: Array<Int> = Array(1); cl_sp[0] = cl_n[cl_ni * 10 + 5];
+    for _cls in range(0, cl_pc) {
+        let cl_vi: Int = cl_g[51 + (cl_g[50] - cl_pc + _cls) * 4 + 2]; // offset
+        let cl_pt: Int = cl_g[51 + (cl_g[50] - cl_pc + _cls) * 4 + 3]; // type
+        match cl_pt % 16 == 2 { true -> { do cg_store_reg(cl_ri[0], cl_vi); do cg_store_reg(cl_ri[0] + 1, cl_vi - 8); cl_ri[0] = cl_ri[0] + 2; },
+        false -> match cl_pt % 16 == 4 { true -> { do cg_store_reg(cl_ri[0], cl_vi); do cg_store_reg(cl_ri[0] + 1, cl_vi - 8); cl_ri[0] = cl_ri[0] + 2; },
+        false -> { do cg_store_reg(cl_ri[0], cl_vi); cl_ri[0] = cl_ri[0] + 2; } } };
+        cl_sp[0] = cl_n[cl_sp[0] * 10 + 6];
+    };
+    // Emit body
+    cl_g[31] = cl_body; do cg_block(cl_g, cl_n, cl_s);
+    do emit_line("    mov rsp, rbp");
+    do emit_line("    pop rbp");
+    do emit_line("    ret");
+    // Restore variable table
+    cl_g[50] = cl_sv50;
+    // Skip label
+    do print_raw("_lam_end_"); do emit_line(int_to_string(cl_lid) + ":");
+    // Return the function address
+    do print_raw("    lea rax, [rel fn_"); do cg_name(cl_s, cl_name_off, cl_name_len); do emit_line("]");
+}
+
 fn cg_variant_new(vn_g: Array<Int>, vn_n: Array<Int>, vn_s: Array<Int>) [IO] -> Unit {
     let vn_ni: Int = vn_g[31];
     let vn_tag: Int = vn_n[vn_ni * 10 + 1]; // sub_type = tag
