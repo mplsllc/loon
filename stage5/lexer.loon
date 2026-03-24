@@ -1,0 +1,234 @@
+// stage5/lexer.loon — Loon lexer, rewritten with proper types
+// Produces tokens from source bytes. No flat arrays.
+module lexer;
+
+// Token output: stored in tok_types[] and tok_values[] parallel arrays
+// tok_types[i] = token type (0=KW_FN, 13=IDENT, 14=LIT_INT, etc)
+// tok_values[i*2] = str_off, tok_values[i*2+1] = str_len
+
+// Character classification
+fn is_upper(c: Int) [] -> Bool { match c >= 65 { true -> match c <= 90 { true -> true, false -> false }, false -> false } }
+fn is_lower(c: Int) [] -> Bool { match c >= 97 { true -> match c <= 122 { true -> true, false -> false }, false -> false } }
+fn is_alpha(c: Int) [] -> Bool { match is_upper(c) { true -> true, false -> match is_lower(c) { true -> true, false -> match c == 95 { true -> true, false -> false } } } }
+fn is_digit(c: Int) [] -> Bool { match c >= 48 { true -> match c <= 57 { true -> true, false -> false }, false -> false } }
+fn is_alnum(c: Int) [] -> Bool { match is_alpha(c) { true -> true, false -> is_digit(c) } }
+fn is_ws(c: Int) [] -> Bool { match c == 32 { true -> true, false -> match c == 10 { true -> true, false -> match c == 13 { true -> true, false -> match c == 9 { true -> true, false -> false } } } } }
+
+// Keyword recognition — returns token type or -1 for identifier
+fn keyword_type(src: Array<Int>, off: Int, len: Int) [] -> Int {
+    match len == 2 {
+        true -> match src[off] == 102 { true -> match src[off+1] == 110 { true -> 0, false -> 0 - 1 }, false -> match src[off] == 100 { true -> match src[off+1] == 111 { true -> 6, false -> 0 - 1 }, false -> match src[off] == 105 { true -> match src[off+1] == 110 { true -> 5, false -> 0 - 1 }, false -> 0 - 1 } } },
+        false -> match len == 3 {
+            true -> match src[off] == 108 { true -> match src[off+1] == 101 { true -> match src[off+2] == 116 { true -> 1, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 },
+            false -> match len == 4 {
+                true -> match src[off] == 116 { true -> match src[off+1] == 114 { true -> match src[off+2] == 117 { true -> match src[off+3] == 101 { true -> 11, false -> 0 - 1 }, false -> 0 - 1 }, false -> match src[off+1] == 121 { true -> match src[off+2] == 112 { true -> match src[off+3] == 101 { true -> 2, false -> 0 - 1 }, false -> 0 - 1 }, false -> 0 - 1 } }, false -> 0 - 1 },
+                false -> match len == 5 {
+                    true -> match src[off] == 109 { true -> match src[off+1] == 97 { true -> 3, false -> 0 - 1 }, false -> match src[off] == 102 { true -> match src[off+1] == 97 { true -> 12, false -> 0 - 1 }, false -> 0 - 1 } },
+                    false -> match len == 6 {
+                        true -> match src[off] == 109 { true -> 7, false -> match src[off] == 101 { true -> 9, false -> 0 - 1 } },
+                        false -> match len == 7 {
+                            true -> match src[off] == 105 { true -> 8, false -> match src[off] == 101 { true -> 10, false -> 0 - 1 } },
+                            false -> 0 - 1,
+                        },
+                    },
+                },
+            },
+        },
+    }
+}
+
+// Main lexer function
+// gs[0]=src_len, gs[1]=pos, gs[2]=line, gs[3]=col, gs[4]=tok_count, gs[5]=str_pos
+fn lex_all(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    gs[1] = 0; gs[2] = 1; gs[3] = 1; gs[4] = 0; gs[5] = 300000;
+    let in_comment: Array<Int> = Array(1);
+    in_comment[0] = 0;
+    for _i in range(0, 999999) {
+        match gs[1] >= gs[0] { true -> { }, false -> {
+            let ch: Int = src[gs[1]];
+            match in_comment[0] == 1 {
+                true -> match ch == 10 {
+                    true -> { in_comment[0] = 0; gs[1] = gs[1] + 1; gs[2] = gs[2] + 1; gs[3] = 1; },
+                    false -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; },
+                },
+                false -> match is_ws(ch) {
+                    true -> { gs[1] = gs[1] + 1; match ch == 10 { true -> { gs[2] = gs[2] + 1; gs[3] = 1; }, false -> { gs[3] = gs[3] + 1; } }; },
+                    false -> match ch == 47 {
+                        true -> match gs[1] + 1 < gs[0] {
+                            true -> match src[gs[1] + 1] == 47 {
+                                true -> { in_comment[0] = 1; gs[1] = gs[1] + 2; },
+                                false -> do lex_sym(gs, toks, src),
+                            },
+                            false -> do lex_sym(gs, toks, src),
+                        },
+                        false -> match is_alpha(ch) {
+                            true -> do lex_word(gs, toks, src),
+                            false -> match is_digit(ch) {
+                                true -> do lex_num(gs, toks, src),
+                                false -> match ch == 34 {
+                                    true -> do lex_str(gs, toks, src),
+                                    false -> do lex_sym(gs, toks, src),
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+        } };
+    };
+    // Emit EOF token
+    let eof_idx: Int = gs[4] * 5;
+    toks[eof_idx] = 44; toks[eof_idx+1] = 0; toks[eof_idx+2] = 0;
+    toks[eof_idx+3] = gs[2]; toks[eof_idx+4] = gs[3];
+    gs[4] = gs[4] + 1;
+}
+
+// Lex an identifier or keyword
+fn lex_word(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [] -> Unit {
+    let start: Int = gs[5]; // string table position
+    let src_start: Int = gs[1];
+    for _j in range(0, 256) {
+        match gs[1] < gs[0] { true -> match is_alnum(src[gs[1]]) {
+            true -> { src[gs[5]] = src[gs[1]]; gs[5] = gs[5] + 1; gs[1] = gs[1] + 1; },
+            false -> { },
+        }, false -> { } };
+    };
+    let word_len: Int = gs[5] - start;
+    let kw: Int = keyword_type(src, start, word_len);
+    let tok_idx: Int = gs[4] * 5;
+    match kw >= 0 {
+        true -> { toks[tok_idx] = kw; toks[tok_idx+1] = 0; toks[tok_idx+2] = 0; },
+        false -> { toks[tok_idx] = 13; toks[tok_idx+1] = start; toks[tok_idx+2] = word_len; },
+    };
+    toks[tok_idx+3] = gs[2]; toks[tok_idx+4] = gs[3];
+    gs[3] = gs[3] + word_len;
+    gs[4] = gs[4] + 1;
+}
+
+// Lex a number (int or float)
+fn lex_num(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [] -> Unit {
+    let start: Int = gs[5];
+    let is_float: Array<Int> = Array(1); is_float[0] = 0;
+    for _j in range(0, 256) {
+        match gs[1] < gs[0] { true -> {
+            let d: Int = src[gs[1]];
+            match is_digit(d) {
+                true -> { src[gs[5]] = d; gs[5] = gs[5] + 1; gs[1] = gs[1] + 1; },
+                false -> match d == 46 {
+                    true -> match is_float[0] == 0 {
+                        true -> { is_float[0] = 1; src[gs[5]] = d; gs[5] = gs[5] + 1; gs[1] = gs[1] + 1; },
+                        false -> { },
+                    },
+                    false -> { },
+                },
+            };
+        }, false -> { } };
+    };
+    let num_len: Int = gs[5] - start;
+    let tok_idx: Int = gs[4] * 5;
+    toks[tok_idx] = match is_float[0] { 0 -> 14, _ -> 15 };
+    toks[tok_idx+1] = start; toks[tok_idx+2] = num_len;
+    toks[tok_idx+3] = gs[2]; toks[tok_idx+4] = gs[3];
+    gs[3] = gs[3] + num_len;
+    gs[4] = gs[4] + 1;
+}
+
+// Lex a string literal
+fn lex_str(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [] -> Unit {
+    gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; // skip opening quote
+    let start: Int = gs[5];
+    for _j in range(0, 65536) {
+        match gs[1] < gs[0] { true -> {
+            let c: Int = src[gs[1]];
+            match c == 34 { true -> { }, false -> match c == 92 {
+                true -> {
+                    gs[1] = gs[1] + 1;
+                    match gs[1] < gs[0] { true -> {
+                        let esc: Int = src[gs[1]];
+                        match esc { 110 -> { src[gs[5]] = 10; }, 116 -> { src[gs[5]] = 9; }, 92 -> { src[gs[5]] = 92; }, 34 -> { src[gs[5]] = 34; }, _ -> { src[gs[5]] = esc; } };
+                        gs[5] = gs[5] + 1; gs[1] = gs[1] + 1;
+                    }, false -> { } };
+                },
+                false -> { src[gs[5]] = c; gs[5] = gs[5] + 1; gs[1] = gs[1] + 1; },
+            } };
+        }, false -> { } };
+    };
+    let str_len: Int = gs[5] - start;
+    match gs[1] < gs[0] { true -> match src[gs[1]] == 34 { true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; }, false -> { } }, false -> { } };
+    let tok_idx: Int = gs[4] * 5;
+    toks[tok_idx] = 16; toks[tok_idx+1] = start; toks[tok_idx+2] = str_len;
+    toks[tok_idx+3] = gs[2]; toks[tok_idx+4] = gs[3];
+    gs[3] = gs[3] + str_len + 2;
+    gs[4] = gs[4] + 1;
+}
+
+// Lex a symbol/operator
+fn lex_sym(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    let ch: Int = src[gs[1]]; gs[1] = gs[1] + 1; gs[3] = gs[3] + 1;
+    let tok_idx: Int = gs[4] * 5;
+    toks[tok_idx+1] = 0; toks[tok_idx+2] = 0;
+    toks[tok_idx+3] = gs[2]; toks[tok_idx+4] = gs[3];
+    match ch {
+        123 -> { toks[tok_idx] = 17; },
+        125 -> { toks[tok_idx] = 18; },
+        40 -> { toks[tok_idx] = 19; },
+        41 -> { toks[tok_idx] = 20; },
+        91 -> { toks[tok_idx] = 21; },
+        93 -> { toks[tok_idx] = 22; },
+        43 -> { toks[tok_idx] = 24; },
+        42 -> { toks[tok_idx] = 26; },
+        47 -> { toks[tok_idx] = 27; },
+        37 -> { toks[tok_idx] = 28; },
+        58 -> { toks[tok_idx] = 40; },
+        59 -> { toks[tok_idx] = 41; },
+        44 -> { toks[tok_idx] = 42; },
+        46 -> { toks[tok_idx] = 43; },
+        _ -> match ch == 45 {
+            true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 62 {
+                true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 38; },
+                false -> { toks[tok_idx] = 25; },
+            }, false -> { toks[tok_idx] = 25; } },
+            false -> match ch == 61 {
+                true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 61 {
+                    true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 29; },
+                    false -> { toks[tok_idx] = 23; },
+                }, false -> { toks[tok_idx] = 23; } },
+                false -> match ch == 33 {
+                    true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 61 {
+                        true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 30; },
+                        false -> { toks[tok_idx] = 37; },
+                    }, false -> { toks[tok_idx] = 37; } },
+                    false -> match ch == 60 {
+                        true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 61 {
+                            true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 33; },
+                            false -> { toks[tok_idx] = 31; },
+                        }, false -> { toks[tok_idx] = 31; } },
+                        false -> match ch == 62 {
+                            true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 61 {
+                                true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 34; },
+                                false -> { toks[tok_idx] = 32; },
+                            }, false -> { toks[tok_idx] = 32; } },
+                            false -> match ch == 38 {
+                                true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 38 {
+                                    true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 35; },
+                                    false -> { toks[tok_idx] = 0 - 1; },
+                                }, false -> { toks[tok_idx] = 0 - 1; } },
+                                false -> match ch == 124 {
+                                    true -> match gs[1] < gs[0] { true -> match src[gs[1]] == 124 {
+                                        true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 36; },
+                                        false -> match src[gs[1]] == 62 {
+                                            true -> { gs[1] = gs[1] + 1; gs[3] = gs[3] + 1; toks[tok_idx] = 39; },
+                                            false -> { toks[tok_idx] = 0 - 1; },
+                                        },
+                                    }, false -> { toks[tok_idx] = 0 - 1; } },
+                                    false -> { do print("error: unexpected char"); do exit(1); },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    };
+    gs[4] = gs[4] + 1;
+}

@@ -1,0 +1,157 @@
+// stage5/types.loon — AST type definitions for the Loon compiler
+// Every construct in the Loon language appears as an ADT variant.
+// This file is the specification made executable.
+module types {
+    exports [
+        Token, TokenKind, BinOpKind, Privacy, BaseType, Type,
+        Expr, Stmt, MatchArm, Param, FnDecl, TypeDecl, Variant,
+        Program, ParseError, TypeError
+    ]
+}
+
+// ========== Tokens ==========
+
+type TokenKind {
+    KwFn, KwLet, KwType, KwMatch, KwFor, KwIn, KwDo, KwModule,
+    KwImports, KwExports, KwSequential, KwTrue, KwFalse, KwExtern,
+    Ident(name: String),
+    LitInt(value: Int),
+    LitFloat(value: String),
+    LitString(value: String),
+    LBrace, RBrace, LParen, RParen, LBracket, RBracket,
+    Assign, Plus, Minus, Star, Slash, Percent,
+    Eq, Neq, Lt, Gt, Lte, Gte, And, Or, Not,
+    Arrow, Pipe, Colon, Semi, Comma, Dot,
+    Eof,
+}
+
+type Token {
+    Tok(kind: TokenKind, line: Int, col: Int),
+}
+
+// ========== Types ==========
+
+type BinOpKind {
+    Add, Sub, Mul, Div, Mod,
+    Equal, NotEqual, Less, Greater, LessEq, GreaterEq,
+    LogicAnd, LogicOr,
+}
+
+type Privacy {
+    Raw,
+    Public,
+    Sensitive,
+    ZeroOnDrop,
+    Hashed,
+    Encrypted,
+}
+
+type BaseType {
+    TInt, TBool, TString, TFloat, TUnit, TArray, TAdt(name: String),
+}
+
+type Type {
+    Simple(base: BaseType),
+    Wrapped(privacy: Privacy, inner: BaseType),
+    Array(elem: BaseType),
+}
+
+// ========== AST ==========
+
+type Expr {
+    IntLit(value: Int),
+    FloatLit(text: String),
+    StrLit(value: String),
+    BoolLit(value: Bool),
+    Ident(name: String),
+    BinOp(op: BinOpKind, left: Int, right: Int),
+    UnaryNeg(operand: Int),
+    Call(name: String, arg_count: Int, first_arg: Int),
+    Match(subject: Int, arm_count: Int, first_arm: Int),
+    Block(stmt_count: Int, first_stmt: Int),
+    For(var_name: String, start: Int, end: Int, body: Int),
+    ArrayNew(size: Int),
+    ArrayGet(arr: String, index: Int),
+    ArraySet(arr: String, index: Int, value: Int),
+    Constructor(variant: String, tag: Int, arg_count: Int, first_arg: Int),
+    Pipe(left: Int, right: Int),
+    DoExpr(inner: Int),
+    ReturnExpr(inner: Int),
+}
+
+type MatchArm {
+    BoolArm(pattern: Bool, body: Int),
+    IntArm(pattern: Int, body: Int),
+    StringArm(pattern: String, body: Int),
+    AdtArm(variant: String, tag: Int, binding_count: Int, body: Int),
+    WildcardArm(body: Int),
+}
+
+type Stmt {
+    LetStmt(name: String, type_ann: Int, init: Int),
+    ExprStmt(expr: Int),
+    DoStmt(expr: Int),
+}
+
+type Param {
+    Par(name: String, type_ann: Int),
+}
+
+type Effect {
+    IO,
+    Audit,
+    Crypto,
+    Unsafe,
+}
+
+// ========== Declarations ==========
+
+type FnDecl {
+    Fn(
+        name: String,
+        param_count: Int,
+        first_param: Int,
+        effects: Int,
+        return_type: Int,
+        body: Int
+    ),
+}
+
+type Variant {
+    Var(name: String, tag: Int, field_count: Int),
+}
+
+type TypeDecl {
+    TypeDef(name: String, variant_count: Int, first_variant: Int),
+}
+
+// ========== Program ==========
+
+type Program {
+    Prog(
+        module_name: String,
+        fn_count: Int,
+        type_count: Int
+    ),
+}
+
+// ========== Errors ==========
+
+type ParseError {
+    UnexpectedToken(expected: String, got: String, line: Int),
+    UnexpectedEof(context: String),
+    DuplicateName(name: String, line: Int),
+}
+
+type TypeError {
+    TypeMismatch(expected: String, got: String, line: Int),
+    UndeclaredEffect(fn_name: String, effect: String, line: Int),
+    UndefinedVariable(name: String, line: Int),
+    UndefinedFunction(name: String, line: Int),
+    WrongArgCount(fn_name: String, expected: Int, got: Int, line: Int),
+    ReturnTypeMismatch(fn_name: String, expected: String, got: String, line: Int),
+    PrivacyViolation(context: String, line: Int),
+    NonExhaustiveMatch(type_name: String, missing: String, line: Int),
+    ForbiddenAlgorithm(name: String, line: Int),
+    ImmutableReassign(name: String, line: Int),
+}
