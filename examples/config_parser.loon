@@ -1,0 +1,69 @@
+// config_parser.loon — parse key=value config with privacy types
+// Uses string builtins, Option<T>, privacy types
+module config;
+
+type Option<T> { Some(value: Int), None }
+
+fn opt_found(opt: Option) [] -> Int {
+    match opt { Some(v) -> 1, None -> 0 }
+}
+
+// Look up a key in a config string
+// Returns position of value (after '=') or None
+fn config_get(source: String, key: String) [] -> Option {
+    let slen: Int = string_length(source);
+    let klen: Int = string_length(key);
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    // Search for key= pattern starting at each line
+    let pos: Array<Int> = Array(1); pos[0] = 0;
+    for _line in range(0, 128) {
+        match pos[0] < slen {
+            true -> {
+                // Check if this line starts with key=
+                let subs: String = substring(source, pos[0], slen - pos[0]);
+                match string_starts_with(subs, key) {
+                    true -> match string_char_at(source, pos[0] + klen) == 61 {
+                        true -> { found[0] = pos[0] + klen + 1; },
+                        false -> { },
+                    },
+                    false -> { },
+                };
+                // Advance to next line
+                let advanced: Array<Int> = Array(1); advanced[0] = 0;
+                for _j in range(pos[0], slen) {
+                    match advanced[0] == 0 {
+                        true -> match string_char_at(source, pos[0]) == 10 {
+                            true -> { pos[0] = pos[0] + 1; advanced[0] = 1; },
+                            false -> { pos[0] = pos[0] + 1; },
+                        },
+                        false -> { },
+                    };
+                };
+            },
+            false -> { },
+        };
+    };
+    match found[0] >= 0 { true -> Some(found[0]), false -> None }
+}
+
+fn main() [IO] -> Unit {
+    let source: String = read_file(get_arg(1));
+    do print("Config file read: " + int_to_string(string_length(source)) + " bytes");
+
+    let port: Option<Int> = config_get(source, "port");
+    let host: Option<Int> = config_get(source, "host");
+    let key: Option<Int> = config_get(source, "api_key");
+    let debug: Option<Int> = config_get(source, "debug");
+    let miss: Option<Int> = config_get(source, "missing");
+
+    let total: Int = opt_found(port) + opt_found(host) + opt_found(key) + opt_found(debug) + opt_found(miss);
+    do print("Found " + int_to_string(total) + " of 5 keys");
+
+    // Privacy: api_key should be Sensitive
+    let api_key: Sensitive<String> = "sk-secret-value";
+    // do print(api_key);  // COMPILE ERROR: cannot log Sensitive value
+    // do print("key=" + api_key);  // COMPILE ERROR: privacy through concat
+    do print("API key protected by type system");
+
+    do exit(total);
+}
