@@ -1,0 +1,23 @@
+// stdlib/option.loon — Option types (concrete specializations)
+// These will be replaced by generic Option<T> when generics land.
+module option;
+
+type OptionInt { SomeInt(value: Int), NoneInt }
+type OptionStr { SomeStr(value: String), NoneStr }
+type OptionBool { SomeBool(value: Bool), NoneBool }
+
+fn unwrap_int(o: OptionInt, default: Int) [] -> Int {
+    match o { SomeInt(v) -> v, NoneInt -> default }
+}
+
+fn unwrap_str(o: OptionStr, default: String) [] -> String {
+    match o { SomeStr(v) -> v, NoneStr -> default }
+}
+
+fn is_some_int(o: OptionInt) [] -> Bool {
+    match o { SomeInt(v) -> true, NoneInt -> false }
+}
+
+fn is_some_str(o: OptionStr) [] -> Bool {
+    match o { SomeStr(v) -> true, NoneStr -> false }
+}

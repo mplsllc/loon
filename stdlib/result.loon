@@ -1,0 +1,22 @@
+// stdlib/result.loon — Result types (concrete specializations)
+// These will be replaced by generic Result<T, E> when generics land.
+module result;
+
+type ResultInt { OkInt(value: Int), ErrInt(code: Int) }
+type ResultStr { OkStr(value: String), ErrStr(msg: String) }
+
+fn unwrap_result_int(r: ResultInt, default: Int) [] -> Int {
+    match r { OkInt(v) -> v, ErrInt(c) -> default }
+}
+
+fn is_ok_int(r: ResultInt) [] -> Bool {
+    match r { OkInt(v) -> true, ErrInt(c) -> false }
+}
+
+fn unwrap_result_str(r: ResultStr, default: String) [] -> String {
+    match r { OkStr(v) -> v, ErrStr(m) -> default }
+}
+
+fn is_ok_str(r: ResultStr) [] -> Bool {
+    match r { OkStr(v) -> true, ErrStr(m) -> false }
+}
