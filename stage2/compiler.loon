@@ -2473,6 +2473,37 @@ fn tc_check_return(tr_g: Array<Int>, tr_n: Array<Int>, tr_s: Array<Int>) [IO] ->
                                     do tc_error(tr_g, tr_n, tr_s);
                                 }, false -> { } }, false -> { } };
                             }, false -> { } };
+                            // Check IDENT_REF return: privacy downcast
+                            match tr_expr_nt == 10 { true -> {
+                                // Look up the variable's type by name
+                                let tr_voff: Int = tr_n[tr_expr * 10 + 2];
+                                let tr_vlen: Int = tr_n[tr_expr * 10 + 3];
+                                // Scan params and let bindings for this variable
+                                for tr_vi in range(tr_fi, tr_fi + 200) {
+                                    match tr_vi < tr_g[12] { true -> {
+                                        let tr_vnt: Int = tr_n[tr_vi * 10];
+                                        match tr_vnt == 2 { true -> match tr_n[tr_vi * 10 + 3] == tr_vlen { true -> {
+                                            tr_g[40] = tr_voff; tr_g[41] = tr_n[tr_vi * 10 + 2]; tr_g[42] = tr_vlen;
+                                            match cg_name_eq(tr_g, tr_s) { true -> {
+                                                // Found: check privacy downcast
+                                                match tr_n[tr_vi * 10 + 7] / 16 > tr_ret_type / 16 { true -> {
+                                                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
+                                                    tr_g[911] = tr_g[911] + 1;
+                                                }, false -> { } };
+                                            }, false -> { } };
+                                        }, false -> { } }, false -> { } };
+                                        match tr_vnt == 4 { true -> match tr_n[tr_vi * 10 + 3] == tr_vlen { true -> {
+                                            tr_g[40] = tr_voff; tr_g[41] = tr_n[tr_vi * 10 + 2]; tr_g[42] = tr_vlen;
+                                            match cg_name_eq(tr_g, tr_s) { true -> {
+                                                match tr_n[tr_vi * 10 + 7] / 16 > tr_ret_type / 16 { true -> {
+                                                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
+                                                    tr_g[911] = tr_g[911] + 1;
+                                                }, false -> { } };
+                                            }, false -> { } };
+                                        }, false -> { } }, false -> { } };
+                                    }, false -> { } };
+                                };
+                            }, false -> { } };
                         }, false -> { } };
                     }, false -> { } };
                 }, false -> { } };

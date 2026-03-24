@@ -1,0 +1,9 @@
+// TEST: leak_via_return
+// EXPECT: ERROR
+// CATEGORY: adversarial
+// Returning Sensitive as plain String — should be caught as downcast
+module test;
+fn extract(pw: Sensitive<String>) [] -> String {
+    pw
+}
+fn main() [IO] -> Unit { do exit(0); }

@@ -1,0 +1,10 @@
+// TEST: leak_via_concat
+// EXPECT: ERROR
+// CATEGORY: adversarial
+// Concatenating with sensitive then printing — should be caught
+module test;
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    do print("password is: " + pw);
+    do exit(0);
+}

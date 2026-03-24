@@ -1,0 +1,12 @@
+// TEST: leak_via_length
+// EXPECT: COMPILES OK, exit 6
+// CATEGORY: adversarial
+// string_length returns Int — not sensitive. Length of password is public.
+// This is by design: length is metadata, not the value itself.
+module test;
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    let len: Int = string_length(pw);
+    do print(int_to_string(len));
+    do exit(len);
+}

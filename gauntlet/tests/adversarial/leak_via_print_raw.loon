@@ -1,0 +1,10 @@
+// TEST: leak_via_print_raw
+// EXPECT: ERROR
+// CATEGORY: adversarial
+// print_raw with sensitive — should be caught same as print
+module test;
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    do print_raw(pw);
+    do exit(0);
+}

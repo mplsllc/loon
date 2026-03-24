@@ -1,0 +1,10 @@
+// TEST: leak_expose_no_audit
+// EXPECT: ERROR
+// CATEGORY: adversarial
+// expose() without Audit effect — should be caught
+module test;
+fn main() [IO] -> Unit {
+    let pw: Sensitive<String> = "secret";
+    let vis: Public<String> = expose(pw, "test");
+    do exit(0);
+}
