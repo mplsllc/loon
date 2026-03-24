@@ -139,3 +139,31 @@ Checks missing:
   · Division by zero (runtime)
   · Array bounds (runtime)
 ```
+
+### 12. Source complexity limit — compiler at self-compilation boundary
+
+**Status:** Known limitation — Stage 5.0 rewrite eliminates it
+**Severity:** Blocks adding any non-trivial code to compiler.loon
+
+The self-compiled binary's type checker has a variable scope limit.
+When compiler.loon exceeds ~235KB / 55,000 tokens / 150+ functions,
+adding new functions or complex match patterns triggers "undefined
+variable" errors during self-compilation.
+
+**Root cause:** The type checker's variable table at g[920..999]
+(40 names max per function) and the match nesting depth (15 levels)
+are both near capacity for the largest functions in the compiler.
+
+**Impact:**
+- Cannot add negative match patterns (fix requires new parser code)
+- Cannot fix chained string concat (fix requires new codegen code)
+- Cannot fix >3 Array param limit (fix requires new calling convention)
+
+**Workarounds:**
+- Negative patterns: use `match x > 0 { ... }` instead of `match x { -1 -> ... }`
+- Chained concat: use intermediate variables `let s1 = a + b; let s2 = s1 + c;`
+- Array params: restructure functions to take max 3 Array parameters
+
+**Permanent fix:** Stage 5.0 compiler rewrite in full Loon eliminates
+g[] slots, increases the type checker capacity, and removes the match
+nesting limit entirely. This is the highest-priority technical work.
