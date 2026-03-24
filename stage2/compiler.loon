@@ -1414,28 +1414,39 @@ fn cg_walk_slots(ws_g: Array<Int>, ws_n: Array<Int>, ws_s: Array<Int>) [] -> Uni
 fn cg_store_params(sp_g: Array<Int>, sp_n: Array<Int>, sp_s: Array<Int>) [IO] -> Unit {
     let sp_fi: Int = sp_g[30];
     let sp_pc: Int = sp_n[sp_fi * 10 + 4];
-    let sp_ri: Array<Int> = Array(1); sp_ri[0] = 0; // register index
-    let sp_pi: Array<Int> = Array(1);
-    sp_pi[0] = sp_n[sp_fi * 10 + 5];
-    let sp_pt: Array<Int> = Array(1);
-    let sp_vi: Array<Int> = Array(1);
-    for _spp in range(0, sp_pc) {
-        sp_pt[0] = sp_n[sp_pi[0] * 10 + 7];
-        sp_vi[0] = sp_g[51 + (_spp) * 4 + 2];
-        match sp_pt[0] % 16 == 2 { true -> { // String (inc. privacy-wrapped)
-            do cg_store_reg(sp_ri[0], sp_vi[0]);
-            do cg_store_reg(sp_ri[0] + 1, sp_vi[0] - 8);
-            sp_ri[0] = sp_ri[0] + 2;
-        }, false -> match sp_pt[0] % 16 == 4 { true -> { // Array (inc. privacy-wrapped)
-            do cg_store_reg(sp_ri[0], sp_vi[0]);
-            do cg_store_reg(sp_ri[0] + 1, sp_vi[0] - 8);
-            sp_ri[0] = sp_ri[0] + 2;
-        }, false -> {
-            do cg_store_reg(sp_ri[0], sp_vi[0]);
-            sp_ri[0] = sp_ri[0] + 2;
-        } } };
-        sp_pi[0] = sp_n[sp_pi[0] * 10 + 6];
-    };
+    match sp_pc <= 3 { true -> {
+        // Standard register convention: params in rdi/rsi/rdx/rcx/r8/r9
+        let sp_ri: Array<Int> = Array(1); sp_ri[0] = 0;
+        let sp_pi: Array<Int> = Array(1); sp_pi[0] = sp_n[sp_fi * 10 + 5];
+        for _spp in range(0, sp_pc) {
+            let sp_vi: Int = sp_g[51 + (_spp) * 4 + 2];
+            let sp_pt: Int = sp_n[sp_pi[0] * 10 + 7];
+            match sp_pt % 16 == 2 { true -> { do cg_store_reg(sp_ri[0], sp_vi); do cg_store_reg(sp_ri[0] + 1, sp_vi - 8); sp_ri[0] = sp_ri[0] + 2; },
+            false -> match sp_pt % 16 == 4 { true -> { do cg_store_reg(sp_ri[0], sp_vi); do cg_store_reg(sp_ri[0] + 1, sp_vi - 8); sp_ri[0] = sp_ri[0] + 2; },
+            false -> { do cg_store_reg(sp_ri[0], sp_vi); sp_ri[0] = sp_ri[0] + 2; } } };
+            sp_pi[0] = sp_n[sp_pi[0] * 10 + 6];
+        };
+    }, false -> {
+        // Stack-passed convention for 4+ params
+        // Stack layout at entry: [rbp+16] = argN_ptr, [rbp+24] = argN_len, ...
+        // Args are in REVERSE order on stack (argN closest to rbp, arg1 farthest)
+        let sp_pi2: Array<Int> = Array(1); sp_pi2[0] = sp_n[sp_fi * 10 + 5];
+        for _spp2 in range(0, sp_pc) {
+            let sp_vi2: Int = sp_g[51 + (_spp2) * 4 + 2];
+            let sp_soff: Int = 16 + (sp_pc - 1 - _spp2) * 16; // stack offset for this param
+            do print_raw("    mov rax, qword [rbp+"); do print_raw(int_to_string(sp_soff)); do emit_line("]");
+            do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(sp_vi2)); do emit_line("], rax");
+            let sp_pt2: Int = sp_n[sp_pi2[0] * 10 + 7];
+            match sp_pt2 % 16 == 2 { true -> {
+                do print_raw("    mov rax, qword [rbp+"); do print_raw(int_to_string(sp_soff + 8)); do emit_line("]");
+                do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(sp_vi2 - 8)); do emit_line("], rax");
+            }, false -> match sp_pt2 % 16 == 4 { true -> {
+                do print_raw("    mov rax, qword [rbp+"); do print_raw(int_to_string(sp_soff + 8)); do emit_line("]");
+                do print_raw("    mov qword [rbp-"); do print_raw(int_to_string(sp_vi2 - 8)); do emit_line("], rax");
+            }, false -> { } } };
+            sp_pi2[0] = sp_n[sp_pi2[0] * 10 + 6];
+        };
+    } };
 }
 
 // Emit: mov qword [rbp-offset], <register>
@@ -2051,20 +2062,20 @@ fn cg_user_call(uc_g: Array<Int>, uc_n: Array<Int>, uc_s: Array<Int>) [IO] -> Un
     let uc_no: Int = uc_n[uc_ni * 10 + 2]; let uc_nl: Int = uc_n[uc_ni * 10 + 3];
     do cg_name(uc_s, uc_no, uc_nl);
     do emit_line("");
+    // Clean up stack-passed args for 4+ params
+    match uc_ac >= 4 { true -> {
+        do print_raw("    add rsp, "); do emit_line(int_to_string(uc_ac * 16));
+    }, false -> { } };
 }
 
 // Pop N args from stack into ABI registers
+// For N <= 3: all in registers. For N > 3: first 3 in regs, rest stay on stack.
 fn cg_pop_args(pa_n: Int) [IO] -> Unit {
-    // Args are on stack in forward order (arg1 on top, argN at bottom)
-    // Wait — we pushed arg1 first, so argN is on top. We need reverse.
-    // Actually: we walked first→last, pushing each. So arg1 is deepest, argN on top.
-    // Pop: argN → (r8,r9) or (rdx,rcx) etc. depending on position.
-    // For 16-byte convention: each arg takes 2 pops (rax, rdx)
-    // Pop in reverse: last arg first
-    // For 1 arg: pop rdi, pop rsi
-    // For 2 args: pop rdx, pop rcx, pop rdi, pop rsi
-    // For 3 args: pop r8, pop r9, pop rdx, pop rcx, pop rdi, pop rsi
-    match pa_n == 3 { true -> {
+    match pa_n >= 4 { true -> {
+        // 4+ args: leave ALL on stack. Callee reads from [rsp] after call.
+        // Don't pop anything — the callee handles it.
+        // After call returns, caller cleans up stack: add rsp, pa_n*16
+    }, false -> match pa_n == 3 { true -> {
         do emit_line("    pop r8"); do emit_line("    pop r9");
         do emit_line("    pop rdx"); do emit_line("    pop rcx");
         do emit_line("    pop rdi"); do emit_line("    pop rsi");
@@ -2073,7 +2084,7 @@ fn cg_pop_args(pa_n: Int) [IO] -> Unit {
         do emit_line("    pop rdi"); do emit_line("    pop rsi");
     }, false -> match pa_n == 1 { true -> {
         do emit_line("    pop rdi"); do emit_line("    pop rsi");
-    }, false -> { } } } };
+    }, false -> { } } } } };
 }
 
 // LET binding: evaluate initializer, store to stack slot
