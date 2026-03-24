@@ -1,0 +1,49 @@
+// stdlib/format.loon — string formatting with {} placeholders
+// format1("Hello, {}!", 42) → "Hello, 42!"
+// format_s("Hello, {}!", name) → "Hello, world!"
+module format;
+
+// Find first {} in template. Returns position or -1.
+fn find_brace(t: String) [] -> Int {
+    let tlen: Int = string_length(t);
+    let pos: Array<Int> = Array(1); pos[0] = 0 - 1;
+    for i in range(0, tlen - 1) {
+        match string_char_at(t, i) == 123 {
+            true -> match string_char_at(t, i + 1) == 125 {
+                true -> match pos[0] == 0 - 1 { true -> { pos[0] = i; }, false -> { } },
+                false -> { },
+            },
+            false -> { },
+        };
+    };
+    pos[0]
+}
+
+// Format with 1 Int: replaces first {} with int_to_string(arg)
+fn format1(template: String, arg: Int) [] -> String {
+    let pos: Int = find_brace(template);
+    match pos >= 0 {
+        true -> {
+            let before: String = substring(template, 0, pos);
+            let val: String = int_to_string(arg);
+            let mid: String = before + val;
+            let after: String = substring(template, pos + 2, string_length(template) - pos - 2);
+            mid + after
+        },
+        false -> template,
+    }
+}
+
+// Format with 1 String: replaces first {} with the string
+fn format_s(template: String, arg: String) [] -> String {
+    let pos: Int = find_brace(template);
+    match pos >= 0 {
+        true -> {
+            let before: String = substring(template, 0, pos);
+            let mid: String = before + arg;
+            let after: String = substring(template, pos + 2, string_length(template) - pos - 2);
+            mid + after
+        },
+        false -> template,
+    }
+}
