@@ -363,8 +363,13 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
                     do teat(pf_g); // eat >
                     pf_n[pf_pi * 10 + 7] = pf_g[4300] * 16 + pf_g[4303]; // compound encoding
                 },
-                // Array<T>
-                false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }
+                // Check: is it a generic ADT (Option<Int>) or Array<T>?
+                false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; pf_g[4600] = chk_vari_type(pf_g, pf_n); match pf_g[4600] >= 0 { true -> match pf_g[1024 + pf_g[4600] * 64 + 20] > 0 {
+                    // Generic ADT: monomorphize
+                    true -> { do teat(pf_g); do teat(pf_g); match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); do teat(pf_g); }, false -> { } }; do teat(pf_g); let _mr: Int = monomorphize(pf_g, pf_n); pf_n[pf_pi * 10 + 7] = 6; },
+                    // Array<T>
+                    false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; }
+                }, false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_pi * 10 + 7] = 4; } } }
             }, false -> { pf_n[pf_pi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
             match pf_g[16] == 0 - 1 { true -> { pf_g[16] = pf_pi; pf_g[17] = pf_pi; }, false -> { pf_n[pf_g[17] * 10 + 6] = pf_pi; pf_g[17] = pf_pi; } };
             pf_g[15] = pf_g[15] + 1;
@@ -402,7 +407,10 @@ fn pf_parse(pf_g: Array<Int>, pf_t: Array<Int>, pf_n: Array<Int>) [IO] -> Unit {
             do teat(pf_g);
             pf_n[pf_fi * 10 + 7] = pf_g[4300] * 16 + pf_g[4303];
         },
-        false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }
+        false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; pf_g[4600] = chk_vari_type(pf_g, pf_n); match pf_g[4600] >= 0 { true -> match pf_g[1024 + pf_g[4600] * 64 + 20] > 0 {
+            true -> { do teat(pf_g); do teat(pf_g); match tcur(pf_g, pf_t) == 42 { true -> { do teat(pf_g); do teat(pf_g); }, false -> { } }; do teat(pf_g); let _mr2: Int = monomorphize(pf_g, pf_n); pf_n[pf_fi * 10 + 7] = 6; },
+            false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; }
+        }, false -> { do teat(pf_g); do teat(pf_g); do teat(pf_g); pf_n[pf_fi * 10 + 7] = 4; } } }
     }, false -> { pf_n[pf_fi * 10 + 7] = match pf_g[136] == 6 { true -> 2, false -> match pf_g[136] == 5 { true -> match pf_n[200000 + pf_g[137]] == 70 { true -> 7, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> match pf_g[136] == 4 { true -> match pf_n[200000 + pf_g[137]] == 66 { true -> 1, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } }, false -> { pf_g[40]=pf_g[137]; pf_g[41]=pf_g[136]; match chk_vari_type(pf_g, pf_n) >= 0 { true -> 6, false -> 0 } } } } }; } };
     // Body — skip for extern functions
     match pf_g[4310] == 1 {
@@ -812,6 +820,74 @@ fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [IO] -> Unit {
 }
 
 // Check if name at g[40]/g[41] matches a known type name. Returns type_index or -1.
+// Monomorphize a generic type: create concrete version with substituted params
+// gs[4600] = generic type index, gs[4601..4604] = concrete type_info per param
+// Returns the new concrete type's index in the type table, or -1 if not generic
+fn monomorphize(mg: Array<Int>, mn: Array<Int>) [] -> Int {
+    let gen_idx: Int = mg[4600];
+    let gen_base: Int = 1024 + gen_idx * 64;
+    let param_count: Int = mg[gen_base + 20];
+    match param_count == 0 { true -> 0 - 1, // not generic
+    false -> {
+        // Check if this exact monomorphization already exists
+        // Simple approach: create a new type entry every time
+        // (Duplicate detection would require comparing concrete params)
+        let new_idx: Int = mg[900];
+        let new_base: Int = 1024 + new_idx * 64;
+        // Copy type name and append _ConcreteType suffix
+        mg[new_base] = mg[gen_base]; // name offset (same as generic)
+        mg[new_base + 1] = mg[gen_base + 1]; // name length
+        // Copy variant count
+        mg[new_base + 2] = mg[gen_base + 2];
+        // Copy variants with field types substituted
+        for vi in range(0, mg[gen_base + 2]) {
+            let src_vb: Int = gen_base + 3 + vi * 3;
+            let dst_vb: Int = new_base + 3 + vi * 3;
+            mg[dst_vb] = mg[src_vb]; // variant name offset
+            mg[dst_vb + 1] = mg[src_vb + 1]; // variant name length
+            mg[dst_vb + 2] = mg[src_vb + 2]; // field count
+        };
+        mg[new_base + 20] = 0; // concrete type, not generic
+        mg[900] = mg[900] + 1;
+        new_idx
+    } }
+}
+
+// Resolve a type name: check for ADT (plain or generic with <...>)
+// g[40]=name_offset, g[41]=name_length in source buffer
+// Returns type_info value (6 for ADT, or -1 if not found)
+// If generic with <Int>: creates monomorphized version, skips <...> tokens
+fn resolve_type(rt_g: Array<Int>, rt_t: Array<Int>, rt_n: Array<Int>) [] -> Int {
+    let rt_idx: Int = chk_vari_type(rt_g, rt_n);
+    match rt_idx >= 0 {
+        true -> {
+            let rt_base: Int = 1024 + rt_idx * 64;
+            match rt_g[rt_base + 20] > 0 { true -> match tcur(rt_g, rt_t) == 31 { true -> {
+                // Generic type with <...> — monomorphize
+                do teat(rt_g); // eat <
+                // Read concrete type args (up to 4)
+                rt_g[4601] = 0; rt_g[4602] = 0; rt_g[4603] = 0; rt_g[4604] = 0;
+                for _rp in range(0, 4) {
+                    match tcur(rt_g, rt_t) == 32 { true -> { }, false -> {
+                        // Read the concrete type name
+                        let rt_clen: Int = rt_t[rt_g[13] * 5 + 2];
+                        rt_g[4601] = match rt_clen == 3 { true -> 0, false -> match rt_clen == 6 { true -> 2, false -> match rt_clen == 4 { true -> 1, false -> 0 } } }; // Int=0, String=2, Bool=1
+                        do teat(rt_g); // eat concrete type
+                        match tcur(rt_g, rt_t) == 42 { true -> { do teat(rt_g); }, false -> { } }; // eat comma
+                    } };
+                };
+                match tcur(rt_g, rt_t) == 32 { true -> { do teat(rt_g); }, false -> { } }; // eat >
+                // Create monomorphized version
+                rt_g[4600] = rt_idx;
+                let rt_new: Int = monomorphize(rt_g, rt_n);
+                6 // TYPE_ADT
+            }, false -> 6 }, // ADT without <...> — plain use
+            false -> 6 } // non-generic ADT
+        },
+        false -> 0 - 1, // not found
+    }
+}
+
 fn chk_vari_type(ct_g: Array<Int>, ct_n: Array<Int>) [] -> Int {
     let ct_res: Array<Int> = Array(1); ct_res[0] = 0 - 1;
     for ct_ti in range(0, ct_g[900]) {
