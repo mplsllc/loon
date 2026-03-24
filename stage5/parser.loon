@@ -1,0 +1,686 @@
+// stage5/parser.loon — Loon parser, rewritten with clear structure
+// Two-pass: first collects declarations, second parses bodies.
+// Uses flat node array (like Stage 2) but with documented node layout.
+// When generics land, return types become Result<Int, ParseError>.
+module parser;
+
+// Node layout: 10 fields per node (same as Stage 2 for compatibility)
+// [0]=type [1]=sub_type [2]=str_off [3]=str_len [4]=child_count
+// [5]=first_child [6]=next_sibling [7]=type_info [8]=extra [9]=padding
+
+// Parse result: node index or -1 on error
+type ParseResult { ParseOk(idx: Int), ParseErr(msg: String, line: Int) }
+
+// ========== Token access helpers ==========
+
+// Current token type at position gs[13]
+fn tok_type(gs: Array<Int>, toks: Array<Int>) [] -> Int {
+    toks[gs[13] * 5]
+}
+
+// Current token string offset
+fn tok_off(gs: Array<Int>, toks: Array<Int>) [] -> Int {
+    toks[gs[13] * 5 + 1]
+}
+
+// Current token string length
+fn tok_len(gs: Array<Int>, toks: Array<Int>) [] -> Int {
+    toks[gs[13] * 5 + 2]
+}
+
+// Advance to next token
+fn tok_advance(gs: Array<Int>) [] -> Unit {
+    gs[13] = gs[13] + 1;
+}
+
+// Expect a specific token type, advance if match
+fn tok_expect(gs: Array<Int>, toks: Array<Int>, expected: Int) [IO] -> Bool {
+    match tok_type(gs, toks) == expected {
+        true -> { do tok_advance(gs); true },
+        false -> { do print("error: expected token " + int_to_string(expected) + " got " + int_to_string(tok_type(gs, toks))); false },
+    }
+}
+
+// Allocate a new AST node, return its index
+fn node_alloc(gs: Array<Int>, nodes: Array<Int>) [] -> Int {
+    let idx: Int = gs[12];
+    // Zero all fields
+    nodes[idx * 10] = 0; nodes[idx * 10 + 1] = 0;
+    nodes[idx * 10 + 2] = 0; nodes[idx * 10 + 3] = 0;
+    nodes[idx * 10 + 4] = 0; nodes[idx * 10 + 5] = 0 - 1;
+    nodes[idx * 10 + 6] = 0 - 1; nodes[idx * 10 + 7] = 0;
+    nodes[idx * 10 + 8] = 0; nodes[idx * 10 + 9] = 0;
+    gs[12] = gs[12] + 1;
+    idx
+}
+
+// ========== Pass 1: Collect declarations ==========
+
+// Scan all tokens for fn and type declarations.
+// Store function names in a table for forward reference resolution.
+// gs[100+fn*8] = (name_off, name_len, param_count, return_type, effects, ...)
+fn collect_decls(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [] -> Int {
+    let fn_count: Array<Int> = Array(1); fn_count[0] = 0;
+    let type_count: Array<Int> = Array(1); type_count[0] = 0;
+    let pos: Array<Int> = Array(1); pos[0] = 0;
+    for _i in range(0, 9999) {
+        match toks[pos[0] * 5] == 44 { true -> { }, false -> { // not EOF
+            match toks[pos[0] * 5] == 0 { true -> { // KW_FN
+                pos[0] = pos[0] + 1; // skip 'fn'
+                // Store function name
+                gs[100 + fn_count[0] * 8] = toks[pos[0] * 5 + 1]; // name off
+                gs[100 + fn_count[0] * 8 + 1] = toks[pos[0] * 5 + 2]; // name len
+                fn_count[0] = fn_count[0] + 1;
+                pos[0] = pos[0] + 1; // skip name
+            }, false -> match toks[pos[0] * 5] == 2 { true -> { // KW_TYPE
+                pos[0] = pos[0] + 1; // skip 'type'
+                type_count[0] = type_count[0] + 1;
+                pos[0] = pos[0] + 1; // skip name
+            }, false -> {
+                pos[0] = pos[0] + 1; // skip other tokens
+            } } };
+        } };
+    };
+    fn_count[0]
+}
+
+// ========== Pass 2: Parse bodies ==========
+
+// Parse a complete program: module declaration + top-level items
+fn parse_program(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    gs[12] = 0; // reset node count
+    gs[13] = 0; // reset token position
+    // Skip module declaration
+    match tok_type(gs, toks) == 7 { true -> { // KW_MODULE
+        do tok_advance(gs); // skip 'module'
+        do tok_advance(gs); // skip name
+        // Skip optional { exports [...] } or just ;
+        match tok_type(gs, toks) == 17 { true -> { // LBRACE
+            for _sk in range(0, 99) { match tok_type(gs, toks) == 18 { true -> { }, false -> { do tok_advance(gs); } }; };
+            do tok_advance(gs); // skip RBRACE
+        }, false -> { } };
+        match tok_type(gs, toks) == 41 { true -> { do tok_advance(gs); }, false -> { } }; // skip ;
+    }, false -> { } };
+    // Parse top-level declarations
+    let first_fn: Array<Int> = Array(1); first_fn[0] = 0 - 1;
+    let last_fn: Array<Int> = Array(1); last_fn[0] = 0 - 1;
+    for _decl in range(0, 999) {
+        match tok_type(gs, toks) == 44 { true -> { }, false -> { // not EOF
+            match tok_type(gs, toks) == 0 { true -> { // KW_FN
+                let fn_ni: Int = parse_fn(gs, toks, nodes, src);
+                match first_fn[0] == 0 - 1 {
+                    true -> { first_fn[0] = fn_ni; last_fn[0] = fn_ni; },
+                    false -> { nodes[last_fn[0] * 10 + 6] = fn_ni; last_fn[0] = fn_ni; },
+                };
+            }, false -> match tok_type(gs, toks) == 2 { true -> { // KW_TYPE
+                do parse_type_decl(gs, toks, nodes, src);
+            }, false -> match tok_type(gs, toks) == 10 { true -> { // KW_SEQUENTIAL
+                do tok_advance(gs); // skip for now
+            }, false -> {
+                do tok_advance(gs); // skip unknown tokens
+            } } } };
+        } };
+    };
+    gs[12] // return total node count
+}
+
+// Parse a function declaration
+fn parse_fn(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let fn_ni: Int = node_alloc(gs, nodes);
+    nodes[fn_ni * 10] = 1; // NODE_FN_DECL
+    do tok_advance(gs); // skip 'fn'
+    // Name
+    nodes[fn_ni * 10 + 2] = tok_off(gs, toks);
+    nodes[fn_ni * 10 + 3] = tok_len(gs, toks);
+    do tok_advance(gs); // skip name
+    // Parameters
+    match tok_type(gs, toks) == 19 { true -> { do tok_advance(gs); }, false -> { } }; // (
+    let param_count: Array<Int> = Array(1); param_count[0] = 0;
+    let first_param: Array<Int> = Array(1); first_param[0] = 0 - 1;
+    let last_param: Array<Int> = Array(1); last_param[0] = 0 - 1;
+    for _p in range(0, 16) {
+        match tok_type(gs, toks) == 20 { true -> { }, false -> { // not RPAREN
+            let p_ni: Int = node_alloc(gs, nodes);
+            nodes[p_ni * 10] = 2; // NODE_PARAM
+            nodes[p_ni * 10 + 2] = tok_off(gs, toks);
+            nodes[p_ni * 10 + 3] = tok_len(gs, toks);
+            do tok_advance(gs); // skip param name
+            // : Type
+            match tok_type(gs, toks) == 40 { true -> { do tok_advance(gs); }, false -> { } }; // :
+            // Parse type annotation
+            nodes[p_ni * 10 + 7] = parse_type_ann(gs, toks, nodes, src);
+            match first_param[0] == 0 - 1 {
+                true -> { first_param[0] = p_ni; last_param[0] = p_ni; },
+                false -> { nodes[last_param[0] * 10 + 6] = p_ni; last_param[0] = p_ni; },
+            };
+            param_count[0] = param_count[0] + 1;
+            match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // skip comma
+        } };
+    };
+    match tok_type(gs, toks) == 20 { true -> { do tok_advance(gs); }, false -> { } }; // )
+    nodes[fn_ni * 10 + 4] = param_count[0];
+    nodes[fn_ni * 10 + 5] = first_param[0];
+    // Effects [IO, Audit, ...]
+    nodes[fn_ni * 10 + 9] = parse_effects(gs, toks, src);
+    // -> ReturnType
+    match tok_type(gs, toks) == 38 { true -> { do tok_advance(gs); }, false -> { } }; // ->
+    nodes[fn_ni * 10 + 7] = parse_type_ann(gs, toks, nodes, src);
+    // Body block
+    nodes[fn_ni * 10 + 8] = parse_block(gs, toks, nodes, src);
+    fn_ni
+}
+
+// Parse a type annotation, return type_info value
+fn parse_type_ann(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [] -> Int {
+    let name_off: Int = tok_off(gs, toks);
+    let name_len: Int = tok_len(gs, toks);
+    do tok_advance(gs); // skip type name
+    // Check for Array<T>
+    match tok_type(gs, toks) == 31 { true -> { // LT
+        do tok_advance(gs); // <
+        do tok_advance(gs); // inner type
+        do tok_advance(gs); // >
+        4 // TYPE_ARRAY
+    }, false -> {
+        // Check privacy wrappers and base types by name length
+        match name_len == 3 { true -> 0, // Int
+        false -> match name_len == 4 {
+            true -> match src[name_off] == 66 { true -> 1, false -> match src[name_off] == 85 { true -> 5, false -> 0 } }, // Bool or Unit
+            false -> match name_len == 6 {
+                true -> match src[name_off] == 83 { true -> 2, false -> match src[name_off] == 80 { true -> 2, false -> 0 } }, // String or Public
+                false -> match name_len == 5 {
+                    true -> match src[name_off] == 70 { true -> 7, false -> 0 }, // Float
+                    false -> 0,
+                },
+            },
+        } }
+    } }
+}
+
+// Parse effects list [IO, Audit, ...]
+fn parse_effects(gs: Array<Int>, toks: Array<Int>, src: Array<Int>) [] -> Int {
+    match tok_type(gs, toks) == 21 { true -> { // LBRACKET
+        do tok_advance(gs); // [
+        let eff: Array<Int> = Array(1); eff[0] = 0;
+        for _e in range(0, 8) {
+            match tok_type(gs, toks) == 22 { true -> { }, false -> { // not ]
+                let e_len: Int = tok_len(gs, toks);
+                let e_off: Int = tok_off(gs, toks);
+                match e_len == 2 { true -> { eff[0] = eff[0] + 1; }, false -> { } }; // IO
+                match e_len == 5 { true -> { eff[0] = eff[0] + 2; }, false -> { } }; // Audit
+                match e_len == 6 { true -> match src[e_off] == 67 { true -> { eff[0] = eff[0] + 4; }, false -> { } }, false -> { } }; // Crypto
+                do tok_advance(gs);
+                match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // comma
+            } };
+        };
+        match tok_type(gs, toks) == 22 { true -> { do tok_advance(gs); }, false -> { } }; // ]
+        eff[0]
+    }, false -> 0 }
+}
+
+// Parse a block { stmt; stmt; expr }
+fn parse_block(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    match tok_type(gs, toks) == 17 { true -> { do tok_advance(gs); }, false -> { } }; // {
+    let block_ni: Int = node_alloc(gs, nodes);
+    nodes[block_ni * 10] = 3; // NODE_BLOCK
+    let child_count: Array<Int> = Array(1); child_count[0] = 0;
+    let first_child: Array<Int> = Array(1); first_child[0] = 0 - 1;
+    let last_child: Array<Int> = Array(1); last_child[0] = 0 - 1;
+    for _s in range(0, 999) {
+        match tok_type(gs, toks) == 18 { true -> { }, false -> match tok_type(gs, toks) == 44 { true -> { }, false -> { // not } or EOF
+            let stmt_ni: Int = parse_stmt(gs, toks, nodes, src);
+            match first_child[0] == 0 - 1 {
+                true -> { first_child[0] = stmt_ni; last_child[0] = stmt_ni; },
+                false -> { nodes[last_child[0] * 10 + 6] = stmt_ni; last_child[0] = stmt_ni; },
+            };
+            child_count[0] = child_count[0] + 1;
+            match tok_type(gs, toks) == 41 { true -> { do tok_advance(gs); }, false -> { } }; // ;
+        } } };
+    };
+    match tok_type(gs, toks) == 18 { true -> { do tok_advance(gs); }, false -> { } }; // }
+    nodes[block_ni * 10 + 4] = child_count[0];
+    nodes[block_ni * 10 + 5] = first_child[0];
+    block_ni
+}
+
+// Parse a statement (let, do, for, or expression)
+fn parse_stmt(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    match tok_type(gs, toks) == 1 { true -> parse_let(gs, toks, nodes, src),
+    false -> match tok_type(gs, toks) == 6 { true -> parse_do(gs, toks, nodes, src),
+    false -> match tok_type(gs, toks) == 4 { true -> parse_for(gs, toks, nodes, src),
+    false -> parse_expr(gs, toks, nodes, src)
+    } } }
+}
+
+// Parse let binding: let name: Type = expr
+fn parse_let(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let ni: Int = node_alloc(gs, nodes);
+    nodes[ni * 10] = 4; // NODE_LET
+    do tok_advance(gs); // skip 'let'
+    nodes[ni * 10 + 2] = tok_off(gs, toks); // name
+    nodes[ni * 10 + 3] = tok_len(gs, toks);
+    do tok_advance(gs); // skip name
+    match tok_type(gs, toks) == 40 { true -> { do tok_advance(gs); }, false -> { } }; // :
+    nodes[ni * 10 + 7] = parse_type_ann(gs, toks, nodes, src);
+    match tok_type(gs, toks) == 23 { true -> { do tok_advance(gs); }, false -> { } }; // =
+    nodes[ni * 10 + 5] = parse_expr(gs, toks, nodes, src); // initializer
+    ni
+}
+
+// Parse do expression: do expr
+fn parse_do(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let ni: Int = node_alloc(gs, nodes);
+    nodes[ni * 10] = 15; // NODE_DO_EXPR
+    do tok_advance(gs); // skip 'do'
+    nodes[ni * 10 + 5] = parse_expr(gs, toks, nodes, src);
+    ni
+}
+
+// Parse for loop: for var in range(start, end) { body }
+fn parse_for(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let ni: Int = node_alloc(gs, nodes);
+    nodes[ni * 10] = 18; // NODE_FOR
+    do tok_advance(gs); // skip 'for'
+    nodes[ni * 10 + 2] = tok_off(gs, toks); // var name
+    nodes[ni * 10 + 3] = tok_len(gs, toks);
+    do tok_advance(gs); // skip var name
+    match tok_type(gs, toks) == 5 { true -> { do tok_advance(gs); }, false -> { } }; // 'in'
+    do tok_advance(gs); // skip 'range'
+    match tok_type(gs, toks) == 19 { true -> { do tok_advance(gs); }, false -> { } }; // (
+    let start_ni: Int = parse_expr(gs, toks, nodes, src);
+    match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // ,
+    let end_ni: Int = parse_expr(gs, toks, nodes, src);
+    match tok_type(gs, toks) == 20 { true -> { do tok_advance(gs); }, false -> { } }; // )
+    nodes[ni * 10 + 5] = start_ni;
+    nodes[start_ni * 10 + 6] = end_ni;
+    let body_ni: Int = parse_block(gs, toks, nodes, src);
+    nodes[end_ni * 10 + 6] = body_ni;
+    ni
+}
+
+// Parse an expression (precedence climbing)
+fn parse_expr(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    parse_or(gs, toks, nodes, src)
+}
+
+// Parse || expressions
+fn parse_or(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let left: Int = parse_and(gs, toks, nodes, src);
+    match tok_type(gs, toks) == 36 { true -> { // ||
+        do tok_advance(gs);
+        let right: Int = parse_or(gs, toks, nodes, src);
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 11; nodes[ni * 10 + 1] = 12; // BINOP OR
+        nodes[ni * 10 + 4] = 2; nodes[ni * 10 + 5] = left;
+        nodes[left * 10 + 6] = right;
+        ni
+    }, false -> left }
+}
+
+// Parse && expressions
+fn parse_and(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let left: Int = parse_eq(gs, toks, nodes, src);
+    match tok_type(gs, toks) == 35 { true -> { // &&
+        do tok_advance(gs);
+        let right: Int = parse_and(gs, toks, nodes, src);
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 11; nodes[ni * 10 + 1] = 11; // BINOP AND
+        nodes[ni * 10 + 4] = 2; nodes[ni * 10 + 5] = left;
+        nodes[left * 10 + 6] = right;
+        ni
+    }, false -> left }
+}
+
+// Parse ==, != expressions
+fn parse_eq(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let left: Int = parse_cmp(gs, toks, nodes, src);
+    let tt: Int = tok_type(gs, toks);
+    match tt == 29 { true -> { // ==
+        do tok_advance(gs);
+        let right: Int = parse_cmp(gs, toks, nodes, src);
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 11; nodes[ni * 10 + 1] = 5; // BINOP EQ
+        nodes[ni * 10 + 4] = 2; nodes[ni * 10 + 5] = left;
+        nodes[left * 10 + 6] = right;
+        ni
+    }, false -> match tt == 30 { true -> { // !=
+        do tok_advance(gs);
+        let right2: Int = parse_cmp(gs, toks, nodes, src);
+        let ni2: Int = node_alloc(gs, nodes);
+        nodes[ni2 * 10] = 11; nodes[ni2 * 10 + 1] = 6; // BINOP NE
+        nodes[ni2 * 10 + 4] = 2; nodes[ni2 * 10 + 5] = left;
+        nodes[left * 10 + 6] = right2;
+        ni2
+    }, false -> left } }
+}
+
+// Parse <, >, <=, >= expressions
+fn parse_cmp(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let left: Int = parse_add(gs, toks, nodes, src);
+    let tt: Int = tok_type(gs, toks);
+    match tt == 31 { true -> { do tok_advance(gs); let r: Int = parse_add(gs, toks, nodes, src); let n: Int = node_alloc(gs, nodes); nodes[n*10]=11; nodes[n*10+1]=7; nodes[n*10+4]=2; nodes[n*10+5]=left; nodes[left*10+6]=r; n },
+    false -> match tt == 32 { true -> { do tok_advance(gs); let r: Int = parse_add(gs, toks, nodes, src); let n: Int = node_alloc(gs, nodes); nodes[n*10]=11; nodes[n*10+1]=8; nodes[n*10+4]=2; nodes[n*10+5]=left; nodes[left*10+6]=r; n },
+    false -> match tt == 33 { true -> { do tok_advance(gs); let r: Int = parse_add(gs, toks, nodes, src); let n: Int = node_alloc(gs, nodes); nodes[n*10]=11; nodes[n*10+1]=9; nodes[n*10+4]=2; nodes[n*10+5]=left; nodes[left*10+6]=r; n },
+    false -> match tt == 34 { true -> { do tok_advance(gs); let r: Int = parse_add(gs, toks, nodes, src); let n: Int = node_alloc(gs, nodes); nodes[n*10]=11; nodes[n*10+1]=10; nodes[n*10+4]=2; nodes[n*10+5]=left; nodes[left*10+6]=r; n },
+    false -> left } } } }
+}
+
+// Parse +, - expressions (left-associative via loop)
+fn parse_add(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let result: Array<Int> = Array(1);
+    result[0] = parse_mul(gs, toks, nodes, src);
+    for _a in range(0, 99) {
+        let tt: Int = tok_type(gs, toks);
+        match tt == 24 { true -> { // +
+            do tok_advance(gs);
+            let r: Int = parse_mul(gs, toks, nodes, src);
+            let n: Int = node_alloc(gs, nodes);
+            nodes[n*10]=11; nodes[n*10+1]=0; nodes[n*10+4]=2;
+            nodes[n*10+5]=result[0]; nodes[result[0]*10+6]=r;
+            result[0] = n;
+        }, false -> match tt == 25 { true -> { // -
+            do tok_advance(gs);
+            let r: Int = parse_mul(gs, toks, nodes, src);
+            let n: Int = node_alloc(gs, nodes);
+            nodes[n*10]=11; nodes[n*10+1]=1; nodes[n*10+4]=2;
+            nodes[n*10+5]=result[0]; nodes[result[0]*10+6]=r;
+            result[0] = n;
+        }, false -> { } } };
+    };
+    result[0]
+}
+
+// Parse *, /, % expressions (left-associative)
+fn parse_mul(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let result: Array<Int> = Array(1);
+    result[0] = parse_primary(gs, toks, nodes, src);
+    for _m in range(0, 99) {
+        let tt: Int = tok_type(gs, toks);
+        match tt == 26 { true -> { // *
+            do tok_advance(gs);
+            let r: Int = parse_primary(gs, toks, nodes, src);
+            let n: Int = node_alloc(gs, nodes);
+            nodes[n*10]=11; nodes[n*10+1]=2; nodes[n*10+4]=2;
+            nodes[n*10+5]=result[0]; nodes[result[0]*10+6]=r;
+            result[0] = n;
+        }, false -> match tt == 27 { true -> { // /
+            do tok_advance(gs);
+            let r: Int = parse_primary(gs, toks, nodes, src);
+            let n: Int = node_alloc(gs, nodes);
+            nodes[n*10]=11; nodes[n*10+1]=3; nodes[n*10+4]=2;
+            nodes[n*10+5]=result[0]; nodes[result[0]*10+6]=r;
+            result[0] = n;
+        }, false -> match tt == 28 { true -> { // %
+            do tok_advance(gs);
+            let r: Int = parse_primary(gs, toks, nodes, src);
+            let n: Int = node_alloc(gs, nodes);
+            nodes[n*10]=11; nodes[n*10+1]=4; nodes[n*10+4]=2;
+            nodes[n*10+5]=result[0]; nodes[result[0]*10+6]=r;
+            result[0] = n;
+        }, false -> { } } } };
+    };
+    result[0]
+}
+
+// Parse primary expressions: literals, identifiers, calls, match, blocks
+fn parse_primary(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let tt: Int = tok_type(gs, toks);
+    match tt == 14 { true -> { // LIT_INT
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 7; // NODE_INT_LIT
+        nodes[ni * 10 + 2] = tok_off(gs, toks);
+        nodes[ni * 10 + 3] = tok_len(gs, toks);
+        do tok_advance(gs);
+        ni
+    },
+    false -> match tt == 15 { true -> { // LIT_FLOAT
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 7; nodes[ni * 10 + 7] = 7; // FLOAT type
+        nodes[ni * 10 + 2] = tok_off(gs, toks);
+        nodes[ni * 10 + 3] = tok_len(gs, toks);
+        do tok_advance(gs);
+        ni
+    },
+    false -> match tt == 16 { true -> { // LIT_STRING
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 8; // NODE_STR_LIT
+        nodes[ni * 10 + 2] = tok_off(gs, toks);
+        nodes[ni * 10 + 3] = tok_len(gs, toks);
+        nodes[ni * 10 + 7] = 2; // TYPE_STRING
+        do tok_advance(gs);
+        ni
+    },
+    false -> match tt == 11 { true -> { // KW_TRUE
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 9; nodes[ni * 10 + 8] = 1; // BOOL_LIT true
+        do tok_advance(gs);
+        ni
+    },
+    false -> match tt == 12 { true -> { // KW_FALSE
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 9; nodes[ni * 10 + 8] = 0; // BOOL_LIT false
+        do tok_advance(gs);
+        ni
+    },
+    false -> match tt == 13 { true -> parse_ident_or_call(gs, toks, nodes, src),
+    false -> match tt == 3 { true -> parse_match(gs, toks, nodes, src), // KW_MATCH
+    false -> match tt == 17 { true -> parse_block(gs, toks, nodes, src), // LBRACE
+    false -> match tt == 19 { true -> { // LPAREN — grouped expression
+        do tok_advance(gs); // (
+        let inner: Int = parse_expr(gs, toks, nodes, src);
+        match tok_type(gs, toks) == 20 { true -> { do tok_advance(gs); }, false -> { } }; // )
+        inner
+    },
+    false -> {
+        // Unknown token — emit error node
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 7; // INT_LIT 0 as fallback
+        do tok_advance(gs);
+        ni
+    } } } } } } } } }
+}
+
+// Parse identifier or function call
+fn parse_ident_or_call(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let name_off: Int = tok_off(gs, toks);
+    let name_len: Int = tok_len(gs, toks);
+    do tok_advance(gs); // skip identifier
+    match tok_type(gs, toks) == 19 { true -> { // ( — function call
+        do tok_advance(gs); // skip (
+        let call_ni: Int = node_alloc(gs, nodes);
+        nodes[call_ni * 10] = 14; // NODE_CALL
+        nodes[call_ni * 10 + 2] = name_off;
+        nodes[call_ni * 10 + 3] = name_len;
+        // Parse arguments
+        let arg_count: Array<Int> = Array(1); arg_count[0] = 0;
+        let first_arg: Array<Int> = Array(1); first_arg[0] = 0 - 1;
+        let last_arg: Array<Int> = Array(1); last_arg[0] = 0 - 1;
+        for _a in range(0, 16) {
+            match tok_type(gs, toks) == 20 { true -> { }, false -> { // not )
+                let arg_ni: Int = parse_expr(gs, toks, nodes, src);
+                match first_arg[0] == 0 - 1 {
+                    true -> { first_arg[0] = arg_ni; last_arg[0] = arg_ni; },
+                    false -> { nodes[last_arg[0] * 10 + 6] = arg_ni; last_arg[0] = arg_ni; },
+                };
+                arg_count[0] = arg_count[0] + 1;
+                match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // comma
+            } };
+        };
+        match tok_type(gs, toks) == 20 { true -> { do tok_advance(gs); }, false -> { } }; // )
+        nodes[call_ni * 10 + 4] = arg_count[0];
+        nodes[call_ni * 10 + 5] = first_arg[0];
+        // Check for array access after call: name(...)[idx]
+        match tok_type(gs, toks) == 21 { true -> { // [
+            do tok_advance(gs);
+            let idx_ni: Int = parse_expr(gs, toks, nodes, src);
+            match tok_type(gs, toks) == 22 { true -> { do tok_advance(gs); }, false -> { } }; // ]
+            // Check for assignment
+            match tok_type(gs, toks) == 23 { true -> { // =
+                do tok_advance(gs);
+                let val_ni: Int = parse_expr(gs, toks, nodes, src);
+                let set_ni: Int = node_alloc(gs, nodes);
+                nodes[set_ni * 10] = 21; // ARRAY_SET
+                nodes[set_ni * 10 + 2] = name_off;
+                nodes[set_ni * 10 + 3] = name_len;
+                nodes[set_ni * 10 + 5] = idx_ni;
+                nodes[idx_ni * 10 + 6] = val_ni;
+                set_ni
+            }, false -> {
+                let get_ni: Int = node_alloc(gs, nodes);
+                nodes[get_ni * 10] = 20; // ARRAY_GET
+                nodes[get_ni * 10 + 2] = name_off;
+                nodes[get_ni * 10 + 3] = name_len;
+                nodes[get_ni * 10 + 5] = idx_ni;
+                get_ni
+            } }
+        }, false -> call_ni }
+    }, false -> match tok_type(gs, toks) == 21 { true -> { // [ — array access
+        do tok_advance(gs);
+        let idx_ni: Int = parse_expr(gs, toks, nodes, src);
+        match tok_type(gs, toks) == 22 { true -> { do tok_advance(gs); }, false -> { } }; // ]
+        match tok_type(gs, toks) == 23 { true -> { // = — array set
+            do tok_advance(gs);
+            let val_ni: Int = parse_expr(gs, toks, nodes, src);
+            let set_ni: Int = node_alloc(gs, nodes);
+            nodes[set_ni * 10] = 21; // ARRAY_SET
+            nodes[set_ni * 10 + 2] = name_off;
+            nodes[set_ni * 10 + 3] = name_len;
+            nodes[set_ni * 10 + 5] = idx_ni;
+            nodes[idx_ni * 10 + 6] = val_ni;
+            set_ni
+        }, false -> {
+            let get_ni: Int = node_alloc(gs, nodes);
+            nodes[get_ni * 10] = 20; // ARRAY_GET
+            nodes[get_ni * 10 + 2] = name_off;
+            nodes[get_ni * 10 + 3] = name_len;
+            nodes[get_ni * 10 + 5] = idx_ni;
+            get_ni
+        } }
+    }, false -> {
+        // Simple identifier reference
+        let ni: Int = node_alloc(gs, nodes);
+        nodes[ni * 10] = 10; // NODE_IDENT_REF
+        nodes[ni * 10 + 2] = name_off;
+        nodes[ni * 10 + 3] = name_len;
+        ni
+    } } }
+}
+
+// Parse match expression
+fn parse_match(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let ni: Int = node_alloc(gs, nodes);
+    nodes[ni * 10] = 16; // NODE_MATCH
+    do tok_advance(gs); // skip 'match'
+    // Parse discriminant
+    nodes[ni * 10 + 8] = parse_expr(gs, toks, nodes, src); // extra = discriminant
+    match tok_type(gs, toks) == 17 { true -> { do tok_advance(gs); }, false -> { } }; // {
+    // Parse arms
+    let arm_count: Array<Int> = Array(1); arm_count[0] = 0;
+    let first_arm: Array<Int> = Array(1); first_arm[0] = 0 - 1;
+    let last_arm: Array<Int> = Array(1); last_arm[0] = 0 - 1;
+    for _a in range(0, 32) {
+        match tok_type(gs, toks) == 18 { true -> { }, false -> { // not }
+            let arm_ni: Int = parse_match_arm(gs, toks, nodes, src);
+            match first_arm[0] == 0 - 1 {
+                true -> { first_arm[0] = arm_ni; last_arm[0] = arm_ni; },
+                false -> { nodes[last_arm[0] * 10 + 6] = arm_ni; last_arm[0] = arm_ni; },
+            };
+            arm_count[0] = arm_count[0] + 1;
+            match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // comma
+        } };
+    };
+    match tok_type(gs, toks) == 18 { true -> { do tok_advance(gs); }, false -> { } }; // }
+    nodes[ni * 10 + 4] = arm_count[0];
+    nodes[ni * 10 + 5] = first_arm[0];
+    ni
+}
+
+// Parse a single match arm: pattern -> body
+fn parse_match_arm(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let arm_ni: Int = node_alloc(gs, nodes);
+    nodes[arm_ni * 10] = 17; // NODE_MATCH_ARM
+    let tt: Int = tok_type(gs, toks);
+    // Pattern
+    match tt == 11 { true -> { nodes[arm_ni * 10 + 1] = 0; nodes[arm_ni * 10 + 8] = 1; do tok_advance(gs); }, // true
+    false -> match tt == 12 { true -> { nodes[arm_ni * 10 + 1] = 0; nodes[arm_ni * 10 + 8] = 0; do tok_advance(gs); }, // false
+    false -> match tt == 14 { true -> { // int literal
+        nodes[arm_ni * 10 + 1] = 0;
+        nodes[arm_ni * 10 + 2] = tok_off(gs, toks);
+        nodes[arm_ni * 10 + 3] = tok_len(gs, toks);
+        do tok_advance(gs);
+    },
+    false -> match tt == 16 { true -> { // string literal
+        nodes[arm_ni * 10] = 26; // NODE_MATCH_ARM_STR
+        nodes[arm_ni * 10 + 2] = tok_off(gs, toks);
+        nodes[arm_ni * 10 + 3] = tok_len(gs, toks);
+        nodes[arm_ni * 10 + 8] = gs[4600]; gs[4600] = gs[4600] + 1; // string index
+        do tok_advance(gs);
+    },
+    false -> match tt == 13 { true -> { // identifier — could be ADT constructor or wildcard _
+        let p_off: Int = tok_off(gs, toks);
+        let p_len: Int = tok_len(gs, toks);
+        match p_len == 1 { true -> match src[p_off] == 95 { true -> { // _ wildcard
+            nodes[arm_ni * 10 + 1] = 1;
+            do tok_advance(gs);
+        }, false -> { do tok_advance(gs); } }, false -> { do tok_advance(gs); } };
+    },
+    false -> { do tok_advance(gs); } } } } } };
+    // ->
+    match tok_type(gs, toks) == 38 { true -> { do tok_advance(gs); }, false -> { } };
+    // Body
+    nodes[arm_ni * 10 + 5] = parse_expr(gs, toks, nodes, src);
+    nodes[arm_ni * 10 + 4] = 1; // child_count = 1 (body)
+    arm_ni
+}
+
+// Parse a type declaration: type Name { Variant1, Variant2(field: Type), ... }
+fn parse_type_decl(gs: Array<Int>, toks: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Int {
+    let ni: Int = node_alloc(gs, nodes);
+    nodes[ni * 10] = 22; // NODE_TYPE_DECL
+    do tok_advance(gs); // skip 'type'
+    nodes[ni * 10 + 2] = tok_off(gs, toks);
+    nodes[ni * 10 + 3] = tok_len(gs, toks);
+    do tok_advance(gs); // skip name
+    match tok_type(gs, toks) == 17 { true -> { do tok_advance(gs); }, false -> { } }; // {
+    let var_count: Array<Int> = Array(1); var_count[0] = 0;
+    let first_var: Array<Int> = Array(1); first_var[0] = 0 - 1;
+    let last_var: Array<Int> = Array(1); last_var[0] = 0 - 1;
+    for _v in range(0, 32) {
+        match tok_type(gs, toks) == 18 { true -> { }, false -> { // not }
+            let var_ni: Int = node_alloc(gs, nodes);
+            nodes[var_ni * 10] = 23; // NODE_VARIANT
+            nodes[var_ni * 10 + 1] = var_count[0]; // tag
+            nodes[var_ni * 10 + 2] = tok_off(gs, toks);
+            nodes[var_ni * 10 + 3] = tok_len(gs, toks);
+            do tok_advance(gs); // skip variant name
+            // Optional fields (field: Type, ...)
+            match tok_type(gs, toks) == 19 { true -> { // (
+                do tok_advance(gs);
+                let fc: Array<Int> = Array(1); fc[0] = 0;
+                for _f in range(0, 8) {
+                    match tok_type(gs, toks) == 20 { true -> { }, false -> {
+                        do tok_advance(gs); // field name
+                        match tok_type(gs, toks) == 40 { true -> { do tok_advance(gs); }, false -> { } }; // :
+                        do tok_advance(gs); // type name
+                        // Skip Array<T> if present
+                        match tok_type(gs, toks) == 31 { true -> { do tok_advance(gs); do tok_advance(gs); do tok_advance(gs); }, false -> { } };
+                        fc[0] = fc[0] + 1;
+                        match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // comma
+                    } };
+                };
+                match tok_type(gs, toks) == 20 { true -> { do tok_advance(gs); }, false -> { } }; // )
+                nodes[var_ni * 10 + 4] = fc[0];
+            }, false -> { nodes[var_ni * 10 + 4] = 0; } };
+            match first_var[0] == 0 - 1 {
+                true -> { first_var[0] = var_ni; last_var[0] = var_ni; },
+                false -> { nodes[last_var[0] * 10 + 6] = var_ni; last_var[0] = var_ni; },
+            };
+            var_count[0] = var_count[0] + 1;
+            match tok_type(gs, toks) == 42 { true -> { do tok_advance(gs); }, false -> { } }; // comma
+        } };
+    };
+    match tok_type(gs, toks) == 18 { true -> { do tok_advance(gs); }, false -> { } }; // }
+    nodes[ni * 10 + 4] = var_count[0];
+    nodes[ni * 10 + 5] = first_var[0];
+    ni
+}
