@@ -65569,6 +65569,49 @@ fn_ll_vnew:
     syscall
     mov r10, qword [rbp-16]
     push r10
+    mov rax, 4199
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4800
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    sub rax, rcx
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 36
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
+    mov r10, qword [rbp-16]
+    push r10
     mov rax, 703
     push rax
     mov r10, qword [rbp-32]
@@ -65678,7 +65721,21 @@ fn_ll_vnew:
     push rax
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 36
+    mov rax, 4800
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    sub rax, rcx
     pop r10
     mov rax, qword [r10 + rax*8]
     mov rdi, rax
@@ -65841,7 +65898,21 @@ fn_ll_vnew:
     push rax
     mov r10, qword [rbp-16]
     push r10
-    mov rax, 36
+    mov rax, 4800
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    mov rcx, rax
+    pop rax
+    add rax, rcx
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    sub rax, rcx
     pop r10
     mov rax, qword [r10 + rax*8]
     mov rdi, rax
@@ -65869,6 +65940,23 @@ fn_ll_vnew:
     mov rdx, 1
     mov rax, 1
     syscall
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    push rax
+    mov r10, qword [rbp-16]
+    push r10
+    mov rax, 4199
+    pop r10
+    mov rax, qword [r10 + rax*8]
+    push rax
+    mov rax, 1
+    mov rcx, rax
+    pop rax
+    sub rax, rcx
+    pop rcx
+    pop r10
+    mov qword [r10 + rcx*8], rax
     mov r10, qword [rbp-16]
     push r10
     mov rax, 38

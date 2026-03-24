@@ -3112,18 +3112,23 @@ fn ll_vnew(lv_g: Array<Int>, lv_n: Array<Int>, lv_s: Array<Int>) [IO] -> Int {
     lv_g[37] = ll_tmp(lv_g);
     do print("    %t" + int_to_string(lv_g[37]) + " = getelementptr i64, i64* %t" + int_to_string(lv_g[36]) + ", i64 0");
     do print("    store i64 " + int_to_string(lv_tag) + ", i64* %t" + int_to_string(lv_g[37]));
+    // Save the allocation base pointer temp in a depth-safe slot
+    // g[4800 + depth] holds the bitcast temp for each nesting level
+    lv_g[4199] = lv_g[4199] + 1; // reuse match depth for vnew nesting
+    lv_g[4800 + lv_g[4199] - 1] = lv_g[36]; // save base ptr temp
     // Store fields
     lv_g[703] = lv_n[lv_ni * 10 + 5]; // first child
     for lv_fi in range(0, lv_ac) {
         lv_g[31] = lv_g[703];
-        lv_g[38] = ll_expr(lv_g, lv_n, lv_s);
+        lv_g[38] = ll_expr(lv_g, lv_n, lv_s); // may recurse into ll_vnew!
         lv_g[39] = ll_tmp(lv_g);
-        do print("    %t" + int_to_string(lv_g[39]) + " = getelementptr i64, i64* %t" + int_to_string(lv_g[36]) + ", i64 " + int_to_string(lv_fi + 1));
+        do print("    %t" + int_to_string(lv_g[39]) + " = getelementptr i64, i64* %t" + int_to_string(lv_g[4800 + lv_g[4199] - 1]) + ", i64 " + int_to_string(lv_fi + 1));
         do print("    store i64 %t" + int_to_string(lv_g[38]) + ", i64* %t" + int_to_string(lv_g[39]));
         lv_g[703] = lv_n[lv_g[703] * 10 + 6];
     };
     lv_g[38] = ll_tmp(lv_g);
-    do print("    %t" + int_to_string(lv_g[38]) + " = ptrtoint i64* %t" + int_to_string(lv_g[36]) + " to i64");
+    do print("    %t" + int_to_string(lv_g[38]) + " = ptrtoint i64* %t" + int_to_string(lv_g[4800 + lv_g[4199] - 1]) + " to i64");
+    lv_g[4199] = lv_g[4199] - 1; // restore depth
     lv_g[38]
 }
 
