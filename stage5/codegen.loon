@@ -1,0 +1,366 @@
+// stage5/codegen.loon — NASM x86-64 code generation
+// Takes the AST from stage5/parser.loon and emits x86-64 assembly.
+// This is the NASM backend. The LLVM backend is separate.
+module codegen;
+
+// ========== Entry Point ==========
+
+// Emit a complete program as NASM assembly
+fn emit_program(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    // Data section — string constants
+    do print("section .data");
+    do print("    _newline_byte db 10");
+    do print("    _bump_pos  dq _bump_heap");
+    emit_string_constants(gs, nodes, src);
+    // BSS section
+    do print("");
+    do print("section .bss");
+    do print("    _bump_heap resb 33554432");
+    do print("    _big_stack resb 8388608");
+    do print("    _argc resq 1");
+    do print("    _argv resq 1");
+    // Text section
+    do print("");
+    do print("section .text");
+    do print("global _start");
+    do print("");
+    // User functions
+    for fi in range(0, gs[12]) {
+        match nodes[fi * 10] == 1 { true -> { // FN_DECL
+            gs[30] = fi;
+            do emit_fn(gs, nodes, src);
+        }, false -> { } };
+    };
+    // Entry point
+    do emit_start(gs, nodes, src);
+    // Runtime functions
+    do emit_runtime(gs, nodes, src);
+}
+
+// ========== Function Emission ==========
+
+fn emit_fn(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    let fi: Int = gs[30];
+    let name_off: Int = nodes[fi * 10 + 2];
+    let name_len: Int = nodes[fi * 10 + 3];
+    let param_count: Int = nodes[fi * 10 + 4];
+    let body: Int = nodes[fi * 10 + 8];
+    // Reset variable table
+    gs[50] = 0;
+    // Register params in variable table
+    let pi: Array<Int> = Array(1); pi[0] = nodes[fi * 10 + 5];
+    let soff: Array<Int> = Array(1); soff[0] = 0;
+    for _p in range(0, param_count) {
+        match pi[0] >= 0 { true -> {
+            soff[0] = soff[0] + 16; // 16-byte convention per param
+            // Add to variable table
+            gs[51 + gs[50] * 4] = nodes[pi[0] * 10 + 2]; // name_off
+            gs[51 + gs[50] * 4 + 1] = nodes[pi[0] * 10 + 3]; // name_len
+            gs[51 + gs[50] * 4 + 2] = soff[0]; // stack offset
+            gs[51 + gs[50] * 4 + 3] = nodes[pi[0] * 10 + 7]; // type_info
+            gs[50] = gs[50] + 1;
+            pi[0] = nodes[pi[0] * 10 + 6]; // next param
+        }, false -> { } };
+    };
+    // Walk body for let bindings → assign stack slots
+    gs[33] = soff[0];
+    match body >= 0 { true -> do walk_slots(gs, nodes, body), false -> { } };
+    soff[0] = gs[33];
+    // Round up to 16-byte alignment
+    match soff[0] % 16 == 0 { true -> { }, false -> { soff[0] = soff[0] + 16 - soff[0] % 16; } };
+    match soff[0] == 0 { true -> { soff[0] = 16; }, false -> { } };
+    // Emit function header
+    do print_raw("fn_");
+    for ni in range(0, name_len) { do print_byte(src[name_off + ni]); };
+    do print(":");
+    do print("    push rbp");
+    do print("    mov rbp, rsp");
+    do print("    sub rsp, " + int_to_string(soff[0]));
+    // Save params to stack
+    pi[0] = nodes[fi * 10 + 5]; soff[0] = 0;
+    for _p2 in range(0, param_count) {
+        match pi[0] >= 0 { true -> {
+            soff[0] = soff[0] + 16;
+            // Param registers: rdi/rsi, rdx/rcx, r8/r9
+            // Store ptr+len pair for each param
+            match soff[0] == 16 { true -> { do print("    mov qword [rbp-16], rdi"); do print("    mov qword [rbp-8], rsi"); }, false -> { } };
+            match soff[0] == 32 { true -> { do print("    mov qword [rbp-32], rdx"); do print("    mov qword [rbp-24], rcx"); }, false -> { } };
+            match soff[0] == 48 { true -> { do print("    mov qword [rbp-48], r8"); do print("    mov qword [rbp-40], r9"); }, false -> { } };
+            pi[0] = nodes[pi[0] * 10 + 6];
+        }, false -> { } };
+    };
+    // Emit body
+    match body >= 0 { true -> do emit_block(gs, nodes, src, body), false -> { } };
+    // Epilogue
+    do print("    mov rsp, rbp");
+    do print("    pop rbp");
+    do print("    ret");
+    do print("");
+}
+
+// ========== Stack Slot Walker ==========
+
+fn walk_slots(gs: Array<Int>, nodes: Array<Int>, ni: Int) [] -> Unit {
+    // Iterative walker using explicit stack at gs[2048+]
+    gs[2048] = 0; // stack pointer
+    gs[2049] = ni; gs[2048] = 1; // push initial node
+    for _w in range(0, 99999) {
+        match gs[2048] > 0 { true -> {
+            gs[2048] = gs[2048] - 1;
+            let cur: Int = gs[2049 + gs[2048]];
+            let nt: Int = nodes[cur * 10];
+            // Assign slots for LET and FOR
+            match nt == 4 { true -> { // LET
+                let ti: Int = nodes[cur * 10 + 7];
+                match ti % 16 == 4 { true -> { gs[33] = gs[33] + 16; }, false -> match ti % 16 == 2 { true -> { gs[33] = gs[33] + 16; }, false -> { gs[33] = gs[33] + 8; } } };
+                nodes[cur * 10 + 7] = gs[33] + ti / 16 * 65536; // preserve type_info, add offset
+            }, false -> { } };
+            match nt == 18 { true -> { // FOR
+                gs[33] = gs[33] + 8; // loop var
+                gs[33] = gs[33] + 8; // end cache
+            }, false -> { } };
+            // Push children
+            let fc: Int = nodes[cur * 10 + 5];
+            match fc >= 0 { true -> match gs[2048] < 900 { true -> { gs[2049 + gs[2048]] = fc; gs[2048] = gs[2048] + 1; }, false -> { } }, false -> { } };
+            let ns: Int = nodes[cur * 10 + 6];
+            match ns >= 0 { true -> match gs[2048] < 900 { true -> { gs[2049 + gs[2048]] = ns; gs[2048] = gs[2048] + 1; }, false -> { } }, false -> { } };
+        }, false -> { } };
+    };
+}
+
+// ========== Expression Emission ==========
+
+fn emit_expr(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>, ni: Int) [IO] -> Unit {
+    let nt: Int = nodes[ni * 10];
+    match nt == 7 { true -> { // INT_LIT
+        // Convert string to int and emit mov rax, VALUE
+        do print("    mov rax, " + int_to_string(str2int(src, nodes[ni * 10 + 2], nodes[ni * 10 + 3])));
+    }, false -> match nt == 10 { true -> { // IDENT_REF
+        // Look up variable and load from stack
+        let off: Int = find_var(gs, nodes, src, nodes[ni * 10 + 2], nodes[ni * 10 + 3]);
+        match off > 0 {
+            true -> do print("    mov rax, qword [rbp-" + int_to_string(off) + "]"),
+            false -> { },
+        };
+    }, false -> match nt == 11 { true -> { // BINOP
+        let left: Int = nodes[ni * 10 + 5];
+        let right: Int = nodes[left * 10 + 6];
+        do emit_expr(gs, nodes, src, left);
+        do print("    push rax");
+        do emit_expr(gs, nodes, src, right);
+        do print("    mov rcx, rax");
+        do print("    pop rax");
+        let op: Int = nodes[ni * 10 + 1];
+        match op == 0 { true -> do print("    add rax, rcx"), // +
+        false -> match op == 1 { true -> do print("    sub rax, rcx"), // -
+        false -> match op == 2 { true -> { do print("    imul rax, rcx"); }, // *
+        false -> match op == 3 { true -> { do print("    cqo"); do print("    idiv rcx"); }, // /
+        false -> { } } } } };
+    }, false -> match nt == 14 { true -> { // CALL
+        do emit_call(gs, nodes, src, ni);
+    }, false -> match nt == 8 { true -> { // STR_LIT
+        do print("    lea rax, [rel _s" + int_to_string(nodes[ni * 10 + 8]) + "]");
+        do print("    mov rdx, _s" + int_to_string(nodes[ni * 10 + 8]) + "_len");
+    }, false -> {
+        // Default: emit 0
+        do print("    mov rax, 0 ; unhandled node type " + int_to_string(nt));
+    } } } } } };
+}
+
+// ========== Block Emission ==========
+
+fn emit_block(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>, ni: Int) [IO] -> Unit {
+    let cc: Int = nodes[ni * 10 + 4];
+    let child: Array<Int> = Array(1); child[0] = nodes[ni * 10 + 5];
+    for _c in range(0, cc) {
+        match child[0] >= 0 { true -> {
+            do emit_stmt(gs, nodes, src, child[0]);
+            child[0] = nodes[child[0] * 10 + 6];
+        }, false -> { } };
+    };
+}
+
+// ========== Statement Emission ==========
+
+fn emit_stmt(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>, ni: Int) [IO] -> Unit {
+    let nt: Int = nodes[ni * 10];
+    match nt == 4 { true -> { // LET
+        let init: Int = nodes[ni * 10 + 5];
+        do emit_expr(gs, nodes, src, init);
+        // Store to variable's stack slot
+        let off: Int = find_var(gs, nodes, src, nodes[ni * 10 + 2], nodes[ni * 10 + 3]);
+        do print("    mov qword [rbp-" + int_to_string(off) + "], rax");
+    }, false -> match nt == 15 { true -> { // DO_EXPR
+        do emit_expr(gs, nodes, src, nodes[ni * 10 + 5]);
+    }, false -> match nt == 5 { true -> { // EXPR_STMT
+        do emit_expr(gs, nodes, src, nodes[ni * 10 + 5]);
+    }, false -> {
+        do emit_expr(gs, nodes, src, ni);
+    } } } };
+}
+
+// ========== Call Emission ==========
+
+fn emit_call(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>, ni: Int) [IO] -> Unit {
+    let name_off: Int = nodes[ni * 10 + 2];
+    let name_len: Int = nodes[ni * 10 + 3];
+    // Check builtins
+    match name_len == 5 { true -> match src[name_off] == 112 { true -> { // print
+        let arg: Int = nodes[ni * 10 + 5];
+        do emit_expr(gs, nodes, src, arg);
+        // write(1, rax, rdx)
+        do print("    mov rsi, rax");
+        do print("    mov rdi, 1");
+        do print("    mov rax, 1");
+        do print("    syscall");
+        // newline
+        do print("    lea rsi, [rel _newline_byte]");
+        do print("    mov rdi, 1");
+        do print("    mov rdx, 1");
+        do print("    mov rax, 1");
+        do print("    syscall");
+    }, false -> { do emit_user_call(gs, nodes, src, ni); } }, false ->
+    match name_len == 4 { true -> match src[name_off] == 101 { true -> { // exit
+        let arg2: Int = nodes[ni * 10 + 5];
+        do emit_expr(gs, nodes, src, arg2);
+        do print("    mov rdi, rax");
+        do print("    mov rax, 60");
+        do print("    syscall");
+    }, false -> { do emit_user_call(gs, nodes, src, ni); } }, false -> {
+        do emit_user_call(gs, nodes, src, ni);
+    } } };
+}
+
+fn emit_user_call(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>, ni: Int) [IO] -> Unit {
+    // Evaluate args and push
+    let ac: Int = nodes[ni * 10 + 4];
+    let arg: Array<Int> = Array(1); arg[0] = nodes[ni * 10 + 5];
+    for _a in range(0, ac) {
+        match arg[0] >= 0 { true -> {
+            do emit_expr(gs, nodes, src, arg[0]);
+            do print("    push rax");
+            do print("    push rdx");
+            arg[0] = nodes[arg[0] * 10 + 6];
+        }, false -> { } };
+    };
+    // Pop into registers
+    match ac >= 3 { true -> { do print("    pop r9"); do print("    pop r8"); }, false -> { } };
+    match ac >= 2 { true -> { do print("    pop rcx"); do print("    pop rdx"); }, false -> { } };
+    match ac >= 1 { true -> { do print("    pop rsi"); do print("    pop rdi"); }, false -> { } };
+    // Call
+    do print_raw("    call fn_");
+    for ci in range(0, nodes[ni * 10 + 3]) { do print_byte(src[nodes[ni * 10 + 2] + ci]); };
+    do print("");
+}
+
+// ========== String Constants ==========
+
+fn emit_string_constants(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    let si: Array<Int> = Array(1); si[0] = 0;
+    for ni in range(0, gs[12]) {
+        match nodes[ni * 10] == 8 { true -> { // STR_LIT
+            nodes[ni * 10 + 8] = si[0]; // store string index
+            let off: Int = nodes[ni * 10 + 2];
+            let len: Int = nodes[ni * 10 + 3];
+            do print_raw("    _s" + int_to_string(si[0]) + "    db \"");
+            for ci in range(0, len) { do print_byte(src[off + ci]); };
+            do print("\"");
+            do print("    _s" + int_to_string(si[0]) + "_len equ " + int_to_string(len));
+            si[0] = si[0] + 1;
+        }, false -> { } };
+    };
+}
+
+// ========== Entry Point ==========
+
+fn emit_start(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    do print("_start:");
+    do print("    mov rax, [rsp]");
+    do print("    mov [_argc], rax");
+    do print("    lea rax, [rsp+8]");
+    do print("    mov [_argv], rax");
+    do print("    lea rsp, [_big_stack + 8388608]");
+    do print("    and rsp, -16");
+    do print("    call fn_main");
+    do print("    xor rdi, rdi");
+    do print("    mov rax, 60");
+    do print("    syscall");
+}
+
+// ========== Runtime Functions ==========
+
+fn emit_runtime(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>) [IO] -> Unit {
+    // int_to_string
+    do print("_rt_int_to_string:");
+    do print("    push rbp");
+    do print("    mov rbp, rsp");
+    do print("    sub rsp, 32");
+    do print("    mov rax, rdi");
+    do print("    mov r8, [_bump_pos]");
+    do print("    mov r9, r8");
+    do print("    cmp rax, 0");
+    do print("    jge .itoa_pos");
+    do print("    neg rax");
+    do print("    mov byte [r9], 45");
+    do print("    inc r9");
+    do print(".itoa_pos:");
+    do print("    mov r10, r9");
+    do print(".itoa_loop:");
+    do print("    xor rdx, rdx");
+    do print("    mov rcx, 10");
+    do print("    div rcx");
+    do print("    add dl, 48");
+    do print("    mov byte [r9], dl");
+    do print("    inc r9");
+    do print("    cmp rax, 0");
+    do print("    jne .itoa_loop");
+    do print("    mov r11, r9");
+    do print("    dec r11");
+    do print(".itoa_rev:");
+    do print("    cmp r10, r11");
+    do print("    jge .itoa_done");
+    do print("    mov al, byte [r10]");
+    do print("    mov cl, byte [r11]");
+    do print("    mov byte [r10], cl");
+    do print("    mov byte [r11], al");
+    do print("    inc r10");
+    do print("    dec r11");
+    do print("    jmp .itoa_rev");
+    do print(".itoa_done:");
+    do print("    mov rax, r8");
+    do print("    mov rdx, r9");
+    do print("    sub rdx, r8");
+    do print("    mov [_bump_pos], r9");
+    do print("    mov rsp, rbp");
+    do print("    pop rbp");
+    do print("    ret");
+}
+
+// ========== Helpers ==========
+
+fn find_var(gs: Array<Int>, nodes: Array<Int>, src: Array<Int>, name_off: Int, name_len: Int) [] -> Int {
+    let result: Array<Int> = Array(1); result[0] = 0;
+    for vi in range(0, gs[50]) {
+        match gs[51 + vi * 4 + 1] == name_len { true -> {
+            gs[40] = name_off; gs[41] = gs[51 + vi * 4]; gs[42] = name_len;
+            match name_eq(gs, src) { true -> { result[0] = gs[51 + vi * 4 + 2]; }, false -> { } };
+        }, false -> { } };
+    };
+    result[0]
+}
+
+fn name_eq(gs: Array<Int>, src: Array<Int>) [] -> Bool {
+    let ok: Array<Int> = Array(1); ok[0] = 1;
+    for i in range(0, gs[42]) {
+        match src[gs[40] + i] == src[gs[41] + i] { true -> { }, false -> { ok[0] = 0; } };
+    };
+    match ok[0] == 1 { true -> true, false -> false }
+}
+
+fn str2int(src: Array<Int>, off: Int, len: Int) [] -> Int {
+    let v: Array<Int> = Array(1); v[0] = 0;
+    for i in range(0, len) {
+        v[0] = v[0] * 10 + src[off + i] - 48;
+    };
+    v[0]
+}
