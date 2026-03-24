@@ -1,0 +1,13 @@
+// TEST: binary_tree
+// EXPECT: COMPILES OK, exit 9
+// CATEGORY: structural
+module test;
+type Tree { Leaf(val: Int), Node(left: Tree, right: Tree) }
+fn tree_sum(t: Tree) [] -> Int {
+    match t { Leaf(v) -> v, Node(l, r) -> tree_sum(l) + tree_sum(r) }
+}
+fn main() [IO] -> Unit {
+    let l1: Tree = Leaf(1); let l3: Tree = Leaf(3); let l5: Tree = Leaf(5);
+    let n: Tree = Node(l1, l3); let root: Tree = Node(n, l5);
+    do exit(tree_sum(root));
+}

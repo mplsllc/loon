@@ -1,0 +1,8 @@
+// TEST: gcd
+// EXPECT: COMPILES OK, exit 6
+// CATEGORY: structural
+module test;
+fn gcd(a: Int, b: Int) [] -> Int {
+    match b == 0 { true -> a, false -> gcd(b, a - (a/b)*b) }
+}
+fn main() [IO] -> Unit { do exit(gcd(48, 18)); }

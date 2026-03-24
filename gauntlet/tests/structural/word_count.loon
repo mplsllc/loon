@@ -1,0 +1,16 @@
+// TEST: word_count
+// EXPECT: COMPILES OK, exit 2
+// CATEGORY: structural
+module test;
+fn count_words(src: String) [] -> Int {
+    let slen: Int = string_length(src);
+    let count: Array<Int> = Array(1); count[0] = 0;
+    let in_w: Array<Int> = Array(1); in_w[0] = 0;
+    for i in range(0, slen) {
+        let ch: Int = string_char_at(src, i);
+        match ch == 32 { true -> match in_w[0] == 1 { true -> { in_w[0] = 0; }, false -> { } },
+        false -> match in_w[0] == 0 { true -> { in_w[0] = 1; count[0] = count[0] + 1; }, false -> { } } };
+    };
+    count[0]
+}
+fn main() [IO] -> Unit { do exit(count_words("hello world")); }

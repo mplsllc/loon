@@ -1,0 +1,11 @@
+// TEST: match_negative_pattern
+// EXPECT: COMPILES OK, exit 2
+// CATEGORY: edge
+// Negative match patterns use variables, not 0-N syntax
+module test;
+fn classify(x: Int) [] -> Int {
+    match x > 0 { true -> 1, false -> match x == 0 { true -> 2, false -> 3 } }
+}
+fn main() [IO] -> Unit {
+    do exit(classify(0));
+}

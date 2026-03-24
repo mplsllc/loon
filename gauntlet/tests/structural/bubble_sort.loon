@@ -1,0 +1,17 @@
+// TEST: bubble_sort
+// EXPECT: COMPILES OK, exit 75
+// CATEGORY: structural
+module test;
+fn sort(arr: Array<Int>, len: Int) [] -> Unit {
+    for _p in range(0, len) {
+        for i in range(0, len - 1) {
+            match arr[i] > arr[i+1] { true -> { let t: Int = arr[i]; arr[i] = arr[i+1]; arr[i+1] = t; }, false -> { } };
+        };
+    };
+}
+fn main() [IO] -> Unit {
+    let a: Array<Int> = Array(6);
+    a[0]=64; a[1]=34; a[2]=25; a[3]=12; a[4]=22; a[5]=11;
+    do sort(a, 6);
+    do exit(a[0] + a[5]);
+}
