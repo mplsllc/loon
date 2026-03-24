@@ -1,0 +1,9 @@
+// TEST: generic_result
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: structural
+module test;
+type Result<T, E> { Ok(value: Int), Err(code: Int) }
+fn main() [IO] -> Unit {
+    let r: Result<Int, Int> = Ok(42);
+    do exit(match r { Ok(v) -> v, Err(e) -> e });
+}

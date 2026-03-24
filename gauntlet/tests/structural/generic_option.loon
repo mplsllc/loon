@@ -1,0 +1,12 @@
+// TEST: generic_option
+// EXPECT: COMPILES OK, exit 5
+// CATEGORY: structural
+module test;
+type Option<T> { Some(value: Int), None }
+fn safe_div(a: Int, b: Int) [] -> Option {
+    match b == 0 { true -> None, false -> Some(a / b) }
+}
+fn main() [IO] -> Unit {
+    let r: Option<Int> = safe_div(10, 2);
+    do exit(match r { Some(v) -> v, None -> 0 });
+}
