@@ -1,0 +1,119 @@
+// demo.loon — A complete Loon program demonstrating the language
+// Compile: ./loon demo.loon > demo.asm
+// Build:   nasm -f elf64 -o demo.o demo.asm && ld -o demo demo.o
+// Run:     ./demo
+module demo;
+
+type Option<T> { Some(value: Int), None }
+type List<T> { Cons(head: Int, tail: List), Nil }
+
+fn list_sum(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> h + list_sum(t), Nil -> 0 }
+}
+
+fn list_len(lst: List) [] -> Int {
+    match lst { Cons(h, t) -> 1 + list_len(t), Nil -> 0 }
+}
+
+fn list_map(lst: List, f: Int) [] -> List {
+    match lst { Cons(h, t) -> Cons(f(h), list_map(t, f)), Nil -> Nil }
+}
+
+fn fib(n: Int) [] -> Int {
+    match n <= 1 { true -> n, false -> fib(n - 1) + fib(n - 2) }
+}
+
+fn is_prime(n: Int) [] -> Bool {
+    match n <= 1 { true -> false, false -> {
+        let d: Array<Int> = Array(1); d[0] = 0;
+        for i in range(2, n) {
+            match n - (n / i) * i == 0 { true -> { d[0] = 1; }, false -> { } };
+        };
+        match d[0] == 0 { true -> true, false -> false }
+    } }
+}
+
+fn double(x: Int) [] -> Int { x * 2 }
+fn square(x: Int) [] -> Int { x * x }
+
+fn main() [IO] -> Unit {
+    do print("=== Loon Language Demo ===");
+    do print("");
+
+    // 1. Fibonacci
+    do print("Fibonacci sequence (first 10):");
+    for i in range(0, 10) {
+        do print_raw(int_to_string(fib(i)) + " ");
+    };
+    do print("");
+    do print("");
+
+    // 2. Prime numbers
+    do print("Primes under 30:");
+    for n in range(2, 30) {
+        match is_prime(n) { true -> do print_raw(int_to_string(n) + " "), false -> { } };
+    };
+    do print("");
+    do print("");
+
+    // 3. Linked list with higher-order functions
+    do print("List operations:");
+    let l5: List<Int> = Cons(5, Nil);
+    let l4: List<Int> = Cons(4, l5);
+    let l3: List<Int> = Cons(3, l4);
+    let l2: List<Int> = Cons(2, l3);
+    let l1: List<Int> = Cons(1, l2);
+    do print("  List: [1, 2, 3, 4, 5]");
+    do print("  Sum: " + int_to_string(list_sum(l1)));
+    do print("  Length: " + int_to_string(list_len(l1)));
+
+    // Lambda + map
+    let doubled: List<Int> = list_map(l1, fn(x: Int) [] -> Int { x * 2 });
+    do print("  Doubled: sum=" + int_to_string(list_sum(doubled)));
+
+    let squared: List<Int> = list_map(l1, fn(x: Int) [] -> Int { x * x });
+    do print("  Squared: sum=" + int_to_string(list_sum(squared)));
+    do print("");
+
+    // 4. Generics — Option
+    do print("Option type:");
+    let found: Option<Int> = Some(42);
+    let missing: Option<Int> = None;
+    let v1: Int = match found { Some(v) -> v, None -> 0 };
+    let v2: Int = match missing { Some(v) -> v, None -> 0 };
+    do print("  Some(42) unwrap = " + int_to_string(v1));
+    do print("  None unwrap = " + int_to_string(v2));
+    do print("");
+
+    // 5. Privacy types
+    do print("Privacy types:");
+    let username: Public<String> = "alice";
+    let password: Sensitive<String> = "hunter2";
+    do print("  Username (Public): " + username);
+    // do print("  Password: " + password);  // COMPILE ERROR!
+    do print("  Password: [PROTECTED by Sensitive<String>]");
+    do print("");
+
+    // 6. Bubble sort
+    do print("Bubble sort:");
+    let arr: Array<Int> = Array(6);
+    arr[0] = 64; arr[1] = 34; arr[2] = 25; arr[3] = 12; arr[4] = 22; arr[5] = 11;
+    do print_raw("  Before: ");
+    for i in range(0, 6) { do print_raw(int_to_string(arr[i]) + " "); };
+    do print("");
+    for _p in range(0, 6) {
+        for j in range(0, 5) {
+            match arr[j] > arr[j + 1] {
+                true -> { let t: Int = arr[j]; arr[j] = arr[j+1]; arr[j+1] = t; },
+                false -> { },
+            };
+        };
+    };
+    do print_raw("  After:  ");
+    for i in range(0, 6) { do print_raw(int_to_string(arr[i]) + " "); };
+    do print("");
+    do print("");
+
+    do print("=== All features working ===");
+    do exit(0);
+}
