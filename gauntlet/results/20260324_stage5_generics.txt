@@ -1,0 +1,94 @@
+PASS  deep_nested_match (exit 5)
+PASS  empty_fn_body (exit 0)
+PASS  long_string (exit 0)
+PASS  many_adt_variants (exit 7)
+PASS  many_let_bindings (exit 16)
+PASS  unicode_comment (exit 42)
+PASS  effect_chain_violation
+PASS  io_calls_print_ok (exit 0)
+PASS  pure_calls_exit
+PASS  pure_calls_get_arg
+PASS  pure_calls_io_fn
+PASS  pure_calls_print
+PASS  pure_calls_print_raw
+PASS  pure_calls_pure_ok (exit 10)
+PASS  pure_calls_read
+PASS  pure_no_calls_ok (exit 42)
+PASS  all_variants_covered (exit 6)
+PASS  bool_both_ok (exit 1)
+PASS  bool_missing_true
+PASS  missing_multiple
+PASS  missing_one_variant
+PASS  mixed_field_counts (exit 10)
+PASS  nested_adt_match (exit 3)
+PASS  single_variant_adt (exit 99)
+PASS  wildcard_covers (exit 0)
+PASS  zero_field_variant (exit 0)
+PASS  auth_system (exit 42)
+PASS  privacy_string_param (exit 0)
+PASS  two_privacy_params (exit 0)
+PASS  var_string_concat (exit 0)
+PASS  audit_log_safe (exit 0)
+PASS  downcast_error
+PASS  encrypted_type (exit 0)
+PASS  expose_no_audit
+PASS  expose_ok (exit 0)
+PASS  expose_raw_error
+PASS  expose_result_printable (exit 0)
+PASS  forbidden_md5
+PASS  forbidden_sha1
+PASS  hashed_type (exit 0)
+PASS  log_hashed_error
+PASS  log_public_ok (exit 0)
+PASS  log_sensitive_error
+PASS  same_level_ok (exit 0)
+PASS  sensitive_param
+PASS  upcast_ok (exit 0)
+PASS  zero_on_drop_int (exit 0)
+PASS  zero_on_drop (exit 0)
+PASS  correct_array_set (exit 60)
+PASS  correct_fn_call (exit 30)
+PASS  correct_for_loop (exit 10)
+PASS  correct_let_usage (exit 15)
+PASS  correct_match_binding (exit 25)
+PASS  immutable_reassign
+PASS  undefined_function
+PASS  undefined_var
+PASS  wrong_arg_count_few
+PASS  wrong_arg_count_many
+PASS  adt_construction (exit 25)
+PASS  adt_in_array (exit 15)
+PASS  array_loop (exit 10)
+PASS  complex_expr (exit 17)
+PASS  generic_list (exit 6)
+PASS  generic_option (exit 5)
+PASS  generic_result (exit 42)
+PASS  multi_fn_calls (exit 32)
+PASS  nested_match (exit 7)
+PASS  pipe_chain (exit 11)
+PASS  recursive_fn (exit 55)
+PASS  string_concat (exit 0)
+PASS  string_match (exit 3)
+PASS  call_arg_correct (exit 5)
+PASS  call_arg_wrong_type
+PASS  correct_adt_let (exit 25)
+PASS  correct_int_let (exit 42)
+PASS  correct_return_int (exit 7)
+PASS  correct_string_let (exit 0)
+PASS  int_gets_string
+PASS  return_int_got_string
+PASS  return_string_got_int
+PASS  string_gets_int
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LOON INTEGRITY GAUNTLET
+Date:   2026-03-24
+Commit: 5728171
+────────────────────────────────────────
+Total:       81
+Pass:        81
+Fail:        0
+Known gaps:  0
+Deferred:    0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+0 unexpected failures. Every test behaves as documented.
