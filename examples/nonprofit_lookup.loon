@@ -1,0 +1,114 @@
+// nonprofit_lookup.loon — Publicaid data layer simulation
+// Demonstrates: ADTs, privacy types, Option, Map, List, lambdas
+// Real-world pattern: nonprofit records with mixed public/sensitive fields
+module nonprofit;
+
+type Option<T> { Some(value: Int), None }
+type List<T> { Cons(head: Int, tail: List), Nil }
+
+// Nonprofit record stored as parallel arrays for each field
+// Record layout: [ein_hash, name_hash, contact_hash, api_key_hash]
+// ein and name are Public. contact and api_key are Sensitive.
+
+// Create a record database
+fn db_new(cap: Int) [] -> Array<Int> {
+    let db: Array<Int> = Array(cap * 4 + 1);
+    db[0] = 0; // record count
+    db
+}
+
+// Add a record (ein, name, contact, api_key) to the database
+fn db_add(db: Array<Int>, ein: Int, name: Int, contact: Int, api_key: Int) [] -> Unit {
+    let idx: Int = db[0];
+    db[1 + idx * 4] = ein;
+    db[1 + idx * 4 + 1] = name;
+    db[1 + idx * 4 + 2] = contact;     // Sensitive field
+    db[1 + idx * 4 + 3] = api_key;     // Sensitive field
+    db[0] = idx + 1;
+}
+
+// Look up by EIN (public field) — returns record index or -1
+fn db_find_ein(db: Array<Int>, ein: Int) [] -> Option {
+    let count: Int = db[0];
+    let found: Array<Int> = Array(1); found[0] = 0 - 1;
+    for i in range(0, count) {
+        match db[1 + i * 4] == ein { true -> { found[0] = i; }, false -> { } };
+    };
+    match found[0] >= 0 { true -> Some(found[0]), false -> None }
+}
+
+// Get public field: name (safe to display)
+fn db_get_name(db: Array<Int>, idx: Int) [] -> Int {
+    db[1 + idx * 4 + 1]
+}
+
+// Get contact email — returns Sensitive<Int> conceptually
+// The caller must declare appropriate effects
+fn db_get_contact(db: Array<Int>, idx: Int) [] -> Int {
+    db[1 + idx * 4 + 2]
+}
+
+// Verify API key — compares hash without exposing the key
+fn db_verify_key(db: Array<Int>, idx: Int, key_hash: Int) [] -> Bool {
+    match db[1 + idx * 4 + 3] == key_hash { true -> true, false -> false }
+}
+
+// Count records
+fn db_count(db: Array<Int>) [] -> Int { db[0] }
+
+// List all EINs (public data — safe to enumerate)
+fn db_list_eins(db: Array<Int>) [IO] -> Unit {
+    let count: Int = db[0];
+    for i in range(0, count) {
+        do print("EIN: " + int_to_string(db[1 + i * 4]));
+    };
+}
+
+fn main() [IO] -> Unit {
+    // Build the database
+    let db: Array<Int> = db_new(16);
+    // EIN, Name hash, Contact hash, API key hash
+    do db_add(db, 123456, 1001, 5001, 9001);  // "Food Bank"
+    do db_add(db, 789012, 1002, 5002, 9002);  // "Shelter Inc"
+    do db_add(db, 345678, 1003, 5003, 9003);  // "Health Aid"
+
+    do print("=== Nonprofit Database ===");
+    do print("Records: " + int_to_string(db_count(db)));
+    do db_list_eins(db);
+
+    // Look up a nonprofit by EIN
+    do print("---");
+    do print("Looking up EIN 789012...");
+    let result: Option<Int> = db_find_ein(db, 789012);
+    match result {
+        Some(idx) -> {
+            do print("Found! Name hash: " + int_to_string(db_get_name(db, idx)));
+            // API key verification (no exposure)
+            let key_ok: Bool = db_verify_key(db, idx, 9002);
+            do print("Key valid: " + int_to_string(match key_ok { true -> 1, false -> 0 }));
+            // Contact is sensitive — we CAN read it but privacy types
+            // would prevent logging in a typed version
+            let contact: Int = db_get_contact(db, idx);
+            do print("Contact hash: " + int_to_string(contact));
+        },
+        None -> do print("Not found"),
+    };
+
+    // Look up nonexistent
+    do print("---");
+    do print("Looking up EIN 999999...");
+    let miss: Option<Int> = db_find_ein(db, 999999);
+    match miss {
+        Some(idx) -> do print("Found unexpectedly"),
+        None -> do print("Correctly not found"),
+    };
+
+    // Privacy enforcement: Sensitive<String> values can't be logged
+    let admin_password: Sensitive<String> = "super-secret-admin-pw";
+    // do print(admin_password);  // COMPILE ERROR: cannot log Sensitive value
+    // do print("pw=" + admin_password);  // COMPILE ERROR: privacy through concat
+    do print("---");
+    do print("Admin password protected by type system");
+
+    do exit(db_count(db));
+}

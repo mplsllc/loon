@@ -1,0 +1,54 @@
+// nonprofit_audit.loon — Publicaid data layer with audit trail
+// Shows: expose() for legitimate access, Audit effect propagation
+module nonprofit;
+
+type Option<T> { Some(value: Int), None }
+
+fn db_new(cap: Int) [] -> Array<Int> {
+    let db: Array<Int> = Array(cap * 4 + 1); db[0] = 0; db
+}
+fn db_add(db: Array<Int>, ein: Int, name: Int, contact: Int, key: Int) [] -> Unit {
+    let i: Int = db[0]; db[1+i*4]=ein; db[1+i*4+1]=name; db[1+i*4+2]=contact; db[1+i*4+3]=key; db[0]=i+1;
+}
+fn db_find(db: Array<Int>, ein: Int) [] -> Option {
+    let f: Array<Int> = Array(1); f[0]=0-1;
+    for i in range(0, db[0]) { match db[1+i*4]==ein { true -> { f[0]=i; }, false -> { } }; };
+    match f[0]>=0 { true -> Some(f[0]), false -> None }
+}
+
+// Display contact info — requires Audit effect (mandatory audit trail)
+fn show_contact(db: Array<Int>, idx: Int, reason: String) [IO, Audit] -> Unit {
+    let contact_hash: Int = db[1 + idx * 4 + 2];
+    // In a real system, contact_hash would be a Sensitive<String>.
+    // expose() would be needed to display it.
+    // Here we simulate with the Int hash:
+    let contact_val: Sensitive<String> = "contact@example.org";
+    let visible: Public<String> = expose(contact_val, reason);
+    do print("Contact: " + visible);
+}
+
+fn main() [IO, Audit] -> Unit {
+    let db: Array<Int> = db_new(8);
+    do db_add(db, 123456, 1001, 5001, 9001);
+    do db_add(db, 789012, 1002, 5002, 9002);
+
+    do print("=== Nonprofit Audit Demo ===");
+
+    // Public lookup — no audit needed
+    let r: Option<Int> = db_find(db, 789012);
+    match r {
+        Some(idx) -> {
+            do print("Found nonprofit #" + int_to_string(db[1 + idx * 4]));
+            // Show contact — leaves audit trail
+            do show_contact(db, idx, "user identity verification for grant application");
+        },
+        None -> do print("Not found"),
+    };
+
+    // Privacy enforcement demo
+    let api_key: Sensitive<String> = "sk-live-prod-key";
+    // do print(api_key);  // COMPILE ERROR
+    do print("API key protected");
+
+    do exit(0);
+}
