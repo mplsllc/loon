@@ -1,0 +1,9 @@
+// TEST: chained_concat
+// EXPECT: COMPILES OK, exit 0
+// CATEGORY: structural
+module test;
+fn main() [IO] -> Unit {
+    do print("a" + "b" + "c");
+    do print(int_to_string(1) + " " + int_to_string(2));
+    do exit(0);
+}

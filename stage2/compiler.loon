@@ -932,9 +932,11 @@ fn mkbin(mb_g: Array<Int>, mb_n: Array<Int>, mb_op: Int) [] -> Int {
     let mb_ni: Int = nalloc(mb_g, mb_n);
     mb_n[mb_ni*10]=11; mb_n[mb_ni*10+1]=mb_op; mb_n[mb_ni*10+4]=2;
     mb_n[mb_ni*10+5]=mb_g[18]; mb_n[mb_g[18]*10+6]=mb_g[19];
-    // Propagate type_info: Float (7) wins if either operand is Float
+    // Propagate type_info: Float (7) or String (2) wins if either operand has it
     mb_n[mb_ni*10+7]=mb_n[mb_g[18]*10+7];
     match mb_n[mb_g[19]*10+7] % 16 == 7 { true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[19]*10+7]; }, false -> { } };
+    match mb_n[mb_g[18]*10+7] % 16 == 2 { true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[18]*10+7]; }, false ->
+    match mb_n[mb_g[19]*10+7] % 16 == 2 { true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[19]*10+7]; }, false -> { } } };
     // Propagate privacy: highest privacy level wins
     match mb_n[mb_g[19]*10+7] / 16 > mb_n[mb_g[18]*10+7] / 16 {
         true -> { mb_n[mb_ni*10+7] = mb_n[mb_g[19]*10+7] / 16 * 16 + mb_n[mb_ni*10+7] % 16; },
