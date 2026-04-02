@@ -3292,9 +3292,19 @@ fn ll_ident(li_g: Array<Int>, li_n: Array<Int>, li_s: Array<Int>) [IO] -> Int {
             },
         },
         false -> {
-            do print_raw("    %t" + int_to_string(li_t) + " = add i64 %p_");
-            for li_pi in range(0, li_vlen) { do print_byte(li_s[li_voff + li_pi]); };
-            do print(", 0");
+            li_g[40] = li_voff; li_g[41] = li_vlen;
+            match cg_is_fn(li_g, li_n, li_s) == 1 {
+                true -> {
+                    do print_raw("    %t" + int_to_string(li_t) + " = ptrtoint i64 (i64)* @fn_");
+                    for li_fk in range(0, li_vlen) { do print_byte(li_s[li_voff + li_fk]); };
+                    do print(" to i64");
+                },
+                false -> {
+                    do print_raw("    %t" + int_to_string(li_t) + " = add i64 %p_");
+                    for li_pi in range(0, li_vlen) { do print_byte(li_s[li_voff + li_pi]); };
+                    do print(", 0");
+                },
+            };
         },
     };
     // Set g[761] to the variable's type (7=Float) for callers like ll_binop
