@@ -1216,6 +1216,7 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do emit_line("    mov rax, 60");
     do emit_line("    syscall");
     // Runtime builtins
+    do cg_rt_alloc(cg_g, cg_n, cg_s);
     do cg_rt_itoa(cg_g, cg_n, cg_s);
     do cg_rt_concat(cg_g, cg_n, cg_s);
     do cg_rt_getarg(cg_g, cg_n, cg_s);
@@ -1230,6 +1231,22 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
 }
 
 // ===== Runtime function emitters =====
+
+// _rt_alloc: rdi=size → rax=data_ptr (header is 16 bytes before data_ptr)
+// Header: [size: 8 bytes][mark: 8 bytes][data: N bytes]
+// The mark byte is used by the GC. 0=unmarked, 1=marked.
+fn cg_rt_alloc(ra_g: Array<Int>, ra_n: Array<Int>, ra_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_alloc:");
+    do emit_line("    mov rax, [_bump_pos]");      // current position = header start
+    do emit_line("    mov qword [rax], rdi");       // header: size
+    do emit_line("    mov qword [rax + 8], 0");     // header: mark = 0
+    do emit_line("    add rax, 16");                 // data_ptr = header + 16
+    do emit_line("    push rax");                    // save data_ptr
+    do emit_line("    add rdi, 16");                 // total = header + data
+    do emit_line("    add [_bump_pos], rdi");        // advance bump
+    do emit_line("    pop rax");                     // return data_ptr
+    do emit_line("    ret");
+}
 
 // int_to_string: rdi=int → rax=ptr, rdx=len
 fn cg_rt_itoa(ri_g: Array<Int>, ri_n: Array<Int>, ri_s: Array<Int>) [IO] -> Unit {
@@ -1901,9 +1918,10 @@ fn cg_variant_new(vn_g: Array<Int>, vn_n: Array<Int>, vn_s: Array<Int>) [IO] -> 
     let vn_ni: Int = vn_g[31];
     let vn_tag: Int = vn_n[vn_ni * 10 + 1]; // sub_type = tag
     let vn_ac: Int = vn_n[vn_ni * 10 + 4]; // arg count
-    // Allocate (1 + arg_count) * 8 bytes
-    do print_raw("    mov r10, [_bump_pos]"); do emit_line("");
-    do print_raw("    add qword [_bump_pos], "); do emit_line(int_to_string((1 + vn_ac) * 8));
+    // Allocate (1 + arg_count) * 8 bytes via _rt_alloc
+    do print_raw("    mov rdi, "); do emit_line(int_to_string((1 + vn_ac) * 8));
+    do emit_line("    call _rt_alloc");
+    do emit_line("    mov r10, rax");
     // Store tag at [r10]
     do print_raw("    mov qword [r10], "); do emit_line(int_to_string(vn_tag));
     // Evaluate and store each field
@@ -2040,10 +2058,10 @@ fn cg_arynew(an_g: Array<Int>, an_n: Array<Int>, an_s: Array<Int>) [IO] -> Unit 
     do cg_expr(an_g, an_n, an_s); // g[31] already set to size expr by caller
     do emit_line("    mov rcx, rax"); // save count
     do emit_line("    shl rax, 3");   // bytes = count * 8
-    do emit_line("    mov rdi, [_bump_pos]");
-    do emit_line("    add [_bump_pos], rax");
-    do emit_line("    mov rax, rdi"); // ptr
-    do emit_line("    mov rdx, rcx"); // len = count
+    do emit_line("    mov rdi, rax"); // size for _rt_alloc
+    do emit_line("    push rcx");     // save count across call
+    do emit_line("    call _rt_alloc"); // rax = data ptr
+    do emit_line("    pop rdx");      // rdx = count (len)
 }
 
 // arr[i]: load element — arr ptr in rax, arr len in rdx (from var load), index in g[31]
