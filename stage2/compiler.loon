@@ -967,7 +967,20 @@ fn chk_exhaust(ce_g: Array<Int>, ce_n: Array<Int>) [IO] -> Unit {
         let ce_covered: Array<Int> = Array(1); ce_covered[0] = 0;
         for ce_vi in range(0, ce_vc) { ce_covered[0] = ce_covered[0] + ce_seen[ce_vi]; };
         match ce_covered[0] == ce_vc { true -> { }, false -> {
-            do print("error: non-exhaustive match");
+            do print_raw("error: non-exhaustive match — missing: ");
+            let ce_base: Int = 1024 + ce_type_idx[0] * 64;
+            for ce_mi in range(0, ce_vc) {
+                match ce_seen[ce_mi] == 0 {
+                    true -> {
+                        let ce_vno: Int = ce_g[ce_base + 3 + ce_mi * 3];
+                        let ce_vnl: Int = ce_g[ce_base + 3 + ce_mi * 3 + 1];
+                        for ce_ch in range(0, ce_vnl) { do print_byte(ce_n[200000 + ce_vno + ce_ch]); };
+                        do print_raw(" ");
+                    },
+                    false -> { },
+                };
+            };
+            do print("");
             do exit(1);
         } };
     }, false -> { } }, false -> { } };
