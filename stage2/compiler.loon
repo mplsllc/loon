@@ -1176,6 +1176,8 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     do emit_line("    _bump_heap resb 33554432");
     do emit_line("    _big_stack resb 8388608");
     do emit_line("    _capture_slots resb 800");
+    do emit_line("    _gc_free_list resq 1");
+    do emit_line("    _gc_threshold resq 1");
     do emit_line("    _argc resq 1");
     do emit_line("    _argv resq 1");
     do emit_line("");
@@ -1211,12 +1213,16 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
     // Switch to a larger stack (8MB dedicated area)
     do emit_line("    lea rsp, [_big_stack + 8388608]");
     do emit_line("    and rsp, -16");
+    do emit_line("    lea rax, [_bump_heap + 33554432]"); // threshold = full heap (GC never auto-triggers)
+    do emit_line("    mov [_gc_threshold], rax");
+    do emit_line("    mov qword [_gc_free_list], 0");
     do emit_line("    call fn_main");
     do emit_line("    xor rdi, rdi");
     do emit_line("    mov rax, 60");
     do emit_line("    syscall");
     // Runtime builtins
     do cg_rt_alloc(cg_g, cg_n, cg_s);
+    do cg_rt_gc(cg_g, cg_n, cg_s);
     do cg_rt_itoa(cg_g, cg_n, cg_s);
     do cg_rt_concat(cg_g, cg_n, cg_s);
     do cg_rt_getarg(cg_g, cg_n, cg_s);
@@ -1237,6 +1243,12 @@ fn cg_emit(cg_g: Array<Int>, cg_n: Array<Int>, cg_s: Array<Int>) [IO] -> Unit {
 // The mark byte is used by the GC. 0=unmarked, 1=marked.
 fn cg_rt_alloc(ra_g: Array<Int>, ra_n: Array<Int>, ra_s: Array<Int>) [IO] -> Unit {
     do emit_line("_rt_alloc:");
+    // Check GC threshold
+    do emit_line("    mov rax, [_bump_pos]"); do emit_line("    add rax, rdi"); do emit_line("    add rax, 16");
+    do emit_line("    cmp rax, [_gc_threshold]"); do emit_line("    jl .alloc_ok");
+    do emit_line("    push rdi"); do emit_line("    call _rt_gc_collect"); do emit_line("    pop rdi");
+    do emit_line(".alloc_ok:");
+    // Allocate with header
     do emit_line("    mov rax, [_bump_pos]");      // current position = header start
     do emit_line("    mov qword [rax], rdi");       // header: size
     do emit_line("    mov qword [rax + 8], 0");     // header: mark = 0
@@ -1246,6 +1258,56 @@ fn cg_rt_alloc(ra_g: Array<Int>, ra_n: Array<Int>, ra_s: Array<Int>) [IO] -> Uni
     do emit_line("    add [_bump_pos], rdi");        // advance bump
     do emit_line("    pop rax");                     // return data_ptr
     do emit_line("    ret");
+}
+
+// GC runtime: conservative mark-and-sweep
+fn cg_rt_gc(gc_g: Array<Int>, gc_n: Array<Int>, gc_s: Array<Int>) [IO] -> Unit {
+    do emit_line("_rt_gc_maybe_mark:");
+    do emit_line("    lea rcx, [rel _bump_heap]");
+    do emit_line("    cmp rax, rcx"); do emit_line("    jl .gcm_not");
+    do emit_line("    cmp rax, [_bump_pos]"); do emit_line("    jge .gcm_not");
+    do emit_line("    sub rax, 16");
+    do emit_line("    cmp qword [rax + 8], 1"); do emit_line("    je .gcm_not");
+    do emit_line("    mov qword [rax + 8], 1");
+    do emit_line("    mov rcx, [rax]"); do emit_line("    lea rsi, [rax + 16]");
+    do emit_line(".gcm_scan:");
+    do emit_line("    cmp rcx, 8"); do emit_line("    jl .gcm_not");
+    do emit_line("    push rsi"); do emit_line("    push rcx");
+    do emit_line("    mov rax, [rsi]"); do emit_line("    call _rt_gc_maybe_mark");
+    do emit_line("    pop rcx"); do emit_line("    pop rsi");
+    do emit_line("    add rsi, 8"); do emit_line("    sub rcx, 8"); do emit_line("    jmp .gcm_scan");
+    do emit_line(".gcm_not:"); do emit_line("    ret");
+    do emit_line("_rt_gc_roots:");
+    do emit_line("    mov rsi, rsp"); do emit_line("    lea rdi, [_big_stack + 8388608]");
+    do emit_line(".gcr_stack:");
+    do emit_line("    cmp rsi, rdi"); do emit_line("    jge .gcr_caps");
+    do emit_line("    push rsi"); do emit_line("    push rdi");
+    do emit_line("    mov rax, [rsi]"); do emit_line("    call _rt_gc_maybe_mark");
+    do emit_line("    pop rdi"); do emit_line("    pop rsi");
+    do emit_line("    add rsi, 8"); do emit_line("    jmp .gcr_stack");
+    do emit_line(".gcr_caps:");
+    do emit_line("    lea rsi, [rel _capture_slots]"); do emit_line("    mov rcx, 100");
+    do emit_line(".gcr_cap:");
+    do emit_line("    cmp rcx, 0"); do emit_line("    je .gcr_done");
+    do emit_line("    push rsi"); do emit_line("    push rcx");
+    do emit_line("    mov rax, [rsi]"); do emit_line("    call _rt_gc_maybe_mark");
+    do emit_line("    pop rcx"); do emit_line("    pop rsi");
+    do emit_line("    add rsi, 8"); do emit_line("    dec rcx"); do emit_line("    jmp .gcr_cap");
+    do emit_line(".gcr_done:"); do emit_line("    ret");
+    do emit_line("_rt_gc_sweep:");
+    do emit_line("    lea rsi, [rel _bump_heap]");
+    do emit_line(".gcs_loop:");
+    do emit_line("    cmp rsi, [_bump_pos]"); do emit_line("    jge .gcs_done");
+    do emit_line("    mov rax, [rsi]");
+    do emit_line("    cmp qword [rsi + 8], 1"); do emit_line("    je .gcs_live");
+    do emit_line("    jmp .gcs_next");
+    do emit_line(".gcs_live:"); do emit_line("    mov qword [rsi + 8], 0");
+    do emit_line(".gcs_next:"); do emit_line("    add rax, 16"); do emit_line("    add rsi, rax"); do emit_line("    jmp .gcs_loop");
+    do emit_line(".gcs_done:"); do emit_line("    ret");
+    do emit_line("_rt_gc_collect:");
+    do emit_line("    push rbp"); do emit_line("    mov rbp, rsp");
+    do emit_line("    call _rt_gc_roots"); do emit_line("    call _rt_gc_sweep");
+    do emit_line("    mov rsp, rbp"); do emit_line("    pop rbp"); do emit_line("    ret");
 }
 
 // int_to_string: rdi=int → rax=ptr, rdx=len
@@ -4116,7 +4178,7 @@ fn main() [IO] -> Unit {
     let slen: Int = string_length(source);
     let gs: Array<Int> = Array(8192);
     let gb: Array<Int> = Array(524288);
-    let gt: Array<Int> = Array(300000);
+    let gt: Array<Int> = Array(400000);
     let gn: Array<Int> = Array(700000);
     gs[910] = match a1len == 6 { true -> 1, false -> 0 };
     gs[915] = mf[0];
