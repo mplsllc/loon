@@ -176,6 +176,18 @@ fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
     false -> do chk_bi2(bi_g, bi_s) } } } }
 }
 // chk_bi2 — check builtins with longer names
+// chk_bi3 — second half of builtin lookup chain (13-20)
+fn chk_bi3(b3_g: Array<Int>, b3_s: Array<Int>) [] -> Int {
+    match str_eq(b3_g, b3_s, "string_equals") { true -> 13,
+    false -> match str_eq(b3_g, b3_s, "float_to_string") { true -> 14,
+    false -> match str_eq(b3_g, b3_s, "expose") { true -> 15,
+    false -> match str_eq(b3_g, b3_s, "substring") { true -> 16,
+    false -> match str_eq(b3_g, b3_s, "string_starts_with") { true -> 17,
+    false -> match str_eq(b3_g, b3_s, "string_index_of") { true -> 18,
+    false -> match str_eq(b3_g, b3_s, "string_contains") { true -> 19,
+    false -> match str_eq(b3_g, b3_s, "string_trim") { true -> 20,
+    false -> 0 } } } } } } } }
+}
 fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     match str_eq(b2_g, b2_s, "string_char_at") { true -> 6,
     false -> match str_eq(b2_g, b2_s, "read_file") { true -> 7,
@@ -185,15 +197,8 @@ fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     false -> match str_eq(b2_g, b2_s, "Array") { true -> 11,
     false -> match str_eq(b2_g, b2_s, "range") { true -> 12,
     false -> match str_eq(b2_g, b2_s, "string_concat") { true -> 5,
-    false -> match str_eq(b2_g, b2_s, "string_equals") { true -> 13,
-    false -> match str_eq(b2_g, b2_s, "float_to_string") { true -> 14,
-    false -> match str_eq(b2_g, b2_s, "expose") { true -> 15,
-    false -> match str_eq(b2_g, b2_s, "substring") { true -> 16,
-    false -> match str_eq(b2_g, b2_s, "string_starts_with") { true -> 17,
-    false -> match str_eq(b2_g, b2_s, "string_index_of") { true -> 18,
-    false -> match str_eq(b2_g, b2_s, "string_contains") { true -> 19,
-    false -> match str_eq(b2_g, b2_s, "string_trim") { true -> 20,
-    false -> 0 } } } } } } } } } } } } } } } }
+    false -> chk_bi3(b2_g, b2_s)
+    } } } } } } } }
 }
 
 // ===== Parser =====
