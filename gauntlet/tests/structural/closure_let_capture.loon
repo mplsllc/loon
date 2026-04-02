@@ -1,0 +1,10 @@
+// TEST: closure_let_capture
+// EXPECT: COMPILES OK, exit 42
+// CATEGORY: structural
+module test;
+fn apply(f: Int, x: Int) [] -> Int { f(x) }
+fn main() [IO] -> Unit {
+    let offset: Int = 10;
+    let f: Int = fn(x: Int) [] -> Int { x + offset };
+    do exit(apply(f, 32));
+}

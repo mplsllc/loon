@@ -1,0 +1,10 @@
+// TEST: closure_multi_capture
+// EXPECT: COMPILES OK, exit 35
+// CATEGORY: structural
+module test;
+fn apply(f: Int, x: Int) [] -> Int { f(x) }
+fn main() [IO] -> Unit {
+    let a: Int = 10;
+    let b: Int = 20;
+    do exit(apply(fn(x: Int) [] -> Int { x + a + b }, 5));
+}

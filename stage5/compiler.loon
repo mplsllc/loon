@@ -1842,7 +1842,9 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
     let cl_lid: Int = cl_g[32]; cl_g[32] = cl_g[32] + 1;
     // Save outer variable table state + capture setup
     let cl_sv50: Int = cl_g[50];
-    let cl_cap_count: Int = match cl_sv50 > 0 { true -> cl_sv50 - 1, false -> 0 };
+    // If in LET context (g[7099]==1): skip the last variable (being defined)
+    // If inline (g[7099]==0): capture all variables
+    let cl_cap_count: Int = match cl_g[7099] == 1 { true -> match cl_sv50 > 0 { true -> cl_sv50 - 1, false -> 0 }, false -> cl_sv50 };
     // Save and emit capture stores (BEFORE jumping past lambda)
     do cg_cap_save(cl_g, cl_n, cl_s, cl_cap_count);
     // Jump past the lambda body
@@ -2381,8 +2383,8 @@ fn cg_pop_args(pa_n: Int) [IO] -> Unit {
 fn cg_let(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
     let cl_ni: Int = cl_g[31];
     let cl_init: Int = cl_n[cl_ni * 10 + 5]; // first_child = initializer
-    // Evaluate initializer
-    cl_g[31] = cl_init; do cg_expr(cl_g, cl_n, cl_s);
+    // Evaluate initializer (set flag for lambda capture context)
+    cl_g[7099] = 1; cl_g[31] = cl_init; do cg_expr(cl_g, cl_n, cl_s); cl_g[7099] = 0;
     // Find this variable's stack offset
     cl_g[40] = cl_n[cl_ni * 10 + 2]; cl_g[41] = cl_n[cl_ni * 10 + 3];
     let cl_off: Int = cg_find_var(cl_g, cl_s);
