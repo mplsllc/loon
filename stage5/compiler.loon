@@ -2776,74 +2776,68 @@ fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> U
 }
 
 // Return type check: verify last expression in body matches declared return type
+// tc_ret_find_last — find last child node of a block (the return expression)
+fn tc_ret_find_last(rl_n: Array<Int>, rl_body: Int) [] -> Int {
+    let rl_cc: Int = rl_n[rl_body * 10 + 4];
+    match rl_cc >= 1 { true -> {
+        let rl_cur: Array<Int> = Array(1); rl_cur[0] = rl_n[rl_body * 10 + 5];
+        for _rl in range(0, rl_cc - 1) {
+            let rl_ns: Int = rl_n[rl_cur[0] * 10 + 6];
+            match rl_ns >= 1 { true -> { rl_cur[0] = rl_ns; }, false -> { } };
+        };
+        rl_cur[0]
+    }, false -> 0 - 1 }
+}
+
+// tc_ret_check_priv — check IDENT_REF return for privacy downcast
+fn tc_ret_check_priv(rp_g: Array<Int>, rp_n: Array<Int>, rp_s: Array<Int>, rp_expr: Int, rp_fi: Int, rp_ret: Int) [IO] -> Unit {
+    let rp_voff: Int = rp_n[rp_expr * 10 + 2];
+    let rp_vlen: Int = rp_n[rp_expr * 10 + 3];
+    for rp_vi in range(rp_fi, rp_fi + 200) {
+        match rp_vi < rp_g[12] { true -> {
+            let rp_vnt: Int = rp_n[rp_vi * 10];
+            match rp_vnt == 2 { true -> match rp_n[rp_vi * 10 + 3] == rp_vlen { true -> {
+                rp_g[40] = rp_voff; rp_g[41] = rp_n[rp_vi * 10 + 2]; rp_g[42] = rp_vlen;
+                match cg_name_eq(rp_g, rp_s) { true -> match rp_n[rp_vi * 10 + 7] / 16 > rp_ret / 16 { true -> {
+                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
+                    rp_g[911] = rp_g[911] + 1;
+                }, false -> { } }, false -> { } };
+            }, false -> { } }, false -> { } };
+            match rp_vnt == 4 { true -> match rp_n[rp_vi * 10 + 3] == rp_vlen { true -> {
+                rp_g[40] = rp_voff; rp_g[41] = rp_n[rp_vi * 10 + 2]; rp_g[42] = rp_vlen;
+                match cg_name_eq(rp_g, rp_s) { true -> match rp_n[rp_vi * 10 + 7] / 16 > rp_ret / 16 { true -> {
+                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
+                    rp_g[911] = rp_g[911] + 1;
+                }, false -> { } }, false -> { } };
+            }, false -> { } }, false -> { } };
+        }, false -> { } };
+    };
+}
+
+// tc_check_return — verify last expression type matches declared return type
 fn tc_check_return(tr_g: Array<Int>, tr_n: Array<Int>, tr_s: Array<Int>) [IO] -> Unit {
     for tr_fi in range(0, tr_g[12]) {
         match tr_n[tr_fi * 10] == 1 { true -> {
-            let tr_ret_type: Int = tr_n[tr_fi * 10 + 7]; // declared return type (0=Int, 2=String)
-            let tr_body: Int = tr_n[tr_fi * 10 + 8]; // body block node
+            let tr_ret_type: Int = tr_n[tr_fi * 10 + 7];
+            let tr_body: Int = tr_n[tr_fi * 10 + 8];
             match tr_body >= 1 { true -> {
-                // Find last child of block — that's the return expression
-                let tr_cc: Int = tr_n[tr_body * 10 + 4]; // child count
-                match tr_cc >= 1 { true -> {
-                    // Walk sibling chain to find last child
-                    let tr_cur: Array<Int> = Array(1); tr_cur[0] = tr_n[tr_body * 10 + 5];
-                    for _tr in range(0, tr_cc - 1) {
-                        let tr_ns: Int = tr_n[tr_cur[0] * 10 + 6];
-                        match tr_ns >= 1 { true -> { tr_cur[0] = tr_ns; }, false -> { } };
-                    };
-                    // tr_cur[0] = last child. Check if it's RETURN_EXPR (type 6)
-                    let tr_last: Int = tr_cur[0];
-                    match tr_n[tr_last * 10] == 6 { true -> {
-                        // RETURN_EXPR — check its child's type
-                        let tr_expr: Int = tr_n[tr_last * 10 + 5];
-                        match tr_expr >= 1 { true -> {
-                            let tr_expr_nt: Int = tr_n[tr_expr * 10];
-                            // Only check unambiguous literal returns
-                            let tr_actual: Int = match tr_expr_nt == 8 { true -> 2, false -> match tr_expr_nt == 7 { true -> 0, false -> match tr_expr_nt == 9 { true -> 0, false -> 0 - 1 } } };
-                            match tr_actual >= 0 { true -> {
-                                match tr_ret_type % 16 == 0 { true -> match tr_actual == 2 { true -> {
-                                    tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=0; tr_g[908]=2;
-                                    do tc_error(tr_g, tr_n, tr_s);
-                                }, false -> { } }, false -> { } };
-                                match tr_ret_type % 16 == 2 { true -> match tr_actual == 0 { true -> {
-                                    tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=2; tr_g[908]=0;
-                                    do tc_error(tr_g, tr_n, tr_s);
-                                }, false -> { } }, false -> { } };
-                            }, false -> { } };
-                            // Check IDENT_REF return: privacy downcast
-                            match tr_expr_nt == 10 { true -> {
-                                // Look up the variable's type by name
-                                let tr_voff: Int = tr_n[tr_expr * 10 + 2];
-                                let tr_vlen: Int = tr_n[tr_expr * 10 + 3];
-                                // Scan params and let bindings for this variable
-                                for tr_vi in range(tr_fi, tr_fi + 200) {
-                                    match tr_vi < tr_g[12] { true -> {
-                                        let tr_vnt: Int = tr_n[tr_vi * 10];
-                                        match tr_vnt == 2 { true -> match tr_n[tr_vi * 10 + 3] == tr_vlen { true -> {
-                                            tr_g[40] = tr_voff; tr_g[41] = tr_n[tr_vi * 10 + 2]; tr_g[42] = tr_vlen;
-                                            match cg_name_eq(tr_g, tr_s) { true -> {
-                                                // Found: check privacy downcast
-                                                match tr_n[tr_vi * 10 + 7] / 16 > tr_ret_type / 16 { true -> {
-                                                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
-                                                    tr_g[911] = tr_g[911] + 1;
-                                                }, false -> { } };
-                                            }, false -> { } };
-                                        }, false -> { } }, false -> { } };
-                                        match tr_vnt == 4 { true -> match tr_n[tr_vi * 10 + 3] == tr_vlen { true -> {
-                                            tr_g[40] = tr_voff; tr_g[41] = tr_n[tr_vi * 10 + 2]; tr_g[42] = tr_vlen;
-                                            match cg_name_eq(tr_g, tr_s) { true -> {
-                                                match tr_n[tr_vi * 10 + 7] / 16 > tr_ret_type / 16 { true -> {
-                                                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
-                                                    tr_g[911] = tr_g[911] + 1;
-                                                }, false -> { } };
-                                            }, false -> { } };
-                                        }, false -> { } }, false -> { } };
-                                    }, false -> { } };
-                                };
-                            }, false -> { } };
+                let tr_last: Int = tc_ret_find_last(tr_n, tr_body);
+                match tr_last >= 0 { true -> match tr_n[tr_last * 10] == 6 { true -> {
+                    let tr_expr: Int = tr_n[tr_last * 10 + 5];
+                    match tr_expr >= 1 { true -> {
+                        let tr_nt: Int = tr_n[tr_expr * 10];
+                        let tr_actual: Int = match tr_nt == 8 { true -> 2, false -> match tr_nt == 7 { true -> 0, false -> match tr_nt == 9 { true -> 0, false -> 0 - 1 } } };
+                        match tr_actual >= 0 { true -> {
+                            match tr_ret_type % 16 == 0 { true -> match tr_actual == 2 { true -> {
+                                tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=0; tr_g[908]=2; do tc_error(tr_g, tr_n, tr_s);
+                            }, false -> { } }, false -> { } };
+                            match tr_ret_type % 16 == 2 { true -> match tr_actual == 0 { true -> {
+                                tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=2; tr_g[908]=0; do tc_error(tr_g, tr_n, tr_s);
+                            }, false -> { } }, false -> { } };
                         }, false -> { } };
+                        match tr_nt == 10 { true -> do tc_ret_check_priv(tr_g, tr_n, tr_s, tr_expr, tr_fi, tr_ret_type), false -> { } };
                     }, false -> { } };
-                }, false -> { } };
+                }, false -> { } }, false -> { } };
             }, false -> { } };
         }, false -> { } };
     };
