@@ -2662,108 +2662,114 @@ fn tc_check_undef(tu_g: Array<Int>, tu_n: Array<Int>, tu_s: Array<Int>) [IO] -> 
 }
 
 // Wrong argument count check: compare CALL child_count against FN_DECL param_count
+// tc_args_priv — check privacy downcast for one arg-param pair
+// g[4200]=arg node, g[4202]=param type. If arg is IDENT_REF with higher privacy → error.
+fn tc_args_priv(ap_g: Array<Int>, ap_n: Array<Int>, ap_s: Array<Int>, ap_call_ni: Int) [IO] -> Unit {
+    match ap_n[ap_g[4200] * 10] == 10 { true -> {
+        ap_g[4205] = 0 - 1;
+        for ap_vi in range(0, ap_call_ni) {
+            ap_g[4206] = ap_n[ap_vi * 10];
+            match ap_g[4206] == 4 { true -> {
+                ap_g[40] = ap_n[ap_g[4200] * 10 + 2]; ap_g[42] = ap_n[ap_g[4200] * 10 + 3];
+                ap_g[41] = ap_n[ap_vi * 10 + 2];
+                match ap_g[42] == ap_n[ap_vi * 10 + 3] { true -> match cg_name_eq(ap_g, ap_s) { true -> { ap_g[4205] = ap_n[ap_vi * 10 + 7]; }, false -> { } }, false -> { } };
+            }, false -> { } };
+            match ap_g[4206] == 2 { true -> {
+                ap_g[40] = ap_n[ap_g[4200] * 10 + 2]; ap_g[42] = ap_n[ap_g[4200] * 10 + 3];
+                ap_g[41] = ap_n[ap_vi * 10 + 2];
+                match ap_g[42] == ap_n[ap_vi * 10 + 3] { true -> match cg_name_eq(ap_g, ap_s) { true -> { ap_g[4205] = ap_n[ap_vi * 10 + 7]; }, false -> { } }, false -> { } };
+            }, false -> { } };
+        };
+        match ap_g[4205] >= 0 { true -> match ap_g[4205] / 16 > ap_g[4202] / 16 { true -> {
+            do print("error: cannot pass Sensitive value to less restrictive parameter — use expose()");
+            ap_g[911] = ap_g[911] + 1;
+        }, false -> { } }, false -> { } };
+    }, false -> { } };
+}
+
+// tc_args_undef — check if undefined call name is a local variable (function pointer)
+fn tc_args_undef(au_g: Array<Int>, au_n: Array<Int>, au_s: Array<Int>, au_call_ni: Int) [IO] -> Unit {
+    au_g[40] = au_n[au_call_ni * 10 + 2]; au_g[42] = au_n[au_call_ni * 10 + 3];
+    let au_is_var: Array<Int> = Array(1); au_is_var[0] = 0;
+    let au_fn_start: Array<Int> = Array(1); au_fn_start[0] = 0;
+    for au_si in range(0, au_call_ni) {
+        match au_n[au_si * 10] == 1 { true -> { au_fn_start[0] = au_si; }, false -> { } };
+    };
+    for au_vi in range(au_fn_start[0], au_call_ni) {
+        let au_vnt: Int = au_n[au_vi * 10];
+        match au_vnt == 2 { true -> {
+            match au_n[au_vi * 10 + 3] == au_g[42] { true -> {
+                au_g[41] = au_n[au_vi * 10 + 2];
+                match cg_name_eq(au_g, au_s) { true -> { au_is_var[0] = 1; }, false -> { } };
+            }, false -> { } };
+        }, false -> match au_vnt == 4 { true -> {
+            match au_n[au_vi * 10 + 3] == au_g[42] { true -> {
+                au_g[41] = au_n[au_vi * 10 + 2];
+                match cg_name_eq(au_g, au_s) { true -> { au_is_var[0] = 1; }, false -> { } };
+            }, false -> { } };
+        }, false -> { } } };
+    };
+    match au_is_var[0] == 0 { true -> {
+        au_g[905] = au_call_ni; au_g[906] = 6; au_g[907] = 0; au_g[908] = 0;
+        do tc_error(au_g, au_n, au_s);
+    }, false -> { } };
+}
+
+// tc_args_types — check arg count + types for one CALL against its FN_DECL
+fn tc_args_types(at_g: Array<Int>, at_n: Array<Int>, at_s: Array<Int>, at_call_ni: Int) [IO] -> Int {
+    let at_call_ac: Int = at_n[at_call_ni * 10 + 4];
+    at_g[40] = at_n[at_call_ni * 10 + 2]; at_g[41] = at_n[at_call_ni * 10 + 3];
+    let at_found: Array<Int> = Array(1); at_found[0] = 0;
+    for at_fi in range(0, at_g[12]) {
+        match at_n[at_fi * 10] == 1 { true -> {
+            match at_n[at_fi * 10 + 3] == at_g[41] { true -> {
+                at_g[42] = at_g[41];
+                let at_sv41: Int = at_g[41];
+                at_g[41] = at_n[at_fi * 10 + 2];
+                match cg_name_eq(at_g, at_s) { true -> {
+                    let at_expected: Int = at_n[at_fi * 10 + 4];
+                    match at_expected == at_call_ac { true -> { }, false -> {
+                        at_g[905] = at_call_ni; at_g[906] = 4; at_g[907] = at_expected; at_g[908] = at_call_ac;
+                        do tc_error(at_g, at_n, at_s);
+                    } };
+                    at_found[0] = 1;
+                    // Check arg types
+                    at_g[4200] = at_n[at_call_ni * 10 + 5];
+                    at_g[4201] = at_n[at_fi * 10 + 5];
+                    for _atc in range(0, at_expected) {
+                        match at_g[4200] >= 1 { true -> match at_g[4201] >= 1 { true -> {
+                            at_g[4202] = at_n[at_g[4201] * 10 + 7];
+                            at_g[4203] = at_n[at_g[4200] * 10];
+                            at_g[4204] = 0 - 1;
+                            match at_g[4203] == 7 { true -> { at_g[4204] = 0; }, false -> { } };
+                            match at_g[4203] == 8 { true -> { at_g[4204] = 2; }, false -> { } };
+                            match at_g[4203] == 9 { true -> { at_g[4204] = 1; }, false -> { } };
+                            match at_g[4204] >= 0 { true -> match at_g[4204] == at_g[4202] { true -> { }, false -> {
+                                at_g[905] = at_call_ni; at_g[906] = 1; at_g[907] = at_g[4202]; at_g[908] = at_g[4204];
+                                do tc_error(at_g, at_n, at_s);
+                            } }, false -> { } };
+                            do tc_args_priv(at_g, at_n, at_s, at_call_ni);
+                            at_g[4200] = at_n[at_g[4200] * 10 + 6];
+                            at_g[4201] = at_n[at_g[4201] * 10 + 6];
+                        }, false -> { } }, false -> { } };
+                    };
+                }, false -> { } };
+                at_g[41] = at_sv41;
+            }, false -> { } };
+        }, false -> { } };
+    };
+    at_found[0]
+}
+
+// tc_check_args — orchestrator: for each CALL, check args + types + undefined
 fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> Unit {
     for ta_ni in range(0, ta_g[12]) {
         match ta_n[ta_ni * 10] == 14 { true -> {
-            // CALL node — look up function and compare arg counts
-            let ta_call_ac: Int = ta_n[ta_ni * 10 + 4]; // actual arg count
             ta_g[40] = ta_n[ta_ni * 10 + 2]; ta_g[41] = ta_n[ta_ni * 10 + 3];
-            // Skip builtins (str_eq would match them)
             let ta_is_bi: Int = chk_bi(ta_g, ta_s);
             match ta_is_bi == 0 { true -> {
-                // User function — find FN_DECL and get param count
-                let ta_found: Array<Int> = Array(1); ta_found[0] = 0;
-                for ta_fi in range(0, ta_g[12]) {
-                    match ta_n[ta_fi * 10] == 1 { true -> {
-                        match ta_n[ta_fi * 10 + 3] == ta_g[41] { true -> {
-                            ta_g[42] = ta_g[41];
-                            let ta_sv41: Int = ta_g[41];
-                            ta_g[41] = ta_n[ta_fi * 10 + 2];
-                            match cg_name_eq(ta_g, ta_s) { true -> {
-                                let ta_expected: Int = ta_n[ta_fi * 10 + 4];
-                                match ta_expected == ta_call_ac { true -> { }, false -> {
-                                    ta_g[905] = ta_ni; ta_g[906] = 4; ta_g[907] = ta_expected; ta_g[908] = ta_call_ac;
-                                    do tc_error(ta_g, ta_n, ta_s);
-                                } };
-                                ta_found[0] = 1;
-                                // Check arg types against param types
-                                ta_g[4200] = ta_n[ta_ni * 10 + 5]; // first arg node
-                                ta_g[4201] = ta_n[ta_fi * 10 + 5]; // first param node
-                                for _tca in range(0, ta_expected) {
-                                    match ta_g[4200] >= 1 { true -> match ta_g[4201] >= 1 { true -> {
-                                        ta_g[4202] = ta_n[ta_g[4201] * 10 + 7]; // param declared type
-                                        // Infer arg type: 7=INT_LIT→0, 8=STR_LIT→2, 9=BOOL_LIT→1
-                                        ta_g[4203] = ta_n[ta_g[4200] * 10]; // arg node type
-                                        ta_g[4204] = 0 - 1; // inferred type, -1 = unknown
-                                        match ta_g[4203] == 7 { true -> { ta_g[4204] = 0; }, false -> { } };
-                                        match ta_g[4203] == 8 { true -> { ta_g[4204] = 2; }, false -> { } };
-                                        match ta_g[4203] == 9 { true -> { ta_g[4204] = 1; }, false -> { } };
-                                        // Check mismatch (only when both types known)
-                                        match ta_g[4204] >= 0 { true -> match ta_g[4204] == ta_g[4202] { true -> { }, false -> {
-                                            ta_g[905] = ta_ni; ta_g[906] = 1; ta_g[907] = ta_g[4202]; ta_g[908] = ta_g[4204];
-                                            do tc_error(ta_g, ta_n, ta_s);
-                                        } }, false -> { } };
-                                        // Privacy downcast check: if arg is IDENT_REF, compare privacy levels
-                                        match ta_g[4203] == 10 { true -> {
-                                            // Look up arg variable's type_info
-                                            ta_g[4205] = 0 - 1;
-                                            for ta_vi in range(0, ta_ni) {
-                                                ta_g[4206] = ta_n[ta_vi * 10];
-                                                match ta_g[4206] == 4 { true -> {
-                                                    ta_g[40] = ta_n[ta_g[4200] * 10 + 2]; ta_g[42] = ta_n[ta_g[4200] * 10 + 3];
-                                                    ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                                    match ta_g[42] == ta_n[ta_vi * 10 + 3] { true -> match cg_name_eq(ta_g, ta_s) { true -> { ta_g[4205] = ta_n[ta_vi * 10 + 7]; }, false -> { } }, false -> { } };
-                                                }, false -> { } };
-                                                match ta_g[4206] == 2 { true -> {
-                                                    ta_g[40] = ta_n[ta_g[4200] * 10 + 2]; ta_g[42] = ta_n[ta_g[4200] * 10 + 3];
-                                                    ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                                    match ta_g[42] == ta_n[ta_vi * 10 + 3] { true -> match cg_name_eq(ta_g, ta_s) { true -> { ta_g[4205] = ta_n[ta_vi * 10 + 7]; }, false -> { } }, false -> { } };
-                                                }, false -> { } };
-                                            };
-                                            match ta_g[4205] >= 0 { true -> match ta_g[4205] / 16 > ta_g[4202] / 16 { true -> {
-                                                do print("error: cannot pass Sensitive value to less restrictive parameter — use expose()");
-                                                ta_g[911] = ta_g[911] + 1;
-                                            }, false -> { } }, false -> { } };
-                                        }, false -> { } };
-                                        ta_g[4200] = ta_n[ta_g[4200] * 10 + 6]; // next arg
-                                        ta_g[4201] = ta_n[ta_g[4201] * 10 + 6]; // next param
-                                    }, false -> { } }, false -> { } };
-                                };
-                            }, false -> { } };
-                            ta_g[41] = ta_sv41;
-                        }, false -> { } };
-                    }, false -> { } };
-                };
-                // Undefined function check — skip if callee is a local variable (function pointer)
-                match ta_found[0] == 0 { true -> {
-                    // Scan the current function's scope for a matching variable name
-                    ta_g[40] = ta_n[ta_ni * 10 + 2]; ta_g[42] = ta_n[ta_ni * 10 + 3];
-                    let ta_is_var: Array<Int> = Array(1); ta_is_var[0] = 0;
-                    // Find enclosing FN_DECL
-                    let ta_fn_start: Array<Int> = Array(1); ta_fn_start[0] = 0;
-                    for ta_si in range(0, ta_ni) {
-                        match ta_n[ta_si * 10] == 1 { true -> { ta_fn_start[0] = ta_si; }, false -> { } };
-                    };
-                    // Scan from fn_start to ta_ni for PARAM(2) and LET(4) nodes
-                    for ta_vi in range(ta_fn_start[0], ta_ni) {
-                        let ta_vnt: Int = ta_n[ta_vi * 10];
-                        match ta_vnt == 2 { true -> {
-                            match ta_n[ta_vi * 10 + 3] == ta_g[42] { true -> {
-                                ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                match cg_name_eq(ta_g, ta_s) { true -> { ta_is_var[0] = 1; }, false -> { } };
-                            }, false -> { } };
-                        }, false -> match ta_vnt == 4 { true -> {
-                            match ta_n[ta_vi * 10 + 3] == ta_g[42] { true -> {
-                                ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                match cg_name_eq(ta_g, ta_s) { true -> { ta_is_var[0] = 1; }, false -> { } };
-                            }, false -> { } };
-                        }, false -> { } } };
-                    };
-                    match ta_is_var[0] == 0 { true -> {
-                        ta_g[905] = ta_ni; ta_g[906] = 6; ta_g[907] = 0; ta_g[908] = 0;
-                        do tc_error(ta_g, ta_n, ta_s);
-                    }, false -> { } }; // Variable found — allow indirect call
-                }, false -> { } };
+                let ta_found: Int = tc_args_types(ta_g, ta_n, ta_s, ta_ni);
+                match ta_found == 0 { true -> do tc_args_undef(ta_g, ta_n, ta_s, ta_ni), false -> { } };
             }, false -> { } };
         }, false -> { } };
     };
