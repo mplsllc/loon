@@ -1796,6 +1796,41 @@ fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit 
 
 // Variant constructor: Circle(5) → bump-allocate [tag, field0, field1, ...]
 // cg_lambda — emit lambda as inline function, return its address
+// cg_cap_save — store outer variables to _capture_slots before lambda jmp
+// g[7100+i*4] = saved outer variable table entries
+// cap_count = number of captures (outer var count - 1, skipping the LET being defined)
+fn cg_cap_save(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>, cs_count: Int) [IO] -> Unit {
+    // Save outer variable table to g[7100+]
+    for cs_i in range(0, cs_count) {
+        cs_g[7100 + cs_i * 4] = cs_g[51 + cs_i * 4];
+        cs_g[7100 + cs_i * 4 + 1] = cs_g[51 + cs_i * 4 + 1];
+        cs_g[7100 + cs_i * 4 + 2] = cs_g[51 + cs_i * 4 + 2];
+        cs_g[7100 + cs_i * 4 + 3] = cs_g[51 + cs_i * 4 + 3];
+    };
+    // Emit stores to _capture_slots
+    for cs_j in range(0, cs_count) {
+        let cs_off: Int = cs_g[7100 + cs_j * 4 + 2];
+        match cs_off >= 10000 { true -> { }, false -> {
+            do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cs_off)); do emit_line("]");
+            do print_raw("    mov qword [rel _capture_slots + "); do print_raw(int_to_string(cs_j * 8)); do emit_line("], rax");
+        } };
+    };
+}
+
+// cg_cap_register — register captured outer variables in lambda's variable table
+// Reads from g[7100+] (saved by cg_cap_save), registers with offset 10000+index
+fn cg_cap_register(cr_g: Array<Int>, cr_count: Int) [] -> Unit {
+    for cr_i in range(0, cr_count) {
+        let cr_vi: Int = cr_g[50];
+        cr_g[51 + cr_vi * 4] = cr_g[7100 + cr_i * 4];
+        cr_g[51 + cr_vi * 4 + 1] = cr_g[7100 + cr_i * 4 + 1];
+        cr_g[51 + cr_vi * 4 + 2] = 10000 + cr_i;
+        cr_g[51 + cr_vi * 4 + 3] = cr_g[7100 + cr_i * 4 + 3];
+        cr_g[50] = cr_vi + 1;
+    };
+}
+
+// cg_lambda — emit lambda as inline function, return its address
 // Supports captures: outer variables stored to _capture_slots before jmp,
 // loaded from _capture_slots inside the lambda body.
 fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
@@ -1805,8 +1840,11 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
     let cl_pc: Int = cl_n[cl_ni * 10 + 4]; // param count
     let cl_body: Int = cl_n[cl_ni * 10 + 8]; // body block
     let cl_lid: Int = cl_g[32]; cl_g[32] = cl_g[32] + 1;
-    // Save outer variable table state
+    // Save outer variable table state + capture setup
     let cl_sv50: Int = cl_g[50];
+    let cl_cap_count: Int = match cl_sv50 > 0 { true -> cl_sv50 - 1, false -> 0 };
+    // Save and emit capture stores (BEFORE jumping past lambda)
+    do cg_cap_save(cl_g, cl_n, cl_s, cl_cap_count);
     // Jump past the lambda body
     do print_raw("    jmp _lam_end_"); do emit_line(int_to_string(cl_lid));
     // Emit the function
@@ -1824,14 +1862,14 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
         cl_g[34] = cl_pi[0]; cl_g[35] = cl_soff[0]; do cg_add_var(cl_g, cl_n, cl_s);
         cl_pi[0] = cl_n[cl_pi[0] * 10 + 6];
     };
-    // Walk body for let bindings
+    // Walk body for let bindings (BEFORE registering captures — captures don't need stack slots)
     cl_g[33] = cl_soff[0];
     match cl_body >= 0 { true -> { cl_g[31] = cl_body; do cg_walk_slots(cl_g, cl_n, cl_s); }, false -> { } };
     cl_soff[0] = cl_g[33];
     match cl_soff[0] % 16 == 0 { true -> { }, false -> { cl_soff[0] = cl_soff[0] + 16 - cl_soff[0] % 16; } };
     match cl_soff[0] == 0 { true -> { cl_soff[0] = 16; }, false -> { } };
     do print_raw("    sub rsp, "); do emit_line(int_to_string(cl_soff[0]));
-    // Store params from registers to stack slots
+    // Store params from registers to stack slots (BEFORE capture registration)
     let cl_ri: Array<Int> = Array(1); cl_ri[0] = 0;
     let cl_sp: Array<Int> = Array(1); cl_sp[0] = cl_n[cl_ni * 10 + 5];
     for _cls in range(0, cl_pc) {
@@ -1842,6 +1880,8 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
         false -> { do cg_store_reg(cl_ri[0], cl_vix); cl_ri[0] = cl_ri[0] + 2; } } };
         cl_sp[0] = cl_n[cl_sp[0] * 10 + 6];
     };
+    // NOW register captures (after param stores are done, so g[50] offset is correct)
+    do cg_cap_register(cl_g, cl_cap_count);
     // Emit body
     cl_g[31] = cl_body; do cg_block(cl_g, cl_n, cl_s);
     do emit_line("    mov rsp, rbp");

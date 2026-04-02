@@ -176,6 +176,18 @@ fn chk_bi(bi_g: Array<Int>, bi_s: Array<Int>) [] -> Int {
     false -> do chk_bi2(bi_g, bi_s) } } } }
 }
 // chk_bi2 — check builtins with longer names
+// chk_bi3 — second half of builtin lookup chain (13-20)
+fn chk_bi3(b3_g: Array<Int>, b3_s: Array<Int>) [] -> Int {
+    match str_eq(b3_g, b3_s, "string_equals") { true -> 13,
+    false -> match str_eq(b3_g, b3_s, "float_to_string") { true -> 14,
+    false -> match str_eq(b3_g, b3_s, "expose") { true -> 15,
+    false -> match str_eq(b3_g, b3_s, "substring") { true -> 16,
+    false -> match str_eq(b3_g, b3_s, "string_starts_with") { true -> 17,
+    false -> match str_eq(b3_g, b3_s, "string_index_of") { true -> 18,
+    false -> match str_eq(b3_g, b3_s, "string_contains") { true -> 19,
+    false -> match str_eq(b3_g, b3_s, "string_trim") { true -> 20,
+    false -> 0 } } } } } } } }
+}
 fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     match str_eq(b2_g, b2_s, "string_char_at") { true -> 6,
     false -> match str_eq(b2_g, b2_s, "read_file") { true -> 7,
@@ -185,15 +197,8 @@ fn chk_bi2(b2_g: Array<Int>, b2_s: Array<Int>) [] -> Int {
     false -> match str_eq(b2_g, b2_s, "Array") { true -> 11,
     false -> match str_eq(b2_g, b2_s, "range") { true -> 12,
     false -> match str_eq(b2_g, b2_s, "string_concat") { true -> 5,
-    false -> match str_eq(b2_g, b2_s, "string_equals") { true -> 13,
-    false -> match str_eq(b2_g, b2_s, "float_to_string") { true -> 14,
-    false -> match str_eq(b2_g, b2_s, "expose") { true -> 15,
-    false -> match str_eq(b2_g, b2_s, "substring") { true -> 16,
-    false -> match str_eq(b2_g, b2_s, "string_starts_with") { true -> 17,
-    false -> match str_eq(b2_g, b2_s, "string_index_of") { true -> 18,
-    false -> match str_eq(b2_g, b2_s, "string_contains") { true -> 19,
-    false -> match str_eq(b2_g, b2_s, "string_trim") { true -> 20,
-    false -> 0 } } } } } } } } } } } } } } } }
+    false -> chk_bi3(b2_g, b2_s)
+    } } } } } } } }
 }
 
 // ===== Parser =====
@@ -1791,6 +1796,41 @@ fn cg_marm_b(ab_g: Array<Int>, ab_n: Array<Int>, ab_s: Array<Int>) [IO] -> Unit 
 
 // Variant constructor: Circle(5) → bump-allocate [tag, field0, field1, ...]
 // cg_lambda — emit lambda as inline function, return its address
+// cg_cap_save — store outer variables to _capture_slots before lambda jmp
+// g[7100+i*4] = saved outer variable table entries
+// cap_count = number of captures (outer var count - 1, skipping the LET being defined)
+fn cg_cap_save(cs_g: Array<Int>, cs_n: Array<Int>, cs_s: Array<Int>, cs_count: Int) [IO] -> Unit {
+    // Save outer variable table to g[7100+]
+    for cs_i in range(0, cs_count) {
+        cs_g[7100 + cs_i * 4] = cs_g[51 + cs_i * 4];
+        cs_g[7100 + cs_i * 4 + 1] = cs_g[51 + cs_i * 4 + 1];
+        cs_g[7100 + cs_i * 4 + 2] = cs_g[51 + cs_i * 4 + 2];
+        cs_g[7100 + cs_i * 4 + 3] = cs_g[51 + cs_i * 4 + 3];
+    };
+    // Emit stores to _capture_slots
+    for cs_j in range(0, cs_count) {
+        let cs_off: Int = cs_g[7100 + cs_j * 4 + 2];
+        match cs_off >= 10000 { true -> { }, false -> {
+            do print_raw("    mov rax, qword [rbp-"); do print_raw(int_to_string(cs_off)); do emit_line("]");
+            do print_raw("    mov qword [rel _capture_slots + "); do print_raw(int_to_string(cs_j * 8)); do emit_line("], rax");
+        } };
+    };
+}
+
+// cg_cap_register — register captured outer variables in lambda's variable table
+// Reads from g[7100+] (saved by cg_cap_save), registers with offset 10000+index
+fn cg_cap_register(cr_g: Array<Int>, cr_count: Int) [] -> Unit {
+    for cr_i in range(0, cr_count) {
+        let cr_vi: Int = cr_g[50];
+        cr_g[51 + cr_vi * 4] = cr_g[7100 + cr_i * 4];
+        cr_g[51 + cr_vi * 4 + 1] = cr_g[7100 + cr_i * 4 + 1];
+        cr_g[51 + cr_vi * 4 + 2] = 10000 + cr_i;
+        cr_g[51 + cr_vi * 4 + 3] = cr_g[7100 + cr_i * 4 + 3];
+        cr_g[50] = cr_vi + 1;
+    };
+}
+
+// cg_lambda — emit lambda as inline function, return its address
 // Supports captures: outer variables stored to _capture_slots before jmp,
 // loaded from _capture_slots inside the lambda body.
 fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit {
@@ -1800,8 +1840,11 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
     let cl_pc: Int = cl_n[cl_ni * 10 + 4]; // param count
     let cl_body: Int = cl_n[cl_ni * 10 + 8]; // body block
     let cl_lid: Int = cl_g[32]; cl_g[32] = cl_g[32] + 1;
-    // Save outer variable table state
+    // Save outer variable table state + capture setup
     let cl_sv50: Int = cl_g[50];
+    let cl_cap_count: Int = match cl_sv50 > 0 { true -> cl_sv50 - 1, false -> 0 };
+    // Save and emit capture stores (BEFORE jumping past lambda)
+    do cg_cap_save(cl_g, cl_n, cl_s, cl_cap_count);
     // Jump past the lambda body
     do print_raw("    jmp _lam_end_"); do emit_line(int_to_string(cl_lid));
     // Emit the function
@@ -1819,14 +1862,14 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
         cl_g[34] = cl_pi[0]; cl_g[35] = cl_soff[0]; do cg_add_var(cl_g, cl_n, cl_s);
         cl_pi[0] = cl_n[cl_pi[0] * 10 + 6];
     };
-    // Walk body for let bindings
+    // Walk body for let bindings (BEFORE registering captures — captures don't need stack slots)
     cl_g[33] = cl_soff[0];
     match cl_body >= 0 { true -> { cl_g[31] = cl_body; do cg_walk_slots(cl_g, cl_n, cl_s); }, false -> { } };
     cl_soff[0] = cl_g[33];
     match cl_soff[0] % 16 == 0 { true -> { }, false -> { cl_soff[0] = cl_soff[0] + 16 - cl_soff[0] % 16; } };
     match cl_soff[0] == 0 { true -> { cl_soff[0] = 16; }, false -> { } };
     do print_raw("    sub rsp, "); do emit_line(int_to_string(cl_soff[0]));
-    // Store params from registers to stack slots
+    // Store params from registers to stack slots (BEFORE capture registration)
     let cl_ri: Array<Int> = Array(1); cl_ri[0] = 0;
     let cl_sp: Array<Int> = Array(1); cl_sp[0] = cl_n[cl_ni * 10 + 5];
     for _cls in range(0, cl_pc) {
@@ -1837,6 +1880,8 @@ fn cg_lambda(cl_g: Array<Int>, cl_n: Array<Int>, cl_s: Array<Int>) [IO] -> Unit 
         false -> { do cg_store_reg(cl_ri[0], cl_vix); cl_ri[0] = cl_ri[0] + 2; } } };
         cl_sp[0] = cl_n[cl_sp[0] * 10 + 6];
     };
+    // NOW register captures (after param stores are done, so g[50] offset is correct)
+    do cg_cap_register(cl_g, cl_cap_count);
     // Emit body
     cl_g[31] = cl_body; do cg_block(cl_g, cl_n, cl_s);
     do emit_line("    mov rsp, rbp");
@@ -2662,375 +2707,369 @@ fn tc_check_undef(tu_g: Array<Int>, tu_n: Array<Int>, tu_s: Array<Int>) [IO] -> 
 }
 
 // Wrong argument count check: compare CALL child_count against FN_DECL param_count
+// tc_args_priv — check privacy downcast for one arg-param pair
+// g[4200]=arg node, g[4202]=param type. If arg is IDENT_REF with higher privacy → error.
+fn tc_args_priv(ap_g: Array<Int>, ap_n: Array<Int>, ap_s: Array<Int>, ap_call_ni: Int) [IO] -> Unit {
+    match ap_n[ap_g[4200] * 10] == 10 { true -> {
+        ap_g[4205] = 0 - 1;
+        for ap_vi in range(0, ap_call_ni) {
+            ap_g[4206] = ap_n[ap_vi * 10];
+            match ap_g[4206] == 4 { true -> {
+                ap_g[40] = ap_n[ap_g[4200] * 10 + 2]; ap_g[42] = ap_n[ap_g[4200] * 10 + 3];
+                ap_g[41] = ap_n[ap_vi * 10 + 2];
+                match ap_g[42] == ap_n[ap_vi * 10 + 3] { true -> match cg_name_eq(ap_g, ap_s) { true -> { ap_g[4205] = ap_n[ap_vi * 10 + 7]; }, false -> { } }, false -> { } };
+            }, false -> { } };
+            match ap_g[4206] == 2 { true -> {
+                ap_g[40] = ap_n[ap_g[4200] * 10 + 2]; ap_g[42] = ap_n[ap_g[4200] * 10 + 3];
+                ap_g[41] = ap_n[ap_vi * 10 + 2];
+                match ap_g[42] == ap_n[ap_vi * 10 + 3] { true -> match cg_name_eq(ap_g, ap_s) { true -> { ap_g[4205] = ap_n[ap_vi * 10 + 7]; }, false -> { } }, false -> { } };
+            }, false -> { } };
+        };
+        match ap_g[4205] >= 0 { true -> match ap_g[4205] / 16 > ap_g[4202] / 16 { true -> {
+            do print("error: cannot pass Sensitive value to less restrictive parameter — use expose()");
+            ap_g[911] = ap_g[911] + 1;
+        }, false -> { } }, false -> { } };
+    }, false -> { } };
+}
+
+// tc_args_undef — check if undefined call name is a local variable (function pointer)
+fn tc_args_undef(au_g: Array<Int>, au_n: Array<Int>, au_s: Array<Int>, au_call_ni: Int) [IO] -> Unit {
+    au_g[40] = au_n[au_call_ni * 10 + 2]; au_g[42] = au_n[au_call_ni * 10 + 3];
+    let au_is_var: Array<Int> = Array(1); au_is_var[0] = 0;
+    let au_fn_start: Array<Int> = Array(1); au_fn_start[0] = 0;
+    for au_si in range(0, au_call_ni) {
+        match au_n[au_si * 10] == 1 { true -> { au_fn_start[0] = au_si; }, false -> { } };
+    };
+    for au_vi in range(au_fn_start[0], au_call_ni) {
+        let au_vnt: Int = au_n[au_vi * 10];
+        match au_vnt == 2 { true -> {
+            match au_n[au_vi * 10 + 3] == au_g[42] { true -> {
+                au_g[41] = au_n[au_vi * 10 + 2];
+                match cg_name_eq(au_g, au_s) { true -> { au_is_var[0] = 1; }, false -> { } };
+            }, false -> { } };
+        }, false -> match au_vnt == 4 { true -> {
+            match au_n[au_vi * 10 + 3] == au_g[42] { true -> {
+                au_g[41] = au_n[au_vi * 10 + 2];
+                match cg_name_eq(au_g, au_s) { true -> { au_is_var[0] = 1; }, false -> { } };
+            }, false -> { } };
+        }, false -> { } } };
+    };
+    match au_is_var[0] == 0 { true -> {
+        au_g[905] = au_call_ni; au_g[906] = 6; au_g[907] = 0; au_g[908] = 0;
+        do tc_error(au_g, au_n, au_s);
+    }, false -> { } };
+}
+
+// tc_args_types — check arg count + types for one CALL against its FN_DECL
+fn tc_args_types(at_g: Array<Int>, at_n: Array<Int>, at_s: Array<Int>, at_call_ni: Int) [IO] -> Int {
+    let at_call_ac: Int = at_n[at_call_ni * 10 + 4];
+    at_g[40] = at_n[at_call_ni * 10 + 2]; at_g[41] = at_n[at_call_ni * 10 + 3];
+    let at_found: Array<Int> = Array(1); at_found[0] = 0;
+    for at_fi in range(0, at_g[12]) {
+        match at_n[at_fi * 10] == 1 { true -> {
+            match at_n[at_fi * 10 + 3] == at_g[41] { true -> {
+                at_g[42] = at_g[41];
+                let at_sv41: Int = at_g[41];
+                at_g[41] = at_n[at_fi * 10 + 2];
+                match cg_name_eq(at_g, at_s) { true -> {
+                    let at_expected: Int = at_n[at_fi * 10 + 4];
+                    match at_expected == at_call_ac { true -> { }, false -> {
+                        at_g[905] = at_call_ni; at_g[906] = 4; at_g[907] = at_expected; at_g[908] = at_call_ac;
+                        do tc_error(at_g, at_n, at_s);
+                    } };
+                    at_found[0] = 1;
+                    // Check arg types
+                    at_g[4200] = at_n[at_call_ni * 10 + 5];
+                    at_g[4201] = at_n[at_fi * 10 + 5];
+                    for _atc in range(0, at_expected) {
+                        match at_g[4200] >= 1 { true -> match at_g[4201] >= 1 { true -> {
+                            at_g[4202] = at_n[at_g[4201] * 10 + 7];
+                            at_g[4203] = at_n[at_g[4200] * 10];
+                            at_g[4204] = 0 - 1;
+                            match at_g[4203] == 7 { true -> { at_g[4204] = 0; }, false -> { } };
+                            match at_g[4203] == 8 { true -> { at_g[4204] = 2; }, false -> { } };
+                            match at_g[4203] == 9 { true -> { at_g[4204] = 1; }, false -> { } };
+                            match at_g[4204] >= 0 { true -> match at_g[4204] == at_g[4202] { true -> { }, false -> {
+                                at_g[905] = at_call_ni; at_g[906] = 1; at_g[907] = at_g[4202]; at_g[908] = at_g[4204];
+                                do tc_error(at_g, at_n, at_s);
+                            } }, false -> { } };
+                            do tc_args_priv(at_g, at_n, at_s, at_call_ni);
+                            at_g[4200] = at_n[at_g[4200] * 10 + 6];
+                            at_g[4201] = at_n[at_g[4201] * 10 + 6];
+                        }, false -> { } }, false -> { } };
+                    };
+                }, false -> { } };
+                at_g[41] = at_sv41;
+            }, false -> { } };
+        }, false -> { } };
+    };
+    at_found[0]
+}
+
+// tc_check_args — orchestrator: for each CALL, check args + types + undefined
 fn tc_check_args(ta_g: Array<Int>, ta_n: Array<Int>, ta_s: Array<Int>) [IO] -> Unit {
     for ta_ni in range(0, ta_g[12]) {
         match ta_n[ta_ni * 10] == 14 { true -> {
-            // CALL node — look up function and compare arg counts
-            let ta_call_ac: Int = ta_n[ta_ni * 10 + 4]; // actual arg count
             ta_g[40] = ta_n[ta_ni * 10 + 2]; ta_g[41] = ta_n[ta_ni * 10 + 3];
-            // Skip builtins (str_eq would match them)
             let ta_is_bi: Int = chk_bi(ta_g, ta_s);
             match ta_is_bi == 0 { true -> {
-                // User function — find FN_DECL and get param count
-                let ta_found: Array<Int> = Array(1); ta_found[0] = 0;
-                for ta_fi in range(0, ta_g[12]) {
-                    match ta_n[ta_fi * 10] == 1 { true -> {
-                        match ta_n[ta_fi * 10 + 3] == ta_g[41] { true -> {
-                            ta_g[42] = ta_g[41];
-                            let ta_sv41: Int = ta_g[41];
-                            ta_g[41] = ta_n[ta_fi * 10 + 2];
-                            match cg_name_eq(ta_g, ta_s) { true -> {
-                                let ta_expected: Int = ta_n[ta_fi * 10 + 4];
-                                match ta_expected == ta_call_ac { true -> { }, false -> {
-                                    ta_g[905] = ta_ni; ta_g[906] = 4; ta_g[907] = ta_expected; ta_g[908] = ta_call_ac;
-                                    do tc_error(ta_g, ta_n, ta_s);
-                                } };
-                                ta_found[0] = 1;
-                                // Check arg types against param types
-                                ta_g[4200] = ta_n[ta_ni * 10 + 5]; // first arg node
-                                ta_g[4201] = ta_n[ta_fi * 10 + 5]; // first param node
-                                for _tca in range(0, ta_expected) {
-                                    match ta_g[4200] >= 1 { true -> match ta_g[4201] >= 1 { true -> {
-                                        ta_g[4202] = ta_n[ta_g[4201] * 10 + 7]; // param declared type
-                                        // Infer arg type: 7=INT_LIT→0, 8=STR_LIT→2, 9=BOOL_LIT→1
-                                        ta_g[4203] = ta_n[ta_g[4200] * 10]; // arg node type
-                                        ta_g[4204] = 0 - 1; // inferred type, -1 = unknown
-                                        match ta_g[4203] == 7 { true -> { ta_g[4204] = 0; }, false -> { } };
-                                        match ta_g[4203] == 8 { true -> { ta_g[4204] = 2; }, false -> { } };
-                                        match ta_g[4203] == 9 { true -> { ta_g[4204] = 1; }, false -> { } };
-                                        // Check mismatch (only when both types known)
-                                        match ta_g[4204] >= 0 { true -> match ta_g[4204] == ta_g[4202] { true -> { }, false -> {
-                                            ta_g[905] = ta_ni; ta_g[906] = 1; ta_g[907] = ta_g[4202]; ta_g[908] = ta_g[4204];
-                                            do tc_error(ta_g, ta_n, ta_s);
-                                        } }, false -> { } };
-                                        // Privacy downcast check: if arg is IDENT_REF, compare privacy levels
-                                        match ta_g[4203] == 10 { true -> {
-                                            // Look up arg variable's type_info
-                                            ta_g[4205] = 0 - 1;
-                                            for ta_vi in range(0, ta_ni) {
-                                                ta_g[4206] = ta_n[ta_vi * 10];
-                                                match ta_g[4206] == 4 { true -> {
-                                                    ta_g[40] = ta_n[ta_g[4200] * 10 + 2]; ta_g[42] = ta_n[ta_g[4200] * 10 + 3];
-                                                    ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                                    match ta_g[42] == ta_n[ta_vi * 10 + 3] { true -> match cg_name_eq(ta_g, ta_s) { true -> { ta_g[4205] = ta_n[ta_vi * 10 + 7]; }, false -> { } }, false -> { } };
-                                                }, false -> { } };
-                                                match ta_g[4206] == 2 { true -> {
-                                                    ta_g[40] = ta_n[ta_g[4200] * 10 + 2]; ta_g[42] = ta_n[ta_g[4200] * 10 + 3];
-                                                    ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                                    match ta_g[42] == ta_n[ta_vi * 10 + 3] { true -> match cg_name_eq(ta_g, ta_s) { true -> { ta_g[4205] = ta_n[ta_vi * 10 + 7]; }, false -> { } }, false -> { } };
-                                                }, false -> { } };
-                                            };
-                                            match ta_g[4205] >= 0 { true -> match ta_g[4205] / 16 > ta_g[4202] / 16 { true -> {
-                                                do print("error: cannot pass Sensitive value to less restrictive parameter — use expose()");
-                                                ta_g[911] = ta_g[911] + 1;
-                                            }, false -> { } }, false -> { } };
-                                        }, false -> { } };
-                                        ta_g[4200] = ta_n[ta_g[4200] * 10 + 6]; // next arg
-                                        ta_g[4201] = ta_n[ta_g[4201] * 10 + 6]; // next param
-                                    }, false -> { } }, false -> { } };
-                                };
-                            }, false -> { } };
-                            ta_g[41] = ta_sv41;
-                        }, false -> { } };
-                    }, false -> { } };
-                };
-                // Undefined function check — skip if callee is a local variable (function pointer)
-                match ta_found[0] == 0 { true -> {
-                    // Scan the current function's scope for a matching variable name
-                    ta_g[40] = ta_n[ta_ni * 10 + 2]; ta_g[42] = ta_n[ta_ni * 10 + 3];
-                    let ta_is_var: Array<Int> = Array(1); ta_is_var[0] = 0;
-                    // Find enclosing FN_DECL
-                    let ta_fn_start: Array<Int> = Array(1); ta_fn_start[0] = 0;
-                    for ta_si in range(0, ta_ni) {
-                        match ta_n[ta_si * 10] == 1 { true -> { ta_fn_start[0] = ta_si; }, false -> { } };
-                    };
-                    // Scan from fn_start to ta_ni for PARAM(2) and LET(4) nodes
-                    for ta_vi in range(ta_fn_start[0], ta_ni) {
-                        let ta_vnt: Int = ta_n[ta_vi * 10];
-                        match ta_vnt == 2 { true -> {
-                            match ta_n[ta_vi * 10 + 3] == ta_g[42] { true -> {
-                                ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                match cg_name_eq(ta_g, ta_s) { true -> { ta_is_var[0] = 1; }, false -> { } };
-                            }, false -> { } };
-                        }, false -> match ta_vnt == 4 { true -> {
-                            match ta_n[ta_vi * 10 + 3] == ta_g[42] { true -> {
-                                ta_g[41] = ta_n[ta_vi * 10 + 2];
-                                match cg_name_eq(ta_g, ta_s) { true -> { ta_is_var[0] = 1; }, false -> { } };
-                            }, false -> { } };
-                        }, false -> { } } };
-                    };
-                    match ta_is_var[0] == 0 { true -> {
-                        ta_g[905] = ta_ni; ta_g[906] = 6; ta_g[907] = 0; ta_g[908] = 0;
-                        do tc_error(ta_g, ta_n, ta_s);
-                    }, false -> { } }; // Variable found — allow indirect call
-                }, false -> { } };
+                let ta_found: Int = tc_args_types(ta_g, ta_n, ta_s, ta_ni);
+                match ta_found == 0 { true -> do tc_args_undef(ta_g, ta_n, ta_s, ta_ni), false -> { } };
             }, false -> { } };
         }, false -> { } };
     };
 }
 
 // Return type check: verify last expression in body matches declared return type
+// tc_ret_find_last — find last child node of a block (the return expression)
+fn tc_ret_find_last(rl_n: Array<Int>, rl_body: Int) [] -> Int {
+    let rl_cc: Int = rl_n[rl_body * 10 + 4];
+    match rl_cc >= 1 { true -> {
+        let rl_cur: Array<Int> = Array(1); rl_cur[0] = rl_n[rl_body * 10 + 5];
+        for _rl in range(0, rl_cc - 1) {
+            let rl_ns: Int = rl_n[rl_cur[0] * 10 + 6];
+            match rl_ns >= 1 { true -> { rl_cur[0] = rl_ns; }, false -> { } };
+        };
+        rl_cur[0]
+    }, false -> 0 - 1 }
+}
+
+// tc_ret_check_priv — check IDENT_REF return for privacy downcast
+fn tc_ret_check_priv(rp_g: Array<Int>, rp_n: Array<Int>, rp_s: Array<Int>, rp_expr: Int, rp_fi: Int, rp_ret: Int) [IO] -> Unit {
+    let rp_voff: Int = rp_n[rp_expr * 10 + 2];
+    let rp_vlen: Int = rp_n[rp_expr * 10 + 3];
+    for rp_vi in range(rp_fi, rp_fi + 200) {
+        match rp_vi < rp_g[12] { true -> {
+            let rp_vnt: Int = rp_n[rp_vi * 10];
+            match rp_vnt == 2 { true -> match rp_n[rp_vi * 10 + 3] == rp_vlen { true -> {
+                rp_g[40] = rp_voff; rp_g[41] = rp_n[rp_vi * 10 + 2]; rp_g[42] = rp_vlen;
+                match cg_name_eq(rp_g, rp_s) { true -> match rp_n[rp_vi * 10 + 7] / 16 > rp_ret / 16 { true -> {
+                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
+                    rp_g[911] = rp_g[911] + 1;
+                }, false -> { } }, false -> { } };
+            }, false -> { } }, false -> { } };
+            match rp_vnt == 4 { true -> match rp_n[rp_vi * 10 + 3] == rp_vlen { true -> {
+                rp_g[40] = rp_voff; rp_g[41] = rp_n[rp_vi * 10 + 2]; rp_g[42] = rp_vlen;
+                match cg_name_eq(rp_g, rp_s) { true -> match rp_n[rp_vi * 10 + 7] / 16 > rp_ret / 16 { true -> {
+                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
+                    rp_g[911] = rp_g[911] + 1;
+                }, false -> { } }, false -> { } };
+            }, false -> { } }, false -> { } };
+        }, false -> { } };
+    };
+}
+
+// tc_check_return — verify last expression type matches declared return type
 fn tc_check_return(tr_g: Array<Int>, tr_n: Array<Int>, tr_s: Array<Int>) [IO] -> Unit {
     for tr_fi in range(0, tr_g[12]) {
         match tr_n[tr_fi * 10] == 1 { true -> {
-            let tr_ret_type: Int = tr_n[tr_fi * 10 + 7]; // declared return type (0=Int, 2=String)
-            let tr_body: Int = tr_n[tr_fi * 10 + 8]; // body block node
+            let tr_ret_type: Int = tr_n[tr_fi * 10 + 7];
+            let tr_body: Int = tr_n[tr_fi * 10 + 8];
             match tr_body >= 1 { true -> {
-                // Find last child of block — that's the return expression
-                let tr_cc: Int = tr_n[tr_body * 10 + 4]; // child count
-                match tr_cc >= 1 { true -> {
-                    // Walk sibling chain to find last child
-                    let tr_cur: Array<Int> = Array(1); tr_cur[0] = tr_n[tr_body * 10 + 5];
-                    for _tr in range(0, tr_cc - 1) {
-                        let tr_ns: Int = tr_n[tr_cur[0] * 10 + 6];
-                        match tr_ns >= 1 { true -> { tr_cur[0] = tr_ns; }, false -> { } };
-                    };
-                    // tr_cur[0] = last child. Check if it's RETURN_EXPR (type 6)
-                    let tr_last: Int = tr_cur[0];
-                    match tr_n[tr_last * 10] == 6 { true -> {
-                        // RETURN_EXPR — check its child's type
-                        let tr_expr: Int = tr_n[tr_last * 10 + 5];
-                        match tr_expr >= 1 { true -> {
-                            let tr_expr_nt: Int = tr_n[tr_expr * 10];
-                            // Only check unambiguous literal returns
-                            let tr_actual: Int = match tr_expr_nt == 8 { true -> 2, false -> match tr_expr_nt == 7 { true -> 0, false -> match tr_expr_nt == 9 { true -> 0, false -> 0 - 1 } } };
-                            match tr_actual >= 0 { true -> {
-                                match tr_ret_type % 16 == 0 { true -> match tr_actual == 2 { true -> {
-                                    tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=0; tr_g[908]=2;
-                                    do tc_error(tr_g, tr_n, tr_s);
-                                }, false -> { } }, false -> { } };
-                                match tr_ret_type % 16 == 2 { true -> match tr_actual == 0 { true -> {
-                                    tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=2; tr_g[908]=0;
-                                    do tc_error(tr_g, tr_n, tr_s);
-                                }, false -> { } }, false -> { } };
-                            }, false -> { } };
-                            // Check IDENT_REF return: privacy downcast
-                            match tr_expr_nt == 10 { true -> {
-                                // Look up the variable's type by name
-                                let tr_voff: Int = tr_n[tr_expr * 10 + 2];
-                                let tr_vlen: Int = tr_n[tr_expr * 10 + 3];
-                                // Scan params and let bindings for this variable
-                                for tr_vi in range(tr_fi, tr_fi + 200) {
-                                    match tr_vi < tr_g[12] { true -> {
-                                        let tr_vnt: Int = tr_n[tr_vi * 10];
-                                        match tr_vnt == 2 { true -> match tr_n[tr_vi * 10 + 3] == tr_vlen { true -> {
-                                            tr_g[40] = tr_voff; tr_g[41] = tr_n[tr_vi * 10 + 2]; tr_g[42] = tr_vlen;
-                                            match cg_name_eq(tr_g, tr_s) { true -> {
-                                                // Found: check privacy downcast
-                                                match tr_n[tr_vi * 10 + 7] / 16 > tr_ret_type / 16 { true -> {
-                                                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
-                                                    tr_g[911] = tr_g[911] + 1;
-                                                }, false -> { } };
-                                            }, false -> { } };
-                                        }, false -> { } }, false -> { } };
-                                        match tr_vnt == 4 { true -> match tr_n[tr_vi * 10 + 3] == tr_vlen { true -> {
-                                            tr_g[40] = tr_voff; tr_g[41] = tr_n[tr_vi * 10 + 2]; tr_g[42] = tr_vlen;
-                                            match cg_name_eq(tr_g, tr_s) { true -> {
-                                                match tr_n[tr_vi * 10 + 7] / 16 > tr_ret_type / 16 { true -> {
-                                                    do print("error: cannot return Sensitive value as less restrictive type — use expose()");
-                                                    tr_g[911] = tr_g[911] + 1;
-                                                }, false -> { } };
-                                            }, false -> { } };
-                                        }, false -> { } }, false -> { } };
-                                    }, false -> { } };
-                                };
-                            }, false -> { } };
+                let tr_last: Int = tc_ret_find_last(tr_n, tr_body);
+                match tr_last >= 0 { true -> match tr_n[tr_last * 10] == 6 { true -> {
+                    let tr_expr: Int = tr_n[tr_last * 10 + 5];
+                    match tr_expr >= 1 { true -> {
+                        let tr_nt: Int = tr_n[tr_expr * 10];
+                        let tr_actual: Int = match tr_nt == 8 { true -> 2, false -> match tr_nt == 7 { true -> 0, false -> match tr_nt == 9 { true -> 0, false -> 0 - 1 } } };
+                        match tr_actual >= 0 { true -> {
+                            match tr_ret_type % 16 == 0 { true -> match tr_actual == 2 { true -> {
+                                tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=0; tr_g[908]=2; do tc_error(tr_g, tr_n, tr_s);
+                            }, false -> { } }, false -> { } };
+                            match tr_ret_type % 16 == 2 { true -> match tr_actual == 0 { true -> {
+                                tr_g[905]=tr_fi; tr_g[906]=5; tr_g[907]=2; tr_g[908]=0; do tc_error(tr_g, tr_n, tr_s);
+                            }, false -> { } }, false -> { } };
                         }, false -> { } };
+                        match tr_nt == 10 { true -> do tc_ret_check_priv(tr_g, tr_n, tr_s, tr_expr, tr_fi, tr_ret_type), false -> { } };
                     }, false -> { } };
-                }, false -> { } };
+                }, false -> { } }, false -> { } };
             }, false -> { } };
         }, false -> { } };
     };
 }
 
 // Privacy check: cannot log Sensitive values via print/print_raw
+// tc_priv_ref_check — check if IDENT_REF node matches any sensitive var in g[4510+]
+// g[4501] = sensitive var count. Sets g[911]++ and prints error if match.
+fn tc_priv_ref_check(pr_g: Array<Int>, pr_n: Array<Int>, pr_s: Array<Int>, pr_ni: Int) [IO] -> Int {
+    let pr_found: Array<Int> = Array(1); pr_found[0] = 0;
+    match pr_ni >= 0 { true -> match pr_n[pr_ni * 10] == 10 { true -> {
+        for pr_vi in range(0, pr_g[4501]) {
+            pr_g[40] = pr_n[pr_ni * 10 + 2]; pr_g[42] = pr_n[pr_ni * 10 + 3];
+            pr_g[41] = pr_g[4510 + pr_vi * 2];
+            match pr_g[42] == pr_g[4510 + pr_vi * 2 + 1] { true -> match cg_name_eq(pr_g, pr_s) { true -> {
+                pr_found[0] = 1;
+            }, false -> { } }, false -> { } };
+        };
+    }, false -> { } }, false -> { } };
+    pr_found[0]
+}
+
+// tc_priv_collect — collect sensitive variable names for a function
+// Scans range [fn_start..fn_end) for PARAM(2) and LET(4) with privacy >= 2
+// Stores in g[4510+i*2] = (str_off, str_len). Sets g[4501] = count.
+fn tc_priv_collect(pc_g: Array<Int>, pc_n: Array<Int>, pc_start: Int, pc_end: Int) [] -> Unit {
+    pc_g[4501] = 0;
+    for pc_ni in range(pc_start, pc_end) {
+        match pc_n[pc_ni * 10] == 4 { true -> match pc_n[pc_ni * 10 + 7] / 16 >= 2 { true -> {
+            pc_g[4510 + pc_g[4501] * 2] = pc_n[pc_ni * 10 + 2];
+            pc_g[4510 + pc_g[4501] * 2 + 1] = pc_n[pc_ni * 10 + 3];
+            pc_g[4501] = pc_g[4501] + 1;
+        }, false -> { } }, false -> { } };
+        match pc_n[pc_ni * 10] == 2 { true -> match pc_n[pc_ni * 10 + 7] / 16 >= 2 { true -> {
+            pc_g[4510 + pc_g[4501] * 2] = pc_n[pc_ni * 10 + 2];
+            pc_g[4510 + pc_g[4501] * 2 + 1] = pc_n[pc_ni * 10 + 3];
+            pc_g[4501] = pc_g[4501] + 1;
+        }, false -> { } }, false -> { } };
+    };
+}
+
+// tc_priv_check_log — check print/print_raw calls for sensitive refs
+fn tc_priv_check_log(pl_g: Array<Int>, pl_n: Array<Int>, pl_s: Array<Int>, pl_ci: Int) [IO] -> Unit {
+    pl_g[4503] = pl_n[pl_ci * 10 + 5];
+    match pl_g[4503] >= 0 { true -> {
+        // Direct IDENT_REF arg
+        match tc_priv_ref_check(pl_g, pl_n, pl_s, pl_g[4503]) == 1 { true -> {
+            do print("error: cannot log Sensitive value — use expose() with audit context");
+            pl_g[911] = pl_g[911] + 1;
+        }, false -> { } };
+        // BINOP arg — check left and right children
+        match pl_n[pl_g[4503] * 10] == 11 { true -> {
+            pl_g[4504] = pl_n[pl_g[4503] * 10 + 5]; // left
+            pl_g[4505] = pl_n[pl_g[4504] * 10 + 6]; // right
+            match tc_priv_ref_check(pl_g, pl_n, pl_s, pl_g[4504]) == 1 { true -> {
+                do print("error: cannot log Sensitive value — use expose() with audit context");
+                pl_g[911] = pl_g[911] + 1;
+            }, false -> { } };
+            match pl_g[4505] >= 0 { true -> match tc_priv_ref_check(pl_g, pl_n, pl_s, pl_g[4505]) == 1 { true -> {
+                do print("error: cannot log Sensitive value — use expose() with audit context");
+                pl_g[911] = pl_g[911] + 1;
+            }, false -> { } }, false -> { } };
+            // Nested BINOP (one level deeper)
+            match pl_n[pl_g[4504] * 10] == 11 { true -> {
+                pl_g[4506] = pl_n[pl_g[4504] * 10 + 5];
+                pl_g[4507] = pl_n[pl_g[4506] * 10 + 6];
+                match tc_priv_ref_check(pl_g, pl_n, pl_s, pl_g[4506]) == 1 { true -> {
+                    pl_g[911] = pl_g[911] + 1;
+                    do print("error: cannot log Sensitive value — use expose() with audit context");
+                }, false -> { } };
+                match pl_g[4507] >= 0 { true -> match tc_priv_ref_check(pl_g, pl_n, pl_s, pl_g[4507]) == 1 { true -> {
+                    pl_g[911] = pl_g[911] + 1;
+                    do print("error: cannot log Sensitive value — use expose() with audit context");
+                }, false -> { } }, false -> { } };
+            }, false -> { } };
+        }, false -> { } };
+        // Check type_info directly for BINOP with known sensitive type
+        match pl_n[pl_g[4503] * 10] == 11 { true -> match pl_n[pl_g[4503] * 10 + 7] / 16 >= 2 { true -> {
+            do print("error: cannot log Sensitive value — use expose() with audit context");
+            pl_g[911] = pl_g[911] + 1;
+        }, false -> { } }, false -> { } };
+    }, false -> { } };
+}
+
+// tc_priv_check_expose — verify expose() arg is actually Sensitive
+fn tc_priv_check_expose(pe_g: Array<Int>, pe_n: Array<Int>, pe_s: Array<Int>, pe_start: Int, pe_end: Int) [IO] -> Unit {
+    for pe_ei in range(pe_start, pe_end) {
+        match pe_n[pe_ei * 10] == 14 { true -> {
+            pe_g[40] = pe_n[pe_ei * 10 + 2]; pe_g[41] = pe_n[pe_ei * 10 + 3];
+            match chk_bi(pe_g, pe_s) == 15 { true -> {
+                pe_g[4506] = pe_n[pe_ei * 10 + 5];
+                pe_g[4507] = 0;
+                match pe_g[4506] >= 0 { true -> match pe_n[pe_g[4506] * 10] == 10 { true -> {
+                    for pe_vi in range(pe_start, pe_end) {
+                        pe_g[4508] = pe_n[pe_vi * 10];
+                        match pe_g[4508] == 2 { true -> match pe_n[pe_vi * 10 + 7] / 16 >= 2 { true -> {
+                            pe_g[40] = pe_n[pe_g[4506] * 10 + 2]; pe_g[42] = pe_n[pe_g[4506] * 10 + 3];
+                            pe_g[41] = pe_n[pe_vi * 10 + 2];
+                            match pe_g[42] == pe_n[pe_vi * 10 + 3] { true -> match cg_name_eq(pe_g, pe_s) { true -> { pe_g[4507] = 1; }, false -> { } }, false -> { } };
+                        }, false -> { } }, false -> { } };
+                        match pe_g[4508] == 4 { true -> match pe_n[pe_vi * 10 + 7] / 16 >= 2 { true -> {
+                            pe_g[40] = pe_n[pe_g[4506] * 10 + 2]; pe_g[42] = pe_n[pe_g[4506] * 10 + 3];
+                            pe_g[41] = pe_n[pe_vi * 10 + 2];
+                            match pe_g[42] == pe_n[pe_vi * 10 + 3] { true -> match cg_name_eq(pe_g, pe_s) { true -> { pe_g[4507] = 1; }, false -> { } }, false -> { } };
+                        }, false -> { } }, false -> { } };
+                    };
+                    match pe_g[4507] == 0 { true -> {
+                        do print("error: expose() argument must be Sensitive — only use with Sensitive values");
+                        pe_g[911] = pe_g[911] + 1;
+                    }, false -> { } };
+                }, false -> { } }, false -> { } };
+            }, false -> { } };
+        }, false -> { } };
+    };
+}
+
+// tc_priv_check_downcast — verify LET bindings don't downcast Sensitive
+fn tc_priv_check_dc(pd_g: Array<Int>, pd_n: Array<Int>, pd_s: Array<Int>, pd_start: Int, pd_end: Int) [IO] -> Unit {
+    for pd_di in range(pd_start, pd_end) {
+        match pd_n[pd_di * 10] == 4 { true -> {
+            pd_g[4504] = pd_n[pd_di * 10 + 7] / 16;
+            pd_g[4505] = pd_n[pd_di * 10 + 5];
+            match pd_g[4505] >= 0 { true -> match pd_n[pd_g[4505] * 10] == 10 { true -> {
+                match tc_priv_ref_check(pd_g, pd_n, pd_s, pd_g[4505]) == 1 { true -> {
+                    match pd_g[4504] < 2 { true -> {
+                        do print("error: cannot assign Sensitive value to less restrictive type — use expose()");
+                        pd_g[911] = pd_g[911] + 1;
+                    }, false -> { } };
+                }, false -> { } };
+            }, false -> { } }, false -> { } };
+        }, false -> { } };
+    };
+}
+
+// tc_priv_check_algos — check for forbidden algorithms (md5, sha1, des, rc4)
+fn tc_priv_check_algos(pa_g: Array<Int>, pa_n: Array<Int>, pa_s: Array<Int>) [IO] -> Unit {
+    for pa_fa in range(0, pa_g[12]) {
+        match pa_n[pa_fa * 10] == 14 { true -> {
+            pa_g[40] = pa_n[pa_fa * 10 + 2]; pa_g[41] = pa_n[pa_fa * 10 + 3];
+            match str_eq(pa_g, pa_s, "md5") { true -> {
+                do print("error: forbidden algorithm — MD5 is broken, not available in Loon");
+                pa_g[911] = pa_g[911] + 1;
+            }, false -> match str_eq(pa_g, pa_s, "sha1") { true -> {
+                do print("error: forbidden algorithm — SHA1 is broken, not available in Loon");
+                pa_g[911] = pa_g[911] + 1;
+            }, false -> match str_eq(pa_g, pa_s, "des") { true -> {
+                do print("error: forbidden algorithm — DES is broken, not available in Loon");
+                pa_g[911] = pa_g[911] + 1;
+            }, false -> match str_eq(pa_g, pa_s, "rc4") { true -> {
+                do print("error: forbidden algorithm — RC4 is broken, not available in Loon");
+                pa_g[911] = pa_g[911] + 1;
+            }, false -> { } } } } };
+        }, false -> { } };
+    };
+}
+
+// tc_check_privacy — orchestrator that calls the helpers above
 fn tc_check_privacy(tp_g: Array<Int>, tp_n: Array<Int>, tp_s: Array<Int>) [IO] -> Unit {
     for tp_fi in range(0, tp_g[12]) {
         match tp_n[tp_fi * 10] == 1 { true -> {
+            // Find function boundary
             tp_g[4500] = tp_g[12];
             for tp_bi in range(tp_fi + 1, tp_g[12]) {
                 match tp_n[tp_bi * 10] == 1 { true -> match tp_g[4500] == tp_g[12] { true -> { tp_g[4500] = tp_bi; }, false -> { } }, false -> { } };
                 match tp_n[tp_bi * 10] == 22 { true -> match tp_g[4500] == tp_g[12] { true -> { tp_g[4500] = tp_bi; }, false -> { } }, false -> { } };
             };
-            // Collect sensitive variable names: g[4510+i*2] = (str_off, str_len)
-            tp_g[4501] = 0;
-            for tp_ni in range(tp_fi, tp_g[4500]) {
-                match tp_n[tp_ni * 10] == 4 { true -> match tp_n[tp_ni * 10 + 7] / 16 >= 2 { true -> {
-                    tp_g[4510 + tp_g[4501] * 2] = tp_n[tp_ni * 10 + 2];
-                    tp_g[4510 + tp_g[4501] * 2 + 1] = tp_n[tp_ni * 10 + 3];
-                    tp_g[4501] = tp_g[4501] + 1;
-                }, false -> { } }, false -> { } };
-                match tp_n[tp_ni * 10] == 2 { true -> match tp_n[tp_ni * 10 + 7] / 16 >= 2 { true -> {
-                    tp_g[4510 + tp_g[4501] * 2] = tp_n[tp_ni * 10 + 2];
-                    tp_g[4510 + tp_g[4501] * 2 + 1] = tp_n[tp_ni * 10 + 3];
-                    tp_g[4501] = tp_g[4501] + 1;
-                }, false -> { } }, false -> { } };
-            };
+            // Step 1: Collect sensitive variable names
+            do tc_priv_collect(tp_g, tp_n, tp_fi, tp_g[4500]);
+            // Step 2: Check print/print_raw calls for sensitive refs
             match tp_g[4501] > 0 { true -> {
                 for tp_ci in range(tp_fi + 1, tp_g[4500]) {
                     match tp_n[tp_ci * 10] == 14 { true -> {
                         tp_g[40] = tp_n[tp_ci * 10 + 2]; tp_g[41] = tp_n[tp_ci * 10 + 3];
                         tp_g[4502] = chk_bi(tp_g, tp_s);
-                        match tp_g[4502] == 1 { true -> {
-                            tp_g[4503] = tp_n[tp_ci * 10 + 5];
-                            match tp_g[4503] >= 0 { true -> {
-                                // Check IDENT_REF args against sensitive var list
-                                match tp_n[tp_g[4503] * 10] == 10 { true -> {
-                                    for tp_vi in range(0, tp_g[4501]) {
-                                        tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
-                                        tp_g[41] = tp_g[4510 + tp_vi * 2];
-                                        match tp_g[42] == tp_g[4510 + tp_vi * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                            do print("error: cannot log Sensitive value — use expose() with audit context");
-                                            tp_g[911] = tp_g[911] + 1;
-                                        }, false -> { } }, false -> { } };
-                                    };
-                                }, false -> { } };
-                                // Check BINOP args — scan children for sensitive IDENT_REFs
-                                match tp_n[tp_g[4503] * 10] == 11 { true -> {
-                                    // Check left child
-                                    tp_g[4504] = tp_n[tp_g[4503] * 10 + 5]; // left child
-                                    tp_g[4505] = tp_n[tp_g[4504] * 10 + 6]; // right child (sibling of left)
-                                    // Check left
-                                    match tp_n[tp_g[4504] * 10] == 10 { true -> {
-                                        for tp_vb in range(0, tp_g[4501]) {
-                                            tp_g[40] = tp_n[tp_g[4504] * 10 + 2]; tp_g[42] = tp_n[tp_g[4504] * 10 + 3];
-                                            tp_g[41] = tp_g[4510 + tp_vb * 2];
-                                            match tp_g[42] == tp_g[4510 + tp_vb * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                                do print("error: cannot log Sensitive value — use expose() with audit context");
-                                                tp_g[911] = tp_g[911] + 1;
-                                            }, false -> { } }, false -> { } };
-                                        };
-                                    }, false -> { } };
-                                    // Check right
-                                    match tp_g[4505] >= 0 { true -> match tp_n[tp_g[4505] * 10] == 10 { true -> {
-                                        for tp_vb2 in range(0, tp_g[4501]) {
-                                            tp_g[40] = tp_n[tp_g[4505] * 10 + 2]; tp_g[42] = tp_n[tp_g[4505] * 10 + 3];
-                                            tp_g[41] = tp_g[4510 + tp_vb2 * 2];
-                                            match tp_g[42] == tp_g[4510 + tp_vb2 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                                do print("error: cannot log Sensitive value — use expose() with audit context");
-                                                tp_g[911] = tp_g[911] + 1;
-                                            }, false -> { } }, false -> { } };
-                                        };
-                                    }, false -> { } }, false -> { } };
-                                    // Check nested BINOP (left or right is BINOP with sensitive child)
-                                    match tp_n[tp_g[4504] * 10] == 11 { true -> {
-                                        tp_g[4506] = tp_n[tp_g[4504] * 10 + 5];
-                                        tp_g[4507] = tp_n[tp_g[4506] * 10 + 6];
-                                        match tp_n[tp_g[4506] * 10] == 10 { true -> {
-                                            for tp_vb3 in range(0, tp_g[4501]) {
-                                                tp_g[40] = tp_n[tp_g[4506] * 10 + 2]; tp_g[42] = tp_n[tp_g[4506] * 10 + 3];
-                                                tp_g[41] = tp_g[4510 + tp_vb3 * 2];
-                                                match tp_g[42] == tp_g[4510 + tp_vb3 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[911] = tp_g[911] + 1; do print("error: cannot log Sensitive value — use expose() with audit context"); }, false -> { } }, false -> { } };
-                                            };
-                                        }, false -> { } };
-                                        match tp_g[4507] >= 0 { true -> match tp_n[tp_g[4507] * 10] == 10 { true -> {
-                                            for tp_vb4 in range(0, tp_g[4501]) {
-                                                tp_g[40] = tp_n[tp_g[4507] * 10 + 2]; tp_g[42] = tp_n[tp_g[4507] * 10 + 3];
-                                                tp_g[41] = tp_g[4510 + tp_vb4 * 2];
-                                                match tp_g[42] == tp_g[4510 + tp_vb4 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[911] = tp_g[911] + 1; do print("error: cannot log Sensitive value — use expose() with audit context"); }, false -> { } }, false -> { } };
-                                            };
-                                        }, false -> { } }, false -> { } };
-                                    }, false -> { } };
-                                }, false -> { } };
-                            }, false -> { } };
-                        }, false -> { } };
-                        match tp_g[4502] == 2 { true -> {
-                            tp_g[4503] = tp_n[tp_ci * 10 + 5];
-                            match tp_g[4503] >= 0 { true -> {
-                                match tp_n[tp_g[4503] * 10] == 10 { true -> {
-                                    for tp_vi2 in range(0, tp_g[4501]) {
-                                        tp_g[40] = tp_n[tp_g[4503] * 10 + 2]; tp_g[42] = tp_n[tp_g[4503] * 10 + 3];
-                                        tp_g[41] = tp_g[4510 + tp_vi2 * 2];
-                                        match tp_g[42] == tp_g[4510 + tp_vi2 * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                            do print("error: cannot log Sensitive value — use expose() with audit context");
-                                            tp_g[911] = tp_g[911] + 1;
-                                        }, false -> { } }, false -> { } };
-                                    };
-                                }, false -> { } };
-                                match tp_n[tp_g[4503] * 10] == 11 { true -> match tp_n[tp_g[4503] * 10 + 7] / 16 >= 2 { true -> {
-                                    do print("error: cannot log Sensitive value — use expose() with audit context");
-                                    tp_g[911] = tp_g[911] + 1;
-                                }, false -> { } }, false -> { } };
-                            }, false -> { } };
-                        }, false -> { } };
+                        match tp_g[4502] == 1 { true -> do tc_priv_check_log(tp_g, tp_n, tp_s, tp_ci), false -> { } };
+                        match tp_g[4502] == 2 { true -> do tc_priv_check_log(tp_g, tp_n, tp_s, tp_ci), false -> { } };
                     }, false -> { } };
                 };
             }, false -> { } };
-            // expose() arg check: runs for ALL functions (not just ones with sensitive vars)
-            for tp_ei in range(tp_fi + 1, tp_g[4500]) {
-                match tp_n[tp_ei * 10] == 14 { true -> {
-                    tp_g[40] = tp_n[tp_ei * 10 + 2]; tp_g[41] = tp_n[tp_ei * 10 + 3];
-                    match chk_bi(tp_g, tp_s) == 15 { true -> {
-                        tp_g[4506] = tp_n[tp_ei * 10 + 5]; // first arg
-                        tp_g[4507] = 0; // found sensitive flag
-                        match tp_g[4506] >= 0 { true -> match tp_n[tp_g[4506] * 10] == 10 { true -> {
-                            // Check if arg matches any sensitive PARAM or LET
-                            for tp_evi2 in range(tp_fi, tp_g[4500]) {
-                                tp_g[4508] = tp_n[tp_evi2 * 10];
-                                match tp_g[4508] == 2 { true -> match tp_n[tp_evi2 * 10 + 7] / 16 >= 2 { true -> {
-                                    tp_g[40] = tp_n[tp_g[4506] * 10 + 2]; tp_g[42] = tp_n[tp_g[4506] * 10 + 3];
-                                    tp_g[41] = tp_n[tp_evi2 * 10 + 2];
-                                    match tp_g[42] == tp_n[tp_evi2 * 10 + 3] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[4507] = 1; }, false -> { } }, false -> { } };
-                                }, false -> { } }, false -> { } };
-                                match tp_g[4508] == 4 { true -> match tp_n[tp_evi2 * 10 + 7] / 16 >= 2 { true -> {
-                                    tp_g[40] = tp_n[tp_g[4506] * 10 + 2]; tp_g[42] = tp_n[tp_g[4506] * 10 + 3];
-                                    tp_g[41] = tp_n[tp_evi2 * 10 + 2];
-                                    match tp_g[42] == tp_n[tp_evi2 * 10 + 3] { true -> match cg_name_eq(tp_g, tp_s) { true -> { tp_g[4507] = 1; }, false -> { } }, false -> { } };
-                                }, false -> { } }, false -> { } };
-                            };
-                            match tp_g[4507] == 0 { true -> {
-                                do print("error: expose() argument must be Sensitive — only use with Sensitive values");
-                                tp_g[911] = tp_g[911] + 1;
-                            }, false -> { } };
-                        }, false -> { } }, false -> { } };
-                    }, false -> { } };
-                }, false -> { } };
-            };
-            // Downcast check (only if function has sensitive vars)
-            match tp_g[4501] > 0 { true -> {
-                // Downcast check: for each LET with lower privacy, check if init is sensitive var
-                for tp_di in range(tp_fi + 1, tp_g[4500]) {
-                    match tp_n[tp_di * 10] == 4 { true -> {
-                        tp_g[4504] = tp_n[tp_di * 10 + 7] / 16; // declared privacy level
-                        tp_g[4505] = tp_n[tp_di * 10 + 5]; // init node
-                        match tp_g[4505] >= 0 { true -> match tp_n[tp_g[4505] * 10] == 10 { true -> {
-                            // Init is IDENT_REF — check if it matches a sensitive var
-                            for tp_dvi in range(0, tp_g[4501]) {
-                                tp_g[40] = tp_n[tp_g[4505] * 10 + 2]; tp_g[42] = tp_n[tp_g[4505] * 10 + 3];
-                                tp_g[41] = tp_g[4510 + tp_dvi * 2];
-                                match tp_g[42] == tp_g[4510 + tp_dvi * 2 + 1] { true -> match cg_name_eq(tp_g, tp_s) { true -> {
-                                    // Sensitive var found as init — check privacy levels
-                                    match tp_g[4504] < 2 { true -> {
-                                        do print("error: cannot assign Sensitive value to less restrictive type — use expose()");
-                                        tp_g[911] = tp_g[911] + 1;
-                                    }, false -> { } };
-                                }, false -> { } }, false -> { } };
-                            };
-                        }, false -> { } }, false -> { } };
-                    }, false -> { } };
-                };
-            }, false -> { } };
+            // Step 3: Check expose() args
+            do tc_priv_check_expose(tp_g, tp_n, tp_s, tp_fi + 1, tp_g[4500]);
+            // Step 4: Check downcast
+            match tp_g[4501] > 0 { true -> do tc_priv_check_dc(tp_g, tp_n, tp_s, tp_fi + 1, tp_g[4500]), false -> { } };
         }, false -> { } };
     };
-    // Forbidden algorithm check: scan ALL CALL nodes for md5, sha1, des, rc4
-    for tp_fa in range(0, tp_g[12]) {
-        match tp_n[tp_fa * 10] == 14 { true -> {
-            tp_g[40] = tp_n[tp_fa * 10 + 2]; tp_g[41] = tp_n[tp_fa * 10 + 3];
-            match str_eq(tp_g, tp_s, "md5") { true -> {
-                do print("error: forbidden algorithm — MD5 is broken, not available in Loon");
-                tp_g[911] = tp_g[911] + 1;
-            }, false -> match str_eq(tp_g, tp_s, "sha1") { true -> {
-                do print("error: forbidden algorithm — SHA1 is broken, not available in Loon");
-                tp_g[911] = tp_g[911] + 1;
-            }, false -> match str_eq(tp_g, tp_s, "des") { true -> {
-                do print("error: forbidden algorithm — DES is broken, not available in Loon");
-                tp_g[911] = tp_g[911] + 1;
-            }, false -> match str_eq(tp_g, tp_s, "rc4") { true -> {
-                do print("error: forbidden algorithm — RC4 is broken, not available in Loon");
-                tp_g[911] = tp_g[911] + 1;
-            }, false -> { } } } } };
-        }, false -> { } };
-    };
+    // Step 5: Forbidden algorithms
+    do tc_priv_check_algos(tp_g, tp_n, tp_s);
 }
 
 // tc_check — run all type/effect/scope checks on the AST
@@ -3698,38 +3737,42 @@ fn ll_block_expr(be_g: Array<Int>, be_n: Array<Int>, be_s: Array<Int>) [IO] -> I
 }
 
 // Emit LLVM IR for an expression. Dispatches by node type.
+// ll_expr_complex — dispatch for compound expression types (CALL, MATCH, FOR, ARRAY, etc.)
+fn ll_expr2(l2_g: Array<Int>, l2_n: Array<Int>, l2_s: Array<Int>) [IO] -> Int {
+    let l2_ni: Int = l2_g[31];
+    let l2_nt: Int = l2_n[l2_ni * 10];
+    match l2_nt == 14 { true -> { l2_g[40] = l2_n[l2_ni * 10 + 2]; l2_g[41] = l2_n[l2_ni * 10 + 3]; let l2_bi: Int = chk_bi(l2_g, l2_s); match l2_bi > 0 { true -> { l2_g[140] = l2_bi; l2_g[31] = l2_ni; ll_builtin(l2_g, l2_n, l2_s) }, false -> { l2_g[31] = l2_ni; ll_call(l2_g, l2_n, l2_s) } } },
+    false -> match l2_nt == 16 { true -> ll_match(l2_g, l2_n, l2_s),
+    false -> match l2_nt == 15 { true -> { l2_g[31] = l2_n[l2_ni * 10 + 5]; ll_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 6 { true -> { l2_g[31] = l2_n[l2_ni * 10 + 5]; ll_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 5 { true -> { l2_g[31] = l2_n[l2_ni * 10 + 5]; ll_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 3 { true -> { l2_g[31] = l2_ni; ll_block_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 4 { true -> { l2_g[31] = l2_ni; do ll_stmt(l2_g, l2_n, l2_s); let l2_lt: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_lt) + " = add i64 0, 0"); l2_lt },
+    false -> match l2_nt == 19 { true -> ll_arynew(l2_g, l2_n, l2_s),
+    false -> match l2_nt == 20 { true -> ll_aryget(l2_g, l2_n, l2_s),
+    false -> match l2_nt == 18 { true -> { do ll_for(l2_g, l2_n, l2_s); let l2_ft: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_ft) + " = add i64 0, 0"); l2_ft },
+    false -> match l2_nt == 21 { true -> { do ll_aryset(l2_g, l2_n, l2_s); let l2_st: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_st) + " = add i64 0, 0"); l2_st },
+    false -> match l2_nt == 24 { true -> ll_vnew(l2_g, l2_n, l2_s),
+    false -> { let l2_t2: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_t2) + " = add i64 0, 0 ; unknown " + int_to_string(l2_nt)); l2_t2 }
+    } } } } } } } } } } } }
+}
+
+// ll_expr — dispatch on node type. Simple literals handled here, complex types in ll_expr2.
 fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
     match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
         match le_n[le_ni * 10 + 7] == 7 { true -> {
-            // Float literal — emit as double constant
             do print_raw("    %t" + int_to_string(le_t) + " = fadd double 0.0, ");
             for _lfi in range(0, le_g[41]) { do print_byte(le_s[le_g[40] + _lfi]); };
-            do print("");
-            le_g[761] = 7; // mark as Float for callers
-        }, false -> {
-            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s)));
-            le_g[761] = 0; // Int
-        } }; le_t },
+            do print(""); le_g[761] = 7;
+        }, false -> { do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s))); le_g[761] = 0; } }; le_t },
     false -> match le_nt == 8 { true -> { le_g[35]=le_n[le_ni*10+8]; le_g[36]=le_n[le_ni*10+3]+1; le_g[37]=ll_tmp(le_g); do print("    %t"+int_to_string(le_g[37])+" = getelementptr ["+int_to_string(le_g[36])+" x i8], ["+int_to_string(le_g[36])+" x i8]* @_s"+int_to_string(le_g[35])+", i64 0, i64 0"); le_g[38]=ll_tmp(le_g); do print("    %t"+int_to_string(le_g[38])+" = ptrtoint i8* %t"+int_to_string(le_g[37])+" to i64"); le_g[761]=2; le_g[38] },
     false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8])); le_bt },
     false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
     false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
-    false -> match le_nt == 14 { true -> { le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; let le_bi: Int = chk_bi(le_g, le_s); match le_bi > 0 { true -> { le_g[140] = le_bi; le_g[31] = le_ni; ll_builtin(le_g, le_n, le_s) }, false -> { le_g[31] = le_ni; ll_call(le_g, le_n, le_s) } } },
-    false -> match le_nt == 16 { true -> ll_match(le_g, le_n, le_s),
-    false -> match le_nt == 15 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 6 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 5 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 3 { true -> { le_g[31] = le_ni; ll_block_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 4 { true -> { le_g[31] = le_ni; do ll_stmt(le_g, le_n, le_s); let le_lt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_lt) + " = add i64 0, 0"); le_lt },
-    false -> match le_nt == 19 { true -> ll_arynew(le_g, le_n, le_s),
-    false -> match le_nt == 20 { true -> ll_aryget(le_g, le_n, le_s),
-    false -> match le_nt == 18 { true -> { do ll_for(le_g, le_n, le_s); let le_ft: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_ft) + " = add i64 0, 0"); le_ft },
-    false -> match le_nt == 21 { true -> { do ll_aryset(le_g, le_n, le_s); let le_st: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_st) + " = add i64 0, 0"); le_st },
-    false -> match le_nt == 24 { true -> ll_vnew(le_g, le_n, le_s),
-    false -> { let le_t2: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt)); le_t2 }
-    } } } } } } } } } } } } } } } } }
+    false -> ll_expr2(le_g, le_n, le_s)
+    } } } } }
 }
 
 
