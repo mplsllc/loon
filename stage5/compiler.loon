@@ -3692,38 +3692,42 @@ fn ll_block_expr(be_g: Array<Int>, be_n: Array<Int>, be_s: Array<Int>) [IO] -> I
 }
 
 // Emit LLVM IR for an expression. Dispatches by node type.
+// ll_expr_complex — dispatch for compound expression types (CALL, MATCH, FOR, ARRAY, etc.)
+fn ll_expr2(l2_g: Array<Int>, l2_n: Array<Int>, l2_s: Array<Int>) [IO] -> Int {
+    let l2_ni: Int = l2_g[31];
+    let l2_nt: Int = l2_n[l2_ni * 10];
+    match l2_nt == 14 { true -> { l2_g[40] = l2_n[l2_ni * 10 + 2]; l2_g[41] = l2_n[l2_ni * 10 + 3]; let l2_bi: Int = chk_bi(l2_g, l2_s); match l2_bi > 0 { true -> { l2_g[140] = l2_bi; l2_g[31] = l2_ni; ll_builtin(l2_g, l2_n, l2_s) }, false -> { l2_g[31] = l2_ni; ll_call(l2_g, l2_n, l2_s) } } },
+    false -> match l2_nt == 16 { true -> ll_match(l2_g, l2_n, l2_s),
+    false -> match l2_nt == 15 { true -> { l2_g[31] = l2_n[l2_ni * 10 + 5]; ll_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 6 { true -> { l2_g[31] = l2_n[l2_ni * 10 + 5]; ll_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 5 { true -> { l2_g[31] = l2_n[l2_ni * 10 + 5]; ll_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 3 { true -> { l2_g[31] = l2_ni; ll_block_expr(l2_g, l2_n, l2_s) },
+    false -> match l2_nt == 4 { true -> { l2_g[31] = l2_ni; do ll_stmt(l2_g, l2_n, l2_s); let l2_lt: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_lt) + " = add i64 0, 0"); l2_lt },
+    false -> match l2_nt == 19 { true -> ll_arynew(l2_g, l2_n, l2_s),
+    false -> match l2_nt == 20 { true -> ll_aryget(l2_g, l2_n, l2_s),
+    false -> match l2_nt == 18 { true -> { do ll_for(l2_g, l2_n, l2_s); let l2_ft: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_ft) + " = add i64 0, 0"); l2_ft },
+    false -> match l2_nt == 21 { true -> { do ll_aryset(l2_g, l2_n, l2_s); let l2_st: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_st) + " = add i64 0, 0"); l2_st },
+    false -> match l2_nt == 24 { true -> ll_vnew(l2_g, l2_n, l2_s),
+    false -> { let l2_t2: Int = ll_tmp(l2_g); do print("    %t" + int_to_string(l2_t2) + " = add i64 0, 0 ; unknown " + int_to_string(l2_nt)); l2_t2 }
+    } } } } } } } } } } } }
+}
+
+// ll_expr — dispatch on node type. Simple literals handled here, complex types in ll_expr2.
 fn ll_expr(le_g: Array<Int>, le_n: Array<Int>, le_s: Array<Int>) [IO] -> Int {
     let le_ni: Int = le_g[31];
     let le_nt: Int = le_n[le_ni * 10];
     match le_nt == 7 { true -> { let le_t: Int = ll_tmp(le_g); le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3];
         match le_n[le_ni * 10 + 7] == 7 { true -> {
-            // Float literal — emit as double constant
             do print_raw("    %t" + int_to_string(le_t) + " = fadd double 0.0, ");
             for _lfi in range(0, le_g[41]) { do print_byte(le_s[le_g[40] + _lfi]); };
-            do print("");
-            le_g[761] = 7; // mark as Float for callers
-        }, false -> {
-            do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s)));
-            le_g[761] = 0; // Int
-        } }; le_t },
+            do print(""); le_g[761] = 7;
+        }, false -> { do print("    %t" + int_to_string(le_t) + " = add i64 0, " + int_to_string(str2int(le_g, le_s))); le_g[761] = 0; } }; le_t },
     false -> match le_nt == 8 { true -> { le_g[35]=le_n[le_ni*10+8]; le_g[36]=le_n[le_ni*10+3]+1; le_g[37]=ll_tmp(le_g); do print("    %t"+int_to_string(le_g[37])+" = getelementptr ["+int_to_string(le_g[36])+" x i8], ["+int_to_string(le_g[36])+" x i8]* @_s"+int_to_string(le_g[35])+", i64 0, i64 0"); le_g[38]=ll_tmp(le_g); do print("    %t"+int_to_string(le_g[38])+" = ptrtoint i8* %t"+int_to_string(le_g[37])+" to i64"); le_g[761]=2; le_g[38] },
     false -> match le_nt == 9 { true -> { let le_bt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_bt) + " = add i64 0, " + int_to_string(le_n[le_ni * 10 + 8])); le_bt },
     false -> match le_nt == 11 { true -> ll_binop(le_g, le_n, le_s),
     false -> match le_nt == 10 { true -> ll_ident(le_g, le_n, le_s),
-    false -> match le_nt == 14 { true -> { le_g[40] = le_n[le_ni * 10 + 2]; le_g[41] = le_n[le_ni * 10 + 3]; let le_bi: Int = chk_bi(le_g, le_s); match le_bi > 0 { true -> { le_g[140] = le_bi; le_g[31] = le_ni; ll_builtin(le_g, le_n, le_s) }, false -> { le_g[31] = le_ni; ll_call(le_g, le_n, le_s) } } },
-    false -> match le_nt == 16 { true -> ll_match(le_g, le_n, le_s),
-    false -> match le_nt == 15 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 6 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 5 { true -> { le_g[31] = le_n[le_ni * 10 + 5]; ll_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 3 { true -> { le_g[31] = le_ni; ll_block_expr(le_g, le_n, le_s) },
-    false -> match le_nt == 4 { true -> { le_g[31] = le_ni; do ll_stmt(le_g, le_n, le_s); let le_lt: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_lt) + " = add i64 0, 0"); le_lt },
-    false -> match le_nt == 19 { true -> ll_arynew(le_g, le_n, le_s),
-    false -> match le_nt == 20 { true -> ll_aryget(le_g, le_n, le_s),
-    false -> match le_nt == 18 { true -> { do ll_for(le_g, le_n, le_s); let le_ft: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_ft) + " = add i64 0, 0"); le_ft },
-    false -> match le_nt == 21 { true -> { do ll_aryset(le_g, le_n, le_s); let le_st: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_st) + " = add i64 0, 0"); le_st },
-    false -> match le_nt == 24 { true -> ll_vnew(le_g, le_n, le_s),
-    false -> { let le_t2: Int = ll_tmp(le_g); do print("    %t" + int_to_string(le_t2) + " = add i64 0, 0 ; unknown " + int_to_string(le_nt)); le_t2 }
-    } } } } } } } } } } } } } } } } }
+    false -> ll_expr2(le_g, le_n, le_s)
+    } } } } }
 }
 
 
