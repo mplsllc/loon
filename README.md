@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="web/media/aquilalogomedium.png" alt="Aquila" height="72">
-</p>
-
-<p align="center">
   <strong>A security-first programming language where the compiler catches what AI agents forget to check.</strong>
 </p>
 
