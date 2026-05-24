@@ -1,9 +1,9 @@
-; stage1/compiler.asm — Loon-0 compiler
+; stage1/compiler.asm — Aquila-0 compiler
 ; Main entry point. Reads token stream from stdin, parses, emits NASM.
 ;
 ; Build: nasm -f elf64 -o compiler.o compiler.asm && ld -o compiler compiler.o
-; Usage: ./stage0/lexer input.loon | ./stage1/compiler > output.asm
-;        ./stage0/lexer input.loon | ./stage1/compiler --dump-ast
+; Usage: ./stage0/lexer input.aquila | ./stage1/compiler > output.asm
+;        ./stage0/lexer input.aquila | ./stage1/compiler --dump-ast
 
 %define SYS_WRITE 1
 %define SYS_EXIT 60

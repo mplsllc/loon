@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Building from Source — Loon</title>
+  <title>Building from Source — Aquila</title>
   <meta name="description" content="Build instructions for all platforms. Covers assembling the bootstrap compiler, running the test gauntlet, and verifying the trust chain.">
   <link rel="stylesheet" href="/style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="Building from Source — Loon">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="Building from Source — Aquila">
   <meta property="og:description" content="Build instructions for all platforms. Covers assembling the bootstrap compiler, running the test gauntlet, and verifying the trust chain.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://loonlang.org/docs/building">
+  <meta property="og:url" content="https://aquila-lang.org/docs/building">
   <meta name="twitter:card" content="summary">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
@@ -21,17 +21,17 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
 
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs/">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -98,31 +98,31 @@ brew install wasmtime</code></pre>
     <!-- ============================================================ -->
     <h2>Building the compiler</h2>
 
-    <p>The Loon compiler is self-hosting. Build from the pre-compiled boot binary:</p>
+    <p>The Aquila compiler is self-hosting. Build from the pre-compiled boot binary:</p>
 
-<pre><code><span class="code-comment"># If you have a working loon binary:</span>
-./loon stage2/compiler.loon > compiler.asm
+<pre><code><span class="code-comment"># If you have a working aquila binary:</span>
+./aquila stage2/compiler.aquila > compiler.asm
 nasm -f elf64 -o compiler.o compiler.asm
-ld -o loon compiler.o
+ld -o aquila compiler.o
 
 <span class="code-comment"># Bootstrap from Stage 1 (assembly):</span>
-./stage0/lexer stage2/compiler.loon | ./stage1/compiler > compiler.asm
+./stage0/lexer stage2/compiler.aquila | ./stage1/compiler > compiler.asm
 nasm -f elf64 -o compiler.o compiler.asm
-ld -o loon compiler.o</code></pre>
+ld -o aquila compiler.o</code></pre>
 
     <!-- ============================================================ -->
-    <h2>Compiling Loon programs</h2>
+    <h2>Compiling Aquila programs</h2>
 
     <h3>NASM backend (default, Linux x86-64)</h3>
 
-<pre><code>./loon program.loon > program.asm
+<pre><code>./aquila program.aquila > program.asm
 nasm -f elf64 -o program.o program.asm
 ld -o program program.o
 ./program</code></pre>
 
     <h3>LLVM backend (cross-platform)</h3>
 
-<pre><code>./loon --target llvm program.loon > program.ll
+<pre><code>./aquila --target llvm program.aquila > program.ll
 llc --relocation-model=pic -filetype=obj program.ll -o program.o
 gcc -no-pie program.o -o program
 ./program</code></pre>
@@ -130,21 +130,21 @@ gcc -no-pie program.o -o program
     <h3>Cross-compilation</h3>
 
 <pre><code><span class="code-comment"># macOS x86-64</span>
-./loon --target llvm --arch macos program.loon > program.ll
+./aquila --target llvm --arch macos program.aquila > program.ll
 
 <span class="code-comment"># macOS ARM64 (Apple Silicon)</span>
-./loon --target llvm --arch macos-arm program.loon > program.ll
+./aquila --target llvm --arch macos-arm program.aquila > program.ll
 
 <span class="code-comment"># Windows</span>
-./loon --target llvm --arch windows program.loon > program.ll
+./aquila --target llvm --arch windows program.aquila > program.ll
 
 <span class="code-comment"># WebAssembly (WASI)</span>
-./loon --target llvm --arch wasm program.loon > program.ll</code></pre>
+./aquila --target llvm --arch wasm program.aquila > program.ll</code></pre>
 
     <h3>WebAssembly build pipeline</h3>
 
 <pre><code><span class="code-comment"># Generate WASM-targeted LLVM IR</span>
-./loon --target llvm --arch wasm program.loon > program.ll
+./aquila --target llvm --arch wasm program.aquila > program.ll
 
 <span class="code-comment"># Option 1: Using llc + wasm-ld</span>
 llc -march=wasm32 -filetype=obj program.ll -o program.o
@@ -178,15 +178,15 @@ clang --target=wasm32-wasi --sysroot=./wasi-sysroot program.ll -o program.wasm</
 ./gauntlet/run.sh
 
 <span class="code-comment"># LLVM test sweep</span>
-for f in gauntlet/tests/*/*.loon; do
+for f in gauntlet/tests/*/*.aquila; do
     expect=$(grep "^// EXPECT:" "$f" | head -1 | sed 's|^// EXPECT: ||')
     [[ "$expect" == "COMPILES OK, exit "* ]] || continue
     expected_exit="${expect#COMPILES OK, exit }"
-    ./loon --target llvm "$f" > /tmp/t.ll 2>/dev/null && \
+    ./aquila --target llvm "$f" > /tmp/t.ll 2>/dev/null && \
     llc --relocation-model=pic -filetype=obj /tmp/t.ll -o /tmp/t.o 2>/dev/null && \
     gcc -no-pie /tmp/t.o -o /tmp/t 2>/dev/null && \
     timeout 5 /tmp/t >/dev/null 2>/dev/null
-    [ "$?" = "$expected_exit" ] && echo "PASS $(basename $f .loon)" || echo "FAIL $(basename $f .loon)"
+    [ "$?" = "$expected_exit" ] && echo "PASS $(basename $f .aquila)" || echo "FAIL $(basename $f .aquila)"
 done</code></pre>
 
     <!-- ============================================================ -->
@@ -195,10 +195,10 @@ done</code></pre>
     <h3>VS Code</h3>
 
     <ol>
-      <li>Copy <code>tools/vscode/</code> to <code>~/.vscode/extensions/loon-language/</code></li>
-      <li>Set the <code>LOON_COMPILER</code> environment variable to point to your loon binary</li>
+      <li>Copy <code>tools/vscode/</code> to <code>~/.vscode/extensions/aquila-language/</code></li>
+      <li>Set the <code>AQUILA_COMPILER</code> environment variable to point to your aquila binary</li>
       <li>Restart VS Code</li>
-      <li>Open a <code>.loon</code> file &mdash; syntax highlighting and error diagnostics will appear</li>
+      <li>Open a <code>.aquila</code> file &mdash; syntax highlighting and error diagnostics will appear</li>
     </ol>
 
   </div>
@@ -213,7 +213,7 @@ done</code></pre>
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs/">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

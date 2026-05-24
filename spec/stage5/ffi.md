@@ -1,12 +1,12 @@
-# Loon FFI — Stage 5.6 Specification
+# Aquila FFI — Stage 5.6 Specification
 
 ## Overview
 
-The Foreign Function Interface allows Loon programs to call C libraries. The FFI boundary is explicitly marked with the `Unsafe:TrustBoundary` effect — every call across the boundary is visible in the type signature.
+The Foreign Function Interface allows Aquila programs to call C libraries. The FFI boundary is explicitly marked with the `Unsafe:TrustBoundary` effect — every call across the boundary is visible in the type signature.
 
 ## Syntax
 
-```loon
+```aquila
 // Declare an external C function
 extern fn sqlite3_open(path: String) [IO, Unsafe:TrustBoundary] -> Int;
 extern fn sqlite3_close(db: Int) [IO, Unsafe:TrustBoundary] -> Int;
@@ -23,7 +23,7 @@ fn open_database(path: String) [IO, Unsafe:TrustBoundary] -> Int {
 
 This makes FFI usage visible at every level of the program:
 
-```loon
+```aquila
 fn process_data(data: Array<Int>) [IO, Unsafe:TrustBoundary] -> Unit {
     // The signature tells you: this function calls C code somewhere
 }
@@ -31,7 +31,7 @@ fn process_data(data: Array<Int>) [IO, Unsafe:TrustBoundary] -> Unit {
 
 ## Type marshaling
 
-| Loon type | C type | Notes |
+| Aquila type | C type | Notes |
 |-----------|--------|-------|
 | Int | int64_t | 64-bit integer |
 | Float | double | 64-bit IEEE 754 |
@@ -45,7 +45,7 @@ Strings are passed as (pointer, length) — NOT null-terminated by default. Use 
 
 Values crossing the FFI boundary lose their privacy type:
 
-```loon
+```aquila
 let pw: Sensitive<String> = get_password();
 extern fn legacy_hash(s: String) [IO, Unsafe:TrustBoundary] -> String;
 // legacy_hash(pw) — COMPILE ERROR: cannot pass Sensitive to Unsafe boundary

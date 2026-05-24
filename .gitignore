@@ -5,7 +5,7 @@ stage0/keywords
 stage0/lexer
 stage1/compiler
 stage2/compiler
-loon
+aquila
 *.o
 
 # Build artifacts

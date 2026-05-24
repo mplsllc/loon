@@ -1,5 +1,5 @@
 ; stage1/parser.asm
-; par_parse_program: two-pass parser for Loon-0 declarations
+; par_parse_program: two-pass parser for Aquila-0 declarations
 ;
 ; Pass 1: collect function names and parameter counts into func_table
 ; Pass 2: parse module decl + fn declarations, build AST nodes

@@ -1,21 +1,21 @@
 #!/bin/bash
-# Build the Loon compiler from source.
+# Build the Aquila compiler from source.
 #
 # Two build paths:
-#   1. Quick (default): Use the bootstrap binary to compile compiler.loon
+#   1. Quick (default): Use the bootstrap binary to compile compiler.aquila
 #   2. Full:  Build from Stage 0 assembly → Stage 1 → Stage 2 bootstrap → full
 #
-# The bootstrap binary is a prebuilt Loon compiler checked into the repo.
+# The bootstrap binary is a prebuilt Aquila compiler checked into the repo.
 # It was produced by the same bootstrap chain and is verifiable:
-#   ./loon stage2/compiler.loon should produce identical output.
+#   ./aquila stage2/compiler.aquila should produce identical output.
 #
 # Requires: nasm, ld (binutils)
-# Produces: ./loon (the compiler binary)
+# Produces: ./aquila (the compiler binary)
 set -e
 
-BOOT="stage2/loon-bootstrap-linux-x86_64"
+BOOT="stage2/aquila-bootstrap-linux-x86_64"
 
-echo "Building Loon compiler..."
+echo "Building Aquila compiler..."
 
 # Check prerequisites
 command -v nasm >/dev/null 2>&1 || { echo "error: nasm not found. Install with: sudo apt install nasm"; exit 1; }
@@ -31,15 +31,15 @@ if [ "$1" = "--full" ]; then
 
     echo "  [3/4] Bootstrap compiler (via Stage 1)"
     # Stage 1 compiles a minimal bootstrap source
-    ./stage0/lexer stage2/compiler-bootstrap.loon | ./stage1/compiler > /tmp/loon_boot.asm
-    nasm -f elf64 -o /tmp/loon_boot.o /tmp/loon_boot.asm
-    ld -o /tmp/loon_boot /tmp/loon_boot.o
+    ./stage0/lexer stage2/compiler-bootstrap.aquila | ./stage1/compiler > /tmp/aquila_boot.asm
+    nasm -f elf64 -o /tmp/aquila_boot.o /tmp/aquila_boot.asm
+    ld -o /tmp/aquila_boot /tmp/aquila_boot.o
 
     echo "  [4/4] Full compiler (via bootstrap)"
-    /tmp/loon_boot stage2/compiler.loon > /tmp/loon_full.asm 2>/dev/null
-    nasm -f elf64 -o /tmp/loon_full.o /tmp/loon_full.asm
-    ld -o loon /tmp/loon_full.o
-    rm -f /tmp/loon_boot.asm /tmp/loon_boot.o /tmp/loon_boot /tmp/loon_full.asm /tmp/loon_full.o
+    /tmp/aquila_boot stage2/compiler.aquila > /tmp/aquila_full.asm 2>/dev/null
+    nasm -f elf64 -o /tmp/aquila_full.o /tmp/aquila_full.asm
+    ld -o aquila /tmp/aquila_full.o
+    rm -f /tmp/aquila_boot.asm /tmp/aquila_boot.o /tmp/aquila_boot /tmp/aquila_full.asm /tmp/aquila_full.o
 else
     # Quick build using bootstrap binary
     if [ ! -f "$BOOT" ]; then
@@ -48,36 +48,36 @@ else
         exit 1
     fi
 
-    echo "  [1/2] Compiling compiler.loon (via bootstrap binary)"
-    "$BOOT" stage2/compiler.loon > /tmp/loon_build.asm 2>/dev/null
-    nasm -f elf64 -o /tmp/loon_build.o /tmp/loon_build.asm
-    ld -o loon /tmp/loon_build.o
+    echo "  [1/2] Compiling compiler.aquila (via bootstrap binary)"
+    "$BOOT" stage2/compiler.aquila > /tmp/aquila_build.asm 2>/dev/null
+    nasm -f elf64 -o /tmp/aquila_build.o /tmp/aquila_build.asm
+    ld -o aquila /tmp/aquila_build.o
 
     echo "  [2/2] Verifying self-hosting"
-    ./loon stage2/compiler.loon > /tmp/loon_verify.asm 2>/dev/null
-    if diff -q /tmp/loon_build.asm /tmp/loon_verify.asm >/dev/null 2>&1; then
+    ./aquila stage2/compiler.aquila > /tmp/aquila_verify.asm 2>/dev/null
+    if diff -q /tmp/aquila_build.asm /tmp/aquila_verify.asm >/dev/null 2>&1; then
         echo "  Fixed point verified — binary is reproducible"
     else
         echo "  Warning: not a fixed point (bootstrap binary may be from a different version)"
     fi
-    rm -f /tmp/loon_build.asm /tmp/loon_build.o /tmp/loon_verify.asm
+    rm -f /tmp/aquila_build.asm /tmp/aquila_build.o /tmp/aquila_verify.asm
 fi
 
 # Quick smoke test
-echo 'module t; fn main() [IO] -> Unit { do exit(0); }' > /tmp/loon_smoke.loon
-./loon /tmp/loon_smoke.loon > /tmp/loon_smoke.asm 2>/dev/null
-nasm -f elf64 -o /tmp/loon_smoke.o /tmp/loon_smoke.asm
-ld -o /tmp/loon_smoke /tmp/loon_smoke.o
-/tmp/loon_smoke
-rm -f /tmp/loon_smoke.loon /tmp/loon_smoke.asm /tmp/loon_smoke.o /tmp/loon_smoke
+echo 'module t; fn main() [IO] -> Unit { do exit(0); }' > /tmp/aquila_smoke.aquila
+./aquila /tmp/aquila_smoke.aquila > /tmp/aquila_smoke.asm 2>/dev/null
+nasm -f elf64 -o /tmp/aquila_smoke.o /tmp/aquila_smoke.asm
+ld -o /tmp/aquila_smoke /tmp/aquila_smoke.o
+/tmp/aquila_smoke
+rm -f /tmp/aquila_smoke.aquila /tmp/aquila_smoke.asm /tmp/aquila_smoke.o /tmp/aquila_smoke
 
 echo ""
-echo "Build successful: ./loon"
+echo "Build successful: ./aquila"
 echo ""
 echo "Quick start:"
-echo "  ./loon examples/loon_call.loon > out.asm"
+echo "  ./aquila examples/aquila_call.aquila > out.asm"
 echo "  nasm -f elf64 -o out.o out.asm && ld -o out out.o"
 echo "  ./out"
 echo ""
 echo "Run the test suite:"
-echo "  LOON_COMPILER=./loon ./gauntlet/run.sh"
+echo "  AQUILA_COMPILER=./aquila ./gauntlet/run.sh"

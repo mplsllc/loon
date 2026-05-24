@@ -1,12 +1,12 @@
-# Loon Parallel Execution — Stage 5.5 Specification
+# Aquila Parallel Execution — Stage 5.5 Specification
 
 ## Overview
 
-Loon programs are parallel by default. Pure functions (declared `[]`) can run in parallel without coordination. IO functions require explicit sequencing via `sequential {}` blocks.
+Aquila programs are parallel by default. Pure functions (declared `[]`) can run in parallel without coordination. IO functions require explicit sequencing via `sequential {}` blocks.
 
 ## Semantics
 
-```loon
+```aquila
 // These CAN run in parallel — both are pure
 let a: Int = expensive_pure_1();
 let b: Int = expensive_pure_2();
@@ -67,7 +67,7 @@ For parallelizable bindings:
 
 Parallel tasks cannot share `Sensitive` or `ZeroOnDrop` values between threads. The ownership model ensures sensitive data stays on the thread that created it.
 
-```loon
+```aquila
 let pw: Sensitive<String> = read_password();
 // pw cannot be moved to a parallel task
 // It stays on the current thread

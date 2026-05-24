@@ -1,14 +1,14 @@
-# Loon source files
-*.loon linguist-language=Loon
+# Aquila source files
+*.aquila linguist-language=Aquila
 
 # Assembly
 *.asm linguist-language=Assembly
 
 # Binary — don't diff
-stage2/loon-bootstrap-linux-x86_64 binary
+stage2/aquila-bootstrap-linux-x86_64 binary
 
 # Normalize line endings
 * text=auto
-*.loon text eol=lf
+*.aquila text eol=lf
 *.asm text eol=lf
 *.sh text eol=lf

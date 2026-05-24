@@ -1,8 +1,8 @@
 #!/bin/bash
-# Loon Integrity Gauntlet — automated runner
+# Aquila Integrity Gauntlet — automated runner
 # Compiles each test, checks expected outcome, reports results.
 
-COMPILER="${LOON_COMPILER:-/tmp/s2_new2}"
+COMPILER="${AQUILA_COMPILER:-/tmp/s2_new2}"
 PASS=0; FAIL=0; GAP=0; DEFER=0; TOTAL=0
 UNEXPECTED_CATCH=0
 
@@ -10,9 +10,9 @@ GREEN='\033[0;32m'; RED='\033[0;31m'
 YELLOW='\033[1;33m'; BLUE='\033[0;34m'
 NC='\033[0m'
 
-for test in gauntlet/tests/*/*.loon; do
+for test in gauntlet/tests/*/*.aquila; do
     TOTAL=$((TOTAL + 1))
-    name=$(basename "$test" .loon)
+    name=$(basename "$test" .aquila)
     expect=$(grep "^// EXPECT:" "$test" | head -1 | sed 's|^// EXPECT: ||')
 
     $COMPILER "$test" > /tmp/g_out.asm 2>/tmp/g_err.txt
@@ -72,7 +72,7 @@ done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "LOON INTEGRITY GAUNTLET"
+echo "AQUILA INTEGRITY GAUNTLET"
 echo "Date:   $(date +%Y-%m-%d)"
 echo "Commit: $(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 echo "────────────────────────────────────────"

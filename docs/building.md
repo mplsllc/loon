@@ -1,4 +1,4 @@
-# Building Loon
+# Building Aquila
 
 ## Prerequisites
 
@@ -38,25 +38,25 @@ Install LLVM from https://releases.llvm.org/ and NASM from https://www.nasm.us/
 
 ## Building the Compiler
 
-The Loon compiler is self-hosting. Build from the pre-compiled boot binary:
+The Aquila compiler is self-hosting. Build from the pre-compiled boot binary:
 
 ```bash
-# If you have a working loon binary:
-./loon stage2/compiler.loon > compiler.asm
+# If you have a working aquila binary:
+./aquila stage2/compiler.aquila > compiler.asm
 nasm -f elf64 -o compiler.o compiler.asm
-ld -o loon compiler.o
+ld -o aquila compiler.o
 
 # Bootstrap from Stage 1 (assembly):
-./stage0/lexer stage2/compiler.loon | ./stage1/compiler > compiler.asm
+./stage0/lexer stage2/compiler.aquila | ./stage1/compiler > compiler.asm
 nasm -f elf64 -o compiler.o compiler.asm
-ld -o loon compiler.o
+ld -o aquila compiler.o
 ```
 
-## Compiling Loon Programs
+## Compiling Aquila Programs
 
 ### NASM backend (default, Linux x86-64)
 ```bash
-./loon program.loon > program.asm
+./aquila program.aquila > program.asm
 nasm -f elf64 -o program.o program.asm
 ld -o program program.o
 ./program
@@ -64,7 +64,7 @@ ld -o program program.o
 
 ### LLVM backend (cross-platform)
 ```bash
-./loon --target llvm program.loon > program.ll
+./aquila --target llvm program.aquila > program.ll
 llc --relocation-model=pic -filetype=obj program.ll -o program.o
 gcc -no-pie program.o -o program
 ./program
@@ -73,23 +73,23 @@ gcc -no-pie program.o -o program
 ### Cross-compilation
 ```bash
 # macOS x86-64
-./loon --target llvm --arch macos program.loon > program.ll
+./aquila --target llvm --arch macos program.aquila > program.ll
 
 # macOS ARM64 (Apple Silicon)
-./loon --target llvm --arch macos-arm program.loon > program.ll
+./aquila --target llvm --arch macos-arm program.aquila > program.ll
 
 # Windows
-./loon --target llvm --arch windows program.loon > program.ll
+./aquila --target llvm --arch windows program.aquila > program.ll
 
 # WebAssembly (WASI)
-./loon --target llvm --arch wasm program.loon > program.ll
+./aquila --target llvm --arch wasm program.aquila > program.ll
 ```
 
 ### WebAssembly Build Pipeline
 
 ```bash
 # Generate WASM-targeted LLVM IR
-./loon --target llvm --arch wasm program.loon > program.ll
+./aquila --target llvm --arch wasm program.aquila > program.ll
 
 # Option 1: Using llc + wasm-ld
 llc -march=wasm32 -filetype=obj program.ll -o program.o
@@ -127,22 +127,22 @@ clang --target=wasm32-wasi --sysroot=./wasi-sysroot program.ll -o program.wasm
 ./gauntlet/run.sh
 
 # LLVM test sweep
-for f in gauntlet/tests/*/*.loon; do
+for f in gauntlet/tests/*/*.aquila; do
     expect=$(grep "^// EXPECT:" "$f" | head -1 | sed 's|^// EXPECT: ||')
     [[ "$expect" == "COMPILES OK, exit "* ]] || continue
     expected_exit="${expect#COMPILES OK, exit }"
-    ./loon --target llvm "$f" > /tmp/t.ll 2>/dev/null && \
+    ./aquila --target llvm "$f" > /tmp/t.ll 2>/dev/null && \
     llc --relocation-model=pic -filetype=obj /tmp/t.ll -o /tmp/t.o 2>/dev/null && \
     gcc -no-pie /tmp/t.o -o /tmp/t 2>/dev/null && \
     timeout 5 /tmp/t >/dev/null 2>/dev/null
-    [ "$?" = "$expected_exit" ] && echo "PASS $(basename $f .loon)" || echo "FAIL $(basename $f .loon)"
+    [ "$?" = "$expected_exit" ] && echo "PASS $(basename $f .aquila)" || echo "FAIL $(basename $f .aquila)"
 done
 ```
 
 ## Editor Support
 
 ### VS Code
-1. Copy `tools/vscode/` to `~/.vscode/extensions/loon-language/`
-2. Set `LOON_COMPILER` environment variable to point to your loon binary
+1. Copy `tools/vscode/` to `~/.vscode/extensions/aquila-language/`
+2. Set `AQUILA_COMPILER` environment variable to point to your aquila binary
 3. Restart VS Code
-4. Open a `.loon` file — syntax highlighting and error diagnostics will appear
+4. Open a `.aquila` file — syntax highlighting and error diagnostics will appear

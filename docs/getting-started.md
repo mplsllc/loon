@@ -1,6 +1,6 @@
-# Getting Started with Loon
+# Getting Started with Aquila
 
-Write your first Loon program in 15 minutes. By the end, you'll see the compiler catch a security violation that every other language misses.
+Write your first Aquila program in 15 minutes. By the end, you'll see the compiler catch a security violation that every other language misses.
 
 ## 1. Install the compiler
 
@@ -10,19 +10,19 @@ Write your first Loon program in 15 minutes. By the end, you'll see the compiler
 # Install NASM
 sudo apt install nasm
 
-# Build the Loon compiler from source
-git clone https://github.com/mplsllc/loon.git
-cd loon
+# Build the Aquila compiler from source
+git clone https://github.com/mplsllc/aquila.git
+cd aquila
 cd stage0 && make && cd ../stage1 && make && cd ..
-./stage0/lexer stage2/compiler.loon | ./stage1/compiler > /tmp/loon.asm
-nasm -f elf64 -o /tmp/loon.o /tmp/loon.asm
-ld -o loon /tmp/loon.o
+./stage0/lexer stage2/compiler.aquila | ./stage1/compiler > /tmp/aquila.asm
+nasm -f elf64 -o /tmp/aquila.o /tmp/aquila.asm
+ld -o aquila /tmp/aquila.o
 ```
 
-You now have a `loon` binary. Move it somewhere on your PATH:
+You now have a `aquila` binary. Move it somewhere on your PATH:
 
 ```bash
-sudo mv loon /usr/local/bin/
+sudo mv aquila /usr/local/bin/
 ```
 
 ### macOS / Windows / WebAssembly
@@ -31,13 +31,13 @@ See [Building from Source](building.md) for LLVM-based cross-platform compilatio
 
 ## 2. Hello world
 
-Create `hello.loon`:
+Create `hello.aquila`:
 
-```loon
+```aquila
 module main;
 
 fn main() [IO] -> Unit {
-    do print("Hello, Loon!");
+    do print("Hello, Aquila!");
     do exit(0);
 }
 ```
@@ -45,23 +45,23 @@ fn main() [IO] -> Unit {
 Compile and run:
 
 ```bash
-loon hello.loon > hello.asm
+aquila hello.aquila > hello.asm
 nasm -f elf64 -o hello.o hello.asm
 ld -o hello hello.o
 ./hello
 ```
 
-Output: `Hello, Loon!`
+Output: `Hello, Aquila!`
 
 **What you just saw:**
-- `module main;` — every Loon file declares a module
+- `module main;` — every Aquila file declares a module
 - `fn main() [IO] -> Unit` — the main function declares `[IO]` effects and returns `Unit`
 - `do print(...)` — `do` is required for calling functions with effects
 - `do exit(0)` — explicit exit with code 0
 
 ## 3. Functions and effects
 
-```loon
+```aquila
 module math;
 
 fn add(a: Int, b: Int) [] -> Int {
@@ -77,7 +77,7 @@ fn main() [IO] -> Unit {
 
 **The effect system:** `add` declares `[]` — no effects. It's a pure function. It cannot call `print`, `exit`, or any IO function. The compiler verifies this:
 
-```loon
+```aquila
 fn bad() [] -> Int {
     do print("side effect!");  // COMPILE ERROR
     42
@@ -92,9 +92,9 @@ Pure functions are guaranteed safe to call anywhere. The compiler proves it.
 
 ## 4. Types and ADTs
 
-Loon has algebraic data types with exhaustive pattern matching:
+Aquila has algebraic data types with exhaustive pattern matching:
 
-```loon
+```aquila
 module shapes;
 
 type Shape {
@@ -120,7 +120,7 @@ fn main() [IO] -> Unit {
 
 Miss a variant and the compiler tells you:
 
-```loon
+```aquila
 fn bad(s: Shape) [] -> Int {
     match s {
         Circle(r) -> r * r,
@@ -133,11 +133,11 @@ fn bad(s: Shape) [] -> Int {
 error: non-exhaustive match
 ```
 
-## 5. Privacy types — this is why Loon exists
+## 5. Privacy types — this is why Aquila exists
 
-Here's where it gets interesting. Loon has privacy-aware types that the compiler enforces:
+Here's where it gets interesting. Aquila has privacy-aware types that the compiler enforces:
 
-```loon
+```aquila
 module auth;
 
 fn main() [IO] -> Unit {
@@ -160,14 +160,14 @@ error: cannot log Sensitive value — use expose() with audit context
 
 Try to sneak the password out through a variable:
 
-```loon
+```aquila
 let raw: String = password;
 // error: cannot assign Sensitive value to less restrictive type — use expose()
 ```
 
 Pass it to a function that doesn't expect sensitive data:
 
-```loon
+```aquila
 fn log_it(msg: String) [IO] -> Unit { do print(msg); }
 do log_it(password);
 // error: cannot pass Sensitive value to less restrictive parameter — use expose()
@@ -179,7 +179,7 @@ The compiler blocks every path. The only way through is the escape hatch.
 
 When you genuinely need to cross the privacy boundary, `expose()` lets you — but it requires declaring the `[Audit]` effect and providing a reason:
 
-```loon
+```aquila
 module auth;
 
 fn show_hint(pw: Sensitive<String>) [IO, Audit] -> Unit {
@@ -207,7 +207,7 @@ The unsafe path is possible. But it's visible, documented, and audited.
 
 Sensitive values that shouldn't linger in memory:
 
-```loon
+```aquila
 fn use_key() [IO] -> Unit {
     let key: Sensitive<String, ZeroOnDrop> = "encryption_key_256";
     // ... use the key ...
@@ -219,8 +219,8 @@ The compiler emits zeroing instructions at every scope exit. The key doesn't sur
 
 ## What's next
 
-- **[Language Specification](../spec/loon-spec.md)** — every keyword, operator, and type
+- **[Language Specification](../spec/aquila-spec.md)** — every keyword, operator, and type
 - **[Privacy Type Design](../spec/privacy-type-system-notes.md)** — the full privacy type system design
 - **[Building from Source](building.md)** — all platforms including LLVM and WebAssembly
-- **[Examples](../examples/)** — real Loon programs including the calculator and loon call
+- **[Examples](../examples/)** — real Aquila programs including the calculator and aquila call
 - **[Bootstrap Story](../BOOTSTRAP.md)** — how the language was built from bare metal assembly

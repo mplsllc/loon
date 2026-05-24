@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Effect System — Loon</title>
-  <meta name="description" content="How Loon's effect system makes side effects visible, verifiable, and impossible to hide — from every call site to every signature.">
+  <title>The Effect System — Aquila</title>
+  <meta name="description" content="How Aquila's effect system makes side effects visible, verifiable, and impossible to hide — from every call site to every signature.">
   <link rel="stylesheet" href="/style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="The Effect System — Loon">
-  <meta property="og:description" content="How Loon's effect system makes side effects visible, verifiable, and impossible to hide.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="The Effect System — Aquila">
+  <meta property="og:description" content="How Aquila's effect system makes side effects visible, verifiable, and impossible to hide.">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://loonlang.org/docs/effects">
+  <meta property="og:url" content="https://aquila-lang.org/docs/effects">
   <meta name="twitter:card" content="summary_large_image">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
@@ -21,17 +21,17 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
         
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs/">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -50,7 +50,7 @@
     <!-- ============================================================ -->
     <h2>What are effects?</h2>
 
-    <p>Every function in Loon declares what side effects it can perform. The declaration is in square brackets after the parameters:</p>
+    <p>Every function in Aquila declares what side effects it can perform. The declaration is in square brackets after the parameters:</p>
 
 <pre><code>fn name(params) [Effects] -&gt; ReturnType</code></pre>
 
@@ -59,7 +59,7 @@
     <!-- ============================================================ -->
     <h2>Built-in effects</h2>
 
-    <p>Loon defines four built-in effects:</p>
+    <p>Aquila defines four built-in effects:</p>
 
     <ul>
       <li><strong><code>IO</code></strong> &mdash; print, exit, any output to the outside world</li>
@@ -142,7 +142,7 @@ fn caller() [] -&gt; Unit {
 
     <div class="essay-cta">
       <p>See the effect system in action.</p>
-      <a href="https://github.com/mplsllc/loon" class="btn btn-primary">View on GitHub</a>
+      <a href="https://github.com/mplsllc/aquila" class="btn btn-primary">View on GitHub</a>
       <a href="/docs/" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">Back to Docs</a>
     </div>
 
@@ -158,7 +158,7 @@ fn caller() [] -&gt; Unit {
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs/">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

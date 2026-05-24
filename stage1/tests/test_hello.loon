@@ -1,5 +1,0 @@
-module main;
-
-fn main() [IO] -> Unit {
-    do print("Hello, Loon!");
-}

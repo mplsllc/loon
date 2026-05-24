@@ -81,7 +81,7 @@ PASS  return_string_got_int
 PASS  string_gets_int
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LOON INTEGRITY GAUNTLET
+AQUILA INTEGRITY GAUNTLET
 Date:   2026-03-24
 Commit: 5728171
 ────────────────────────────────────────

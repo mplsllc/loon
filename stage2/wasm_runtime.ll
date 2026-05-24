@@ -1,5 +1,5 @@
-; Loon WASM Runtime — linked with compiler output for WASM self-hosting
-; Provides: _loon_i64_to_str, _loon_print_byte, _loon_read_file, _loon_get_arg
+; Aquila WASM Runtime — linked with compiler output for WASM self-hosting
+; Provides: _aquila_i64_to_str, _aquila_print_byte, _aquila_read_file, _aquila_get_arg
 target triple = "wasm32-wasi"
 target datalayout = "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-n32:64-S128-ni:1:10:20"
 
@@ -96,7 +96,7 @@ entry:
 }
 
 ; --- sprintf stub (used by int_to_string/float_to_string) ---
-; For WASM, int_to_string uses _loon_i64_to_str instead
+; For WASM, int_to_string uses _aquila_i64_to_str instead
 define i32 @sprintf(i8* %buf, i8* %fmt, ...) {
 entry:
   ; Stub — returns 0 (no formatting in WASM mode)
@@ -133,9 +133,9 @@ equal:
   ret i32 0
 }
 
-; --- _loon_i64_to_str: convert i64 to null-terminated decimal string ---
+; --- _aquila_i64_to_str: convert i64 to null-terminated decimal string ---
 ; Simpler approach: write digits right-to-left, then return pointer to first digit
-define i8* @_loon_i64_to_str(i64 %val) {
+define i8* @_aquila_i64_to_str(i64 %val) {
 entry:
   %buf = call i8* @malloc(i64 24)
   ; Null-terminate at position 23
@@ -185,9 +185,9 @@ return_str:
   ret i8* %ret
 }
 
-; --- _loon_print_byte: write single byte to stdout ---
+; --- _aquila_print_byte: write single byte to stdout ---
 @_pb = global [1 x i8] zeroinitializer
-define void @_loon_print_byte(i64 %ch) {
+define void @_aquila_print_byte(i64 %ch) {
   %c8 = trunc i64 %ch to i8
   store i8 %c8, i8* getelementptr ([1 x i8], [1 x i8]* @_pb, i32 0, i32 0)
   %p = getelementptr [1 x i8], [1 x i8]* @_pb, i32 0, i32 0
@@ -195,11 +195,11 @@ define void @_loon_print_byte(i64 %ch) {
   ret void
 }
 
-; --- _loon_read_file: read stdin into buffer, return ptr ---
+; --- _aquila_read_file: read stdin into buffer, return ptr ---
 ; In WASM mode, ignores the filename argument and reads from stdin (fd 0)
 @_riov = global [2 x i32] zeroinitializer
 @_rnr = global i32 0
-define i8* @_loon_read_file(i64 %ignored) {
+define i8* @_aquila_read_file(i64 %ignored) {
 entry:
   %buf = call i8* @malloc(i64 524288)
   br label %rl
@@ -224,13 +224,13 @@ done:
   ret i8* %buf
 }
 
-; --- _loon_get_arg: get CLI argument by index ---
+; --- _aquila_get_arg: get CLI argument by index ---
 @_wargc = global i32 0
 @_wargsz = global i32 0
 @_waloaded = global i32 0
 @_waptrs = global [64 x i32] zeroinitializer
 @_wabuf = global [4096 x i8] zeroinitializer
-define i8* @_loon_get_arg(i64 %idx) {
+define i8* @_aquila_get_arg(i64 %idx) {
 entry:
   %ld = load i32, i32* @_waloaded
   %nl = icmp eq i32 %ld, 0

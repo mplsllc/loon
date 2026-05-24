@@ -1,6 +1,6 @@
-# Loon Safety Audit — v0.5.0
+# Aquila Safety Audit — v0.5.0
 
-This document presents measured evidence for Loon's safety claims. Every claim is backed by a test program that can be independently verified.
+This document presents measured evidence for Aquila's safety claims. Every claim is backed by a test program that can be independently verified.
 
 ## Fuzzer Results
 
@@ -24,7 +24,7 @@ Fuzzer source: `tools/fuzz/fuzz.py`
 
 Functions must declare their effects. A pure function cannot call IO functions.
 
-```loon
+```aquila
 fn pure() [] -> Int {
     do print("side effect!");  // COMPILE ERROR
     42
@@ -34,26 +34,26 @@ fn pure() [] -> Int {
 error: undeclared effect: function pure uses IO but declares []
 ```
 
-**Test:** `gauntlet/tests/effect/pure_calls_print.loon` — PASS
+**Test:** `gauntlet/tests/effect/pure_calls_print.aquila` — PASS
 
 ### 2. Type Mismatches
 
 Declared types must match assigned values.
 
-```loon
+```aquila
 let x: Int = "hello";  // COMPILE ERROR
 ```
 ```
 error: type mismatch: expected Int, got String
 ```
 
-**Test:** `gauntlet/tests/type/int_gets_string.loon` — PASS
+**Test:** `gauntlet/tests/type/int_gets_string.aquila` — PASS
 
 ### 3. Non-Exhaustive Match
 
 Every ADT variant must be handled or a wildcard provided.
 
-```loon
+```aquila
 type Color { Red, Green, Blue }
 fn name(c: Color) [] -> Int {
     match c { Red -> 0, Green -> 1 }  // COMPILE ERROR: missing Blue
@@ -63,26 +63,26 @@ fn name(c: Color) [] -> Int {
 error: non-exhaustive match
 ```
 
-**Test:** `gauntlet/tests/exhaustive/missing_one_variant.loon` — PASS
+**Test:** `gauntlet/tests/exhaustive/missing_one_variant.aquila` — PASS
 
 ### 4. Undefined Variables
 
 Every variable must be declared before use.
 
-```loon
+```aquila
 do exit(undefined_name);  // COMPILE ERROR
 ```
 ```
 error: undefined variable: undefined_name
 ```
 
-**Test:** `gauntlet/tests/scope/undefined_var.loon` — PASS
+**Test:** `gauntlet/tests/scope/undefined_var.aquila` — PASS
 
 ### 5. Wrong Argument Count
 
 Function calls must provide the correct number of arguments.
 
-```loon
+```aquila
 fn add(a: Int, b: Int) [] -> Int { a + b }
 do exit(add(1));  // COMPILE ERROR: expected 2, got 1
 ```
@@ -90,40 +90,40 @@ do exit(add(1));  // COMPILE ERROR: expected 2, got 1
 error: wrong argument count: expected 2, got 1
 ```
 
-**Test:** `gauntlet/tests/scope/wrong_arg_count_few.loon` — PASS
+**Test:** `gauntlet/tests/scope/wrong_arg_count_few.aquila` — PASS
 
 ### 6. Immutable Reassignment
 
 Let bindings cannot be reassigned.
 
-```loon
+```aquila
 let x: Int = 1;
 x = 2;  // COMPILE ERROR
 ```
 ```
-error: immutable reassignment — Loon bindings cannot be reassigned
+error: immutable reassignment — Aquila bindings cannot be reassigned
 ```
 
-**Test:** `gauntlet/tests/scope/immutable_reassign.loon` — PASS
+**Test:** `gauntlet/tests/scope/immutable_reassign.aquila` — PASS
 
 ### 7. Return Type Mismatch
 
 Functions must return the declared type.
 
-```loon
+```aquila
 fn bad() [] -> Int { "not an int" }  // COMPILE ERROR
 ```
 ```
 error: return type mismatch: declared Int, returns String
 ```
 
-**Test:** `gauntlet/tests/type/return_int_got_string.loon` — PASS
+**Test:** `gauntlet/tests/type/return_int_got_string.aquila` — PASS
 
 ### 8. Call Argument Type Mismatch
 
 Arguments must match parameter types.
 
-```loon
+```aquila
 fn takes_int(x: Int) [] -> Int { x }
 do exit(takes_int("wrong"));  // COMPILE ERROR
 ```
@@ -131,13 +131,13 @@ do exit(takes_int("wrong"));  // COMPILE ERROR
 error: type mismatch: expected Int, got String
 ```
 
-**Test:** `gauntlet/tests/type/call_arg_wrong_type.loon` — PASS
+**Test:** `gauntlet/tests/type/call_arg_wrong_type.aquila` — PASS
 
 ### 9. Division by Zero (Runtime)
 
 Division by zero is trapped at runtime.
 
-```loon
+```aquila
 let x: Int = 10 / 0;  // RUNTIME TRAP: exit 1
 ```
 
@@ -147,7 +147,7 @@ let x: Int = 10 / 0;  // RUNTIME TRAP: exit 1
 
 ### Rule 1: Cannot Log Sensitive Values
 
-```loon
+```aquila
 let pw: Sensitive<String> = "secret";
 do print(pw);  // COMPILE ERROR
 ```
@@ -155,11 +155,11 @@ do print(pw);  // COMPILE ERROR
 error: cannot log Sensitive value — use expose() with audit context
 ```
 
-**Test:** `gauntlet/tests/privacy/log_sensitive.loon` — PASS
+**Test:** `gauntlet/tests/privacy/log_sensitive.aquila` — PASS
 
 ### Rule 2: Cannot Log via String Concatenation
 
-```loon
+```aquila
 let pw: Sensitive<String> = "secret";
 do print("password=" + pw);  // COMPILE ERROR
 ```
@@ -167,11 +167,11 @@ do print("password=" + pw);  // COMPILE ERROR
 error: cannot log Sensitive value — use expose() with audit context
 ```
 
-**Test:** `gauntlet/tests/adversarial/leak_via_concat.loon` — PASS
+**Test:** `gauntlet/tests/adversarial/leak_via_concat.aquila` — PASS
 
 ### Rule 3: Cannot Downcast Sensitive
 
-```loon
+```aquila
 let pw: Sensitive<String> = "secret";
 let raw: String = pw;  // COMPILE ERROR
 ```
@@ -179,11 +179,11 @@ let raw: String = pw;  // COMPILE ERROR
 error: cannot assign Sensitive value to less restrictive type — use expose()
 ```
 
-**Test:** `gauntlet/tests/privacy/downcast_error.loon` — PASS
+**Test:** `gauntlet/tests/privacy/downcast_error.aquila` — PASS
 
 ### Rule 4: Cannot Return Sensitive as Less Restrictive
 
-```loon
+```aquila
 fn extract(pw: Sensitive<String>) [] -> String {
     pw  // COMPILE ERROR
 }
@@ -192,11 +192,11 @@ fn extract(pw: Sensitive<String>) [] -> String {
 error: cannot return Sensitive value as less restrictive type — use expose()
 ```
 
-**Test:** `gauntlet/tests/adversarial/leak_via_return.loon` — PASS
+**Test:** `gauntlet/tests/adversarial/leak_via_return.aquila` — PASS
 
 ### Rule 5: expose() Requires Audit Effect
 
-```loon
+```aquila
 fn bad(pw: Sensitive<String>) [IO] -> Unit {
     let vis: Public<String> = expose(pw, "reason");  // COMPILE ERROR: missing Audit
 }
@@ -205,24 +205,24 @@ fn bad(pw: Sensitive<String>) [IO] -> Unit {
 error: undeclared effect: function uses Audit but declares without it
 ```
 
-**Test:** `gauntlet/tests/adversarial/leak_expose_no_audit.loon` — PASS
+**Test:** `gauntlet/tests/adversarial/leak_expose_no_audit.aquila` — PASS
 
 ### Rule 6: Forbidden Algorithms
 
-```loon
+```aquila
 let h: String = md5("data");  // COMPILE ERROR
 ```
 ```
-error: forbidden algorithm — MD5 is broken, not available in Loon
+error: forbidden algorithm — MD5 is broken, not available in Aquila
 ```
 
-**Test:** `gauntlet/tests/privacy/forbidden_md5.loon` — PASS
+**Test:** `gauntlet/tests/privacy/forbidden_md5.aquila` — PASS
 
 ## Known Gaps (honest)
 
 ### Gap 1: string_length on Sensitive values returns Int
 
-```loon
+```aquila
 let pw: Sensitive<String> = "secret";
 let len: Int = string_length(pw);
 do print(int_to_string(len));  // Compiles — prints "6"
@@ -230,7 +230,7 @@ do print(int_to_string(len));  // Compiles — prints "6"
 
 **Status:** By design. `string_length` returns `Int` (metadata about the string, not the string itself). The length of a password is not the password. This is consistent with how cryptographic systems treat metadata vs content.
 
-**Test:** `gauntlet/tests/adversarial/leak_via_length.loon` — COMPILES OK (intentional)
+**Test:** `gauntlet/tests/adversarial/leak_via_length.aquila` — COMPILES OK (intentional)
 
 ### Gap 2: Privacy types are opt-in
 
@@ -293,9 +293,9 @@ python3 tools/fuzz/fuzz.py 10000
 ./gauntlet/llm_tests/run_llm_gauntlet.sh
 
 # Verify self-hosting
-./loon stage2/compiler.loon > /tmp/s2.asm
+./aquila stage2/compiler.aquila > /tmp/s2.asm
 nasm -f elf64 -o /tmp/s2.o /tmp/s2.asm && ld -o /tmp/s2 /tmp/s2.o
-/tmp/s2 stage2/compiler.loon > /tmp/s2b.asm
+/tmp/s2 stage2/compiler.aquila > /tmp/s2b.asm
 diff /tmp/s2.asm /tmp/s2b.asm  # must be empty
 ```
 

@@ -1,5 +1,5 @@
-; lexer.asm — Milestone 0.3: Complete Loon Lexer
-; Reads a .loon file, emits tokens in the locked-down format:
+; lexer.asm — Milestone 0.3: Complete Aquila Lexer
+; Reads a .aquila file, emits tokens in the locked-down format:
 ;   TYPE line:col           (keywords, operators, delimiters, EOF)
 ;   TYPE "value" line:col   (IDENT, LIT_INT, LIT_FLOAT, LIT_STRING)
 ;

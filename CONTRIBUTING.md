@@ -1,12 +1,12 @@
-# Contributing to Loon
+# Contributing to Aquila
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/mplsllc/loon.git
-cd loon
+git clone https://github.com/mplsllc/aquila.git
+cd aquila
 ./build.sh
-LOON_COMPILER=./loon ./gauntlet/run.sh
+AQUILA_COMPILER=./aquila ./gauntlet/run.sh
 ```
 
 If the gauntlet shows 74/74 pass, 0 failures — you're ready.
@@ -14,16 +14,16 @@ If the gauntlet shows 74/74 pass, 0 failures — you're ready.
 ## Project Structure
 
 ```
-loon/
+aquila/
 ├── stage0/             Assembly lexer (1,198 lines)
 ├── stage1/             Assembly compiler (6,542 lines)
 ├── stage2/
-│   ├── compiler.loon   The Loon compiler in Loon (~2,800 lines)
-│   └── loon-bootstrap-linux-x86_64   Bootstrap binary
+│   ├── compiler.aquila   The Aquila compiler in Aquila (~2,800 lines)
+│   └── aquila-bootstrap-linux-x86_64   Bootstrap binary
 ├── gauntlet/
 │   ├── run.sh          Test runner
 │   └── tests/          74 test files across 6 categories
-├── examples/           Example Loon programs
+├── examples/           Example Aquila programs
 ├── spec/               Language specification
 ├── docs/               Documentation
 ├── tools/
@@ -48,21 +48,21 @@ loon/
 
 ```bash
 # Full gauntlet (74 tests)
-LOON_COMPILER=./loon ./gauntlet/run.sh
+AQUILA_COMPILER=./aquila ./gauntlet/run.sh
 
 # Single test
-./loon gauntlet/tests/effect/pure_calls_print.loon
+./aquila gauntlet/tests/effect/pure_calls_print.aquila
 # Should produce: error: undeclared effect...
 ```
 
 ## Self-Hosting Verification
 
-The compiler compiles itself. After any change to `stage2/compiler.loon`:
+The compiler compiles itself. After any change to `stage2/compiler.aquila`:
 
 ```bash
-./loon stage2/compiler.loon > /tmp/a.asm
-nasm -f elf64 -o /tmp/a.o /tmp/a.asm && ld -o /tmp/loon_new /tmp/a.o
-/tmp/loon_new stage2/compiler.loon > /tmp/b.asm
+./aquila stage2/compiler.aquila > /tmp/a.asm
+nasm -f elf64 -o /tmp/a.o /tmp/a.asm && ld -o /tmp/aquila_new /tmp/a.o
+/tmp/aquila_new stage2/compiler.aquila > /tmp/b.asm
 diff /tmp/a.asm /tmp/b.asm  # must be empty — fixed point
 ```
 
@@ -70,8 +70,8 @@ If the diff is not empty, iterate one more self-compile until it stabilizes.
 
 ## Making Changes
 
-1. **Write the test first.** Add a `.loon` file to `gauntlet/tests/` with the header format:
-   ```loon
+1. **Write the test first.** Add a `.aquila` file to `gauntlet/tests/` with the header format:
+   ```aquila
    // TEST: my_test_name
    // EXPECT: ERROR           (or COMPILES OK, exit N)
    // CATEGORY: type          (effect, type, scope, exhaustive, structural, privacy, edge)
@@ -79,30 +79,30 @@ If the diff is not empty, iterate one more self-compile until it stabilizes.
    // ... test code ...
    ```
 
-2. **Make the change** in `stage2/compiler.loon`.
+2. **Make the change** in `stage2/compiler.aquila`.
 
 3. **Build and verify:**
    ```bash
    ./build.sh
-   LOON_COMPILER=./loon ./gauntlet/run.sh
+   AQUILA_COMPILER=./aquila ./gauntlet/run.sh
    ```
 
 4. **Update the bootstrap binary** if the change affects the bootstrap chain:
    ```bash
-   cp loon stage2/loon-bootstrap-linux-x86_64
+   cp aquila stage2/aquila-bootstrap-linux-x86_64
    ```
 
 ## What NOT to Change
 
 - `stage0/` and `stage1/` — the assembly seed is frozen. Only change for critical bug fixes.
-- `spec/loon-0-spec.md` — the bootstrap subset spec is historical.
+- `spec/aquila-0-spec.md` — the bootstrap subset spec is historical.
 - The MPLS License — the values are not negotiable.
 
 ## Code Style
 
 - Function names: `snake_case`, prefixed by file abbreviation (`ll_` for LLVM, `cg_` for NASM, `tc_` for type checker)
 - Variables: `prefix_descriptive_name` (e.g., `lm_arm` for ll_match's arm variable)
-- `g[]` slots: document in the slot map at the top of `compiler.loon`
+- `g[]` slots: document in the slot map at the top of `compiler.aquila`
 - One function per concern. Keep functions under 30 lines where possible.
 - No `arr[i] = fn_call()` — use `g[]` slots instead (known codegen limitation)
 

@@ -1,14 +1,14 @@
-# Loon Generics — Stage 5.2 Specification
+# Aquila Generics — Stage 5.2 Specification
 
 ## Overview
 
-Loon generics use monomorphization — each concrete instantiation generates specialized code. No runtime type erasure. No virtual dispatch for generics.
+Aquila generics use monomorphization — each concrete instantiation generates specialized code. No runtime type erasure. No virtual dispatch for generics.
 
 ## Syntax
 
 ### Type declarations
 
-```loon
+```aquila
 type Option<T> {
     Some(value: T),
     None,
@@ -27,7 +27,7 @@ type List<T> {
 
 ### Generic functions
 
-```loon
+```aquila
 fn map<T, U>(opt: Option<T>, f: fn(T) -> U) [] -> Option<U> {
     match opt {
         Some(v) -> Some(f(v)),
@@ -45,7 +45,7 @@ fn unwrap_or<T>(opt: Option<T>, default: T) [] -> T {
 
 ### Instantiation
 
-```loon
+```aquila
 let x: Option<Int> = Some(42);
 let y: Option<String> = Some("hello");
 let r: Result<Int, String> = Ok(42);
@@ -86,7 +86,7 @@ The codegen emits code for `Option_Int` — no generics at runtime. Each unique 
 
 Generic types preserve privacy levels:
 
-```loon
+```aquila
 let pw: Option<Sensitive<String>> = Some(get_password());
 // pw is Option with Sensitive content
 // Unwrapping preserves: unwrap_or(pw, "") returns Sensitive<String>
@@ -96,7 +96,7 @@ The monomorphized type `Option_Sensitive_String` has privacy-aware field types.
 
 ## Constraints (future)
 
-```loon
+```aquila
 fn serialize<T: Display>(value: T) [IO] -> Unit {
     do print(value.to_string());
 }

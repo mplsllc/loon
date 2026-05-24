@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Loon — A programming language where incorrect code does not compile</title>
-  <meta name="description" content="Loon is a programming language with compile-time privacy types, effect tracking, and exhaustive checking. Built from bare metal for a world where AI writes the code.">
+  <title>Aquila — A programming language where incorrect code does not compile</title>
+  <meta name="description" content="Aquila is a programming language with compile-time privacy types, effect tracking, and exhaustive checking. Built from bare metal for a world where AI writes the code.">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="Loon — A programming language where incorrect code does not compile">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="Aquila — A programming language where incorrect code does not compile">
   <meta property="og:description" content="Privacy types, effect tracking, and exhaustive checking — enforced by the compiler. Built from bare metal x86-64 assembly.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://loonlang.org">
+  <meta property="og:url" content="https://aquila-lang.org">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Loon — incorrect code does not compile">
+  <meta name="twitter:title" content="Aquila — incorrect code does not compile">
   <meta name="twitter:description" content="The compiler catches what AI agents forget to check. Privacy types enforced at compile time.">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
@@ -26,17 +26,17 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="#why">Why Loon</a></li>
+        <li><a href="#why">Why Aquila</a></li>
         <li><a href="#language">Language</a></li>
         <li><a href="/docs">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -48,7 +48,7 @@
 <section class="hero" id="why">
   <div class="container">
     <h1>The compiler catches what AI agents forget to check.</h1>
-    <p class="hero-sub">AI writes most of the code now. The vibe coder says "connect to the database and return the user." They don't say "don't log the password." Loon's type system says it for them.</p>
+    <p class="hero-sub">AI writes most of the code now. The vibe coder says "connect to the database and return the user." They don't say "don't log the password." Aquila's type system says it for them.</p>
 
     <div class="code-compare">
       <div class="code-panel code-panel-bad">
@@ -64,9 +64,9 @@ logging.info(f"Login: user={<span class="code-hl-bad">username</span>} password=
 
       <div class="code-panel code-panel-good">
         <div class="code-panel-header">
-          <span class="code-panel-label">This does not compile in Loon</span>
+          <span class="code-panel-label">This does not compile in Aquila</span>
         </div>
-        <pre><code><span class="code-comment">// Loon catches it before it ships</span>
+        <pre><code><span class="code-comment">// Aquila catches it before it ships</span>
 do print("Login: " + username + " password=" + <span class="code-hl-good">password</span>);
 
 <span class="code-error">error[E301]: cannot log Sensitive value</span>
@@ -159,7 +159,7 @@ fn validate(s: String) -&gt; Bool {
 
         <div class="feature-card">
           <h3>Structured Errors</h3>
-          <p>Compiler errors are JSON. When an AI agent writes Loon code and the compiler rejects it, the agent gets a machine-readable error with the exact location, the violated rule, and a suggested fix. No regex parsing of error messages. The feedback loop is tight and deterministic.</p>
+          <p>Compiler errors are JSON. When an AI agent writes Aquila code and the compiler rejects it, the agent gets a machine-readable error with the exact location, the violated rule, and a suggested fix. No regex parsing of error messages. The feedback loop is tight and deterministic.</p>
           <pre class="feature-code"><code>{"error": "E301",
  "message": "cannot log Sensitive value",
  "location": {"line": 4, "col": 12},
@@ -169,7 +169,7 @@ fn validate(s: String) -&gt; Bool {
 
         <div class="feature-card">
           <h3>Bootstrapped from Assembly</h3>
-          <p>Loon's compiler is built from 8,553 lines of x86-64 assembly. No C runtime. No LLVM. No borrowed toolchain. The trust chain starts at instructions you can read and verify. Every byte of the compiler is accounted for in this repository.</p>
+          <p>Aquila's compiler is built from 8,553 lines of x86-64 assembly. No C runtime. No LLVM. No borrowed toolchain. The trust chain starts at instructions you can read and verify. Every byte of the compiler is accounted for in this repository.</p>
         </div>
 
       </div>
@@ -199,7 +199,7 @@ fn validate(s: String) -&gt; Bool {
           </tr>
           <tr>
             <td><strong>Stage 2</strong></td>
-            <td>Loon compiler written in Loon</td>
+            <td>Aquila compiler written in Aquila</td>
             <td>Self-hosting</td>
           </tr>
           <tr>
@@ -236,7 +236,7 @@ fn validate(s: String) -&gt; Bool {
 <section class="mission-section" id="mission">
   <div class="container">
     <h2>The MPLS License</h2>
-    <p class="mission-lead">Loon is free to use, read, modify, and distribute for individuals, small organizations, nonprofits, and educational institutions. The source is open. The compiler is yours.</p>
+    <p class="mission-lead">Aquila is free to use, read, modify, and distribute for individuals, small organizations, nonprofits, and educational institutions. The source is open. The compiler is yours.</p>
 
     <div class="mission-columns">
       <div class="mission-col mission-col-allowed">
@@ -283,14 +283,14 @@ fn validate(s: String) -&gt; Bool {
 
       <div style="background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; padding: 1.5rem;">
         <p style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 700; margin-bottom: 0.5rem;">In Progress</p>
-        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Stage 5 — Real Loon</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Compiler rewrite in full Loon. Standard library. Generics. Closures. Garbage collector. Parallel execution. FFI.</p>
+        <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Stage 5 — Real Aquila</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Compiler rewrite in full Aquila. Standard library. Generics. Closures. Garbage collector. Parallel execution. FFI.</p>
       </div>
 
       <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem;">
         <p style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Planned</p>
         <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Stage 6 — Full Mission</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Device types for GPU/TPU safety. LSP rewrite in Loon. Package registry. The full ecosystem.</p>
+        <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Device types for GPU/TPU safety. LSP rewrite in Aquila. Package registry. The full ecosystem.</p>
       </div>
 
     </div>
@@ -313,7 +313,7 @@ fn validate(s: String) -&gt; Bool {
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

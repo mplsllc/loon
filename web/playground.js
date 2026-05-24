@@ -1,7 +1,7 @@
 /**
- * playground.js — WASM runtime glue for the Loon browser playground.
+ * playground.js — WASM runtime glue for the Aquila browser playground.
  *
- * Loads the Loon compiler (compiled to WASM with WASI imports) and runs it
+ * Loads the Aquila compiler (compiled to WASM with WASI imports) and runs it
  * in the browser. Each compilation gets a fresh WASM instance because the
  * compiler uses mutable globals that cannot be reset.
  *
@@ -18,7 +18,7 @@ class WASIExitError extends Error {
   }
 }
 
-export class LoonPlayground {
+export class AquilaPlayground {
   constructor() {
     /** @type {WebAssembly.Instance|null} */
     this.wasmInstance = null;
@@ -133,7 +133,7 @@ export class LoonPlayground {
        * fd_read(fd, iovs, iovs_len, nread_ptr) -> errno
        *
        * Read data from a file descriptor. The compiler reads source code
-       * from stdin (fd=0) via its _loon_read_file implementation, which
+       * from stdin (fd=0) via its _aquila_read_file implementation, which
        * in WASM mode reads from fd 0.
        *
        * On the first call, we copy the user's source code into the
@@ -234,8 +234,8 @@ export class LoonPlayground {
        *               terminated argument strings are written
        *
        * Layout after this call:
-       *   argv[0] -> "loon\0"
-       *   argv[1] -> "playground.loon\0"
+       *   argv[0] -> "aquila\0"
+       *   argv[1] -> "playground.aquila\0"
        *   ...
        *
        * All pointers are i32 because WASM uses 32-bit linear memory
@@ -271,11 +271,11 @@ export class LoonPlayground {
   // --------------------------------------------------------------------------
 
   /**
-   * Compile Loon source code using the WASM compiler.
+   * Compile Aquila source code using the WASM compiler.
    *
-   * @param {string} source   Loon source code to compile
+   * @param {string} source   Aquila source code to compile
    * @param {object} options  Optional settings
-   * @param {string[]} options.args  Custom argv (default: ["loon", "/dev/stdin"])
+   * @param {string[]} options.args  Custom argv (default: ["aquila", "/dev/stdin"])
    * @returns {{ stdout: string, stderr: string, exitCode: number }}
    */
   async compile(source, options = {}) {
@@ -292,9 +292,9 @@ export class LoonPlayground {
 
     // Set up argv. Default args tell the compiler to read from stdin.
     // The compiler determines behavior based on argv:
-    //   - "loon /dev/stdin"            -> default NASM compilation (syntax check)
-    //   - "loon --target llvm /dev/stdin" -> LLVM IR output
-    this._args = options.args || ['loon', '/dev/stdin'];
+    //   - "aquila /dev/stdin"            -> default NASM compilation (syntax check)
+    //   - "aquila --target llvm /dev/stdin" -> LLVM IR output
+    this._args = options.args || ['aquila', '/dev/stdin'];
 
     // Build the WASI import object
     const wasiImports = this._buildWASI();
@@ -349,14 +349,14 @@ export class LoonPlayground {
 /**
  * One-shot compile: create a playground, load the WASM, compile, return results.
  *
- * @param {string} source    Loon source code
+ * @param {string} source    Aquila source code
  * @param {string} wasmUrl   URL to compiler.wasm (default: '/compiler.wasm')
  * @returns {Promise<{ stdout: string, stderr: string, exitCode: number }>}
  */
-export async function compileLoon(source, wasmUrl = '/compiler.wasm') {
-  const pg = new LoonPlayground();
+export async function compileAquila(source, wasmUrl = '/compiler.wasm') {
+  const pg = new AquilaPlayground();
   await pg.init(wasmUrl);
   return pg.compile(source);
 }
 
-export default LoonPlayground;
+export default AquilaPlayground;

@@ -1,4 +1,4 @@
-# Loon-0 AST Format and Enum Contract
+# Aquila-0 AST Format and Enum Contract
 
 This document is the Stage 0 / Stage 1 interface contract. Every integer value
 is locked. Changing any value here requires updating both `token_reader.asm`

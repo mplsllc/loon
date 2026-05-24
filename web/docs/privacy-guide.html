@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Privacy Types Guide — Loon</title>
-  <meta name="description" content="Deep dive into Loon's privacy type system. Privacy levels, declassification policies, ZeroOnDrop, forbidden algorithms, and real-world authentication patterns.">
+  <title>Privacy Types Guide — Aquila</title>
+  <meta name="description" content="Deep dive into Aquila's privacy type system. Privacy levels, declassification policies, ZeroOnDrop, forbidden algorithms, and real-world authentication patterns.">
   <link rel="stylesheet" href="/style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="Privacy Types Guide — Loon">
-  <meta property="og:description" content="Deep dive into Loon's privacy type system. Privacy levels, declassification policies, ZeroOnDrop, and real-world patterns.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="Privacy Types Guide — Aquila">
+  <meta property="og:description" content="Deep dive into Aquila's privacy type system. Privacy levels, declassification policies, ZeroOnDrop, and real-world patterns.">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://loonlang.org/docs/privacy-guide">
+  <meta property="og:url" content="https://aquila-lang.org/docs/privacy-guide">
   <meta name="twitter:card" content="summary">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
@@ -21,17 +21,17 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
 
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs/">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -54,12 +54,12 @@
 
     <p>The developer didn't intend to leak the data. The code reviewer didn't catch it. The linter didn't flag it. The data leaked because nothing in the system enforced the constraint "this value must not be logged."</p>
 
-    <p>Loon makes that constraint part of the type system. <code>Sensitive&lt;String&gt;</code> is not <code>String</code>. The compiler treats them as different types. Operations that are safe for <code>String</code> &mdash; logging, serialization, display &mdash; are compile errors for <code>Sensitive&lt;String&gt;</code>.</p>
+    <p>Aquila makes that constraint part of the type system. <code>Sensitive&lt;String&gt;</code> is not <code>String</code>. The compiler treats them as different types. Operations that are safe for <code>String</code> &mdash; logging, serialization, display &mdash; are compile errors for <code>Sensitive&lt;String&gt;</code>.</p>
 
     <!-- ============================================================ -->
     <h2>The privacy levels</h2>
 
-    <p>Every value in Loon has a privacy level. The default is Raw (unclassified).</p>
+    <p>Every value in Aquila has a privacy level. The default is Raw (unclassified).</p>
 
     <table>
       <thead>
@@ -168,12 +168,12 @@ let safe: Sensitive&lt;String&gt; = raw;  <span class="code-comment">// OK — u
     <!-- ============================================================ -->
     <h2>Rule 5: Forbidden algorithms</h2>
 
-    <p>Certain cryptographic algorithms are known to be broken. Loon doesn't provide them:</p>
+    <p>Certain cryptographic algorithms are known to be broken. Aquila doesn't provide them:</p>
 
 <pre><code>let h: String = md5("data");   <span class="code-comment">// COMPILE ERROR: forbidden algorithm</span>
 let h: String = sha1("data");  <span class="code-comment">// COMPILE ERROR: forbidden algorithm</span></code></pre>
 
-<pre><code><span class="code-error">error: forbidden algorithm — MD5 is broken, not available in Loon</span></code></pre>
+<pre><code><span class="code-error">error: forbidden algorithm — MD5 is broken, not available in Aquila</span></code></pre>
 
     <p>The forbidden list: MD5, SHA1, DES, RC4.</p>
 
@@ -248,7 +248,7 @@ fn main() [IO] -&gt; Unit {
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs/">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

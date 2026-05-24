@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Roadmap — Loon</title>
-  <meta name="description" content="Where Loon is headed — from compiler rewrite to standard library to the full mission of safe AI-authored code.">
+  <title>Roadmap — Aquila</title>
+  <meta name="description" content="Where Aquila is headed — from compiler rewrite to standard library to the full mission of safe AI-authored code.">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="Loon Roadmap">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="Aquila Roadmap">
   <meta property="og:description" content="The path from bootstrapped compiler to production-ready language.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://loonlang.org/roadmap.html">
+  <meta property="og:url" content="https://aquila-lang.org/roadmap.html">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
   <style>
     .roadmap-stage {
@@ -95,16 +95,16 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -113,7 +113,7 @@
 <section class="page-hero">
   <div class="container">
     <h1>Roadmap</h1>
-    <p class="page-subtitle">Where Loon has been and where it's going.</p>
+    <p class="page-subtitle">Where Aquila has been and where it's going.</p>
   </div>
 </section>
 
@@ -124,11 +124,11 @@
     <div class="roadmap-stage">
       <span class="stage-label stage-done">Completed</span>
       <h2>Stages 0–4 — Foundation</h2>
-      <p>Loon was bootstrapped from bare-metal x86-64 assembly with no external dependencies. The compiler is self-hosting, compiles to native code on five platforms, and enforces privacy types at compile time.</p>
+      <p>Aquila was bootstrapped from bare-metal x86-64 assembly with no external dependencies. The compiler is self-hosting, compiles to native code on five platforms, and enforces privacy types at compile time.</p>
       <ul class="roadmap-items">
         <li class="done">Stage 0 — Hand-written assembly lexer</li>
         <li class="done">Stage 1 — Hand-written assembly compiler</li>
-        <li class="done">Stage 2 — Self-hosting compiler in Loon-0</li>
+        <li class="done">Stage 2 — Self-hosting compiler in Aquila-0</li>
         <li class="done">Stage 3 — LLVM backend, WASM, Float, cross-platform</li>
         <li class="done">Stage 4 — Privacy types, effect verification, 78/78 gauntlet</li>
       </ul>
@@ -139,18 +139,18 @@
     <!-- STAGE 5 -->
     <div class="roadmap-stage">
       <span class="stage-label stage-current">In Progress</span>
-      <h2>Stage 5 — Making Loon real</h2>
-      <p>The compiler works. Now make the language usable for production programs. Rewrite the compiler in full Loon, build the standard library, add generics and closures.</p>
+      <h2>Stage 5 — Making Aquila real</h2>
+      <p>The compiler works. Now make the language usable for production programs. Rewrite the compiler in full Aquila, build the standard library, add generics and closures.</p>
 
       <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">5.0 — Compiler rewrite</h3>
-      <p>The compiler is currently written in Loon-0, the bootstrap subset. Flat integer arrays instead of ADTs. Global state slots instead of typed variables. The rewrite uses everything Loon now has:</p>
+      <p>The compiler is currently written in Aquila-0, the bootstrap subset. Flat integer arrays instead of ADTs. Global state slots instead of typed variables. The rewrite uses everything Aquila now has:</p>
       <pre class="roadmap-code">type AstNode {
     FnDecl(name: String, params: List&lt;Param&gt;, body: Block),
     LetBinding(name: String, value: Expr),
     BinOp(op: OpKind, left: Expr, right: Expr),
     Match(subject: Expr, arms: List&lt;MatchArm&gt;),
 }</pre>
-      <p>No more <code>nd[ni * 10 + 3]</code>. No more g[] slot collisions. The compiler becomes a demonstration of what Loon can do.</p>
+      <p>No more <code>nd[ni * 10 + 3]</code>. No more g[] slot collisions. The compiler becomes a demonstration of what Aquila can do.</p>
 
       <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">5.1 — Standard library</h3>
       <ul class="roadmap-items">
@@ -208,7 +208,7 @@ sequential {
       <p>The effect system makes this safe. Pure functions can always run in parallel. IO functions need explicit sequencing. The compiler enforces it.</p>
 
       <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">5.6 — FFI ✓</h3>
-      <p>Call C libraries from Loon. <code>extern fn</code> declarations are implemented — the compiler emits extern directives that the linker resolves. The FFI boundary uses the <code>Unsafe:TrustBoundary</code> effect.</p>
+      <p>Call C libraries from Aquila. <code>extern fn</code> declarations are implemented — the compiler emits extern directives that the linker resolves. The FFI boundary uses the <code>Unsafe:TrustBoundary</code> effect.</p>
       <pre class="roadmap-code">extern fn sqlite3_open(path: String)
     [IO, Unsafe:TrustBoundary] -&gt; Result&lt;DbHandle, Error&gt;;</pre>
     </div>
@@ -237,7 +237,7 @@ matmul(cpu_tensor, gpu_tensor);  // ERROR</pre>
       <p>The same structural safety that applies to privacy types applies to computation devices. An AI agent writing GPU kernels can't accidentally mix CPU and GPU tensors.</p>
 
       <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">6.1 — LSP rewrite</h3>
-      <p>The LSP server rewritten in Loon. The compiler becomes a library. Inline errors as you type. Hover shows types including privacy level. Autocomplete respects effect boundaries.</p>
+      <p>The LSP server rewritten in Aquila. The compiler becomes a library. Inline errors as you type. Hover shows types including privacy level. Autocomplete respects effect boundaries.</p>
 
       <h3 style="margin-top: 1.5rem; font-size: 1.1rem;">6.2 — Package registry</h3>
       <p>The real ecosystem. Official and community tiers under the MPLS License. The <code>crypto</code> package becomes a full cryptography library where the types are the documentation and the enforcement.</p>
@@ -248,8 +248,8 @@ matmul(cpu_tensor, gpu_tensor);  // ERROR</pre>
     <!-- THE MEASURE -->
     <div class="roadmap-stage">
       <h2>How we'll know it's working</h2>
-      <p>Give five different AI models the same security-critical prompts. Run their output through the Loon compiler. Measure what gets caught. Publish the results.</p>
-      <p>When AI agents writing Loon produce demonstrably safer code than AI agents writing Python — Loon is ready for the world.</p>
+      <p>Give five different AI models the same security-critical prompts. Run their output through the Aquila compiler. Measure what gets caught. Publish the results.</p>
+      <p>When AI agents writing Aquila produce demonstrably safer code than AI agents writing Python — Aquila is ready for the world.</p>
     </div>
 
   </div>
@@ -264,7 +264,7 @@ matmul(cpu_tensor, gpu_tensor);  // ERROR</pre>
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

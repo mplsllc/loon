@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Contributing — Loon</title>
-  <meta name="description" content="How to contribute to the Loon programming language. Build instructions, test gauntlet, self-hosting verification, and code style guide.">
+  <title>Contributing — Aquila</title>
+  <meta name="description" content="How to contribute to the Aquila programming language. Build instructions, test gauntlet, self-hosting verification, and code style guide.">
   <link rel="stylesheet" href="/style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="Contributing — Loon">
-  <meta property="og:description" content="How to contribute to the Loon programming language. Build instructions, test gauntlet, self-hosting verification, and code style guide.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="Contributing — Aquila">
+  <meta property="og:description" content="How to contribute to the Aquila programming language. Build instructions, test gauntlet, self-hosting verification, and code style guide.">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://loonlang.org/community">
+  <meta property="og:url" content="https://aquila-lang.org/community">
   <meta name="twitter:card" content="summary">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
@@ -21,17 +21,17 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
         
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs/">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -39,8 +39,8 @@
 
 <section class="page-hero">
   <div class="container">
-    <h1>Contributing to Loon</h1>
-    <p class="page-subtitle">Everything you need to build, test, and contribute to the Loon compiler.</p>
+    <h1>Contributing to Aquila</h1>
+    <p class="page-subtitle">Everything you need to build, test, and contribute to the Aquila compiler.</p>
   </div>
 </section>
 
@@ -50,25 +50,25 @@
     <div class="license-section">
       <h2>Quick Start</h2>
       <p>Clone, build, and run the test gauntlet:</p>
-      <pre><code>git clone https://github.com/mplsllc/loon.git
-cd loon
+      <pre><code>git clone https://github.com/mplsllc/aquila.git
+cd aquila
 ./build.sh
-LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
+AQUILA_COMPILER=./aquila ./gauntlet/run.sh</code></pre>
       <p>If the gauntlet shows <strong>74/74 pass, 0 failures</strong> — you're ready.</p>
     </div>
 
     <div class="license-section">
       <h2>Project Structure</h2>
-      <pre><code>loon/
+      <pre><code>aquila/
 ├── stage0/             Assembly lexer (1,198 lines)
 ├── stage1/             Assembly compiler (6,542 lines)
 ├── stage2/
-│   ├── compiler.loon   The Loon compiler in Loon (~2,800 lines)
-│   └── loon-bootstrap-linux-x86_64   Bootstrap binary
+│   ├── compiler.aquila   The Aquila compiler in Aquila (~2,800 lines)
+│   └── aquila-bootstrap-linux-x86_64   Bootstrap binary
 ├── gauntlet/
 │   ├── run.sh          Test runner
 │   └── tests/          74 test files across 6 categories
-├── examples/           Example Loon programs
+├── examples/           Example Aquila programs
 ├── spec/               Language specification
 ├── docs/               Documentation
 ├── tools/
@@ -86,26 +86,26 @@ LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
 
 # Full build from assembly (for verification)
 ./build.sh --full</code></pre>
-      <p>The quick build uses the checked-in bootstrap binary to compile <code>stage2/compiler.loon</code>. The full build starts from the assembly seed in <code>stage0/</code> and <code>stage1/</code>, proving the entire chain from bare metal.</p>
+      <p>The quick build uses the checked-in bootstrap binary to compile <code>stage2/compiler.aquila</code>. The full build starts from the assembly seed in <code>stage0/</code> and <code>stage1/</code>, proving the entire chain from bare metal.</p>
     </div>
 
     <div class="license-section">
       <h2>Running Tests</h2>
       <pre><code># Full gauntlet (74 tests)
-LOON_COMPILER=./loon ./gauntlet/run.sh
+AQUILA_COMPILER=./aquila ./gauntlet/run.sh
 
 # Single test
-./loon gauntlet/tests/effect/pure_calls_print.loon
+./aquila gauntlet/tests/effect/pure_calls_print.aquila
 # Should produce: error: undeclared effect...</code></pre>
       <p>The gauntlet covers six categories: effect, type, scope, exhaustive, structural, privacy, and edge cases. Every test file includes a header declaring the expected outcome.</p>
     </div>
 
     <div class="license-section">
       <h2>Self-Hosting Verification</h2>
-      <p>The compiler compiles itself. After any change to <code>stage2/compiler.loon</code>:</p>
-      <pre><code>./loon stage2/compiler.loon > /tmp/a.asm
-nasm -f elf64 -o /tmp/a.o /tmp/a.asm && ld -o /tmp/loon_new /tmp/a.o
-/tmp/loon_new stage2/compiler.loon > /tmp/b.asm
+      <p>The compiler compiles itself. After any change to <code>stage2/compiler.aquila</code>:</p>
+      <pre><code>./aquila stage2/compiler.aquila > /tmp/a.asm
+nasm -f elf64 -o /tmp/a.o /tmp/a.asm && ld -o /tmp/aquila_new /tmp/a.o
+/tmp/aquila_new stage2/compiler.aquila > /tmp/b.asm
 diff /tmp/a.asm /tmp/b.asm  # must be empty — fixed point</code></pre>
       <p>If the diff is not empty, iterate one more self-compile until it stabilizes. A clean diff proves your change is self-consistent.</p>
     </div>
@@ -114,22 +114,22 @@ diff /tmp/a.asm /tmp/b.asm  # must be empty — fixed point</code></pre>
       <h2>Making Changes</h2>
       <ol>
         <li>
-          <strong>Write the test first.</strong> Add a <code>.loon</code> file to <code>gauntlet/tests/</code> with the header format:
+          <strong>Write the test first.</strong> Add a <code>.aquila</code> file to <code>gauntlet/tests/</code> with the header format:
           <pre><code>// TEST: my_test_name
 // EXPECT: ERROR           (or COMPILES OK, exit N)
 // CATEGORY: type          (effect, type, scope, exhaustive, structural, privacy, edge)
 module test;
 // ... test code ...</code></pre>
         </li>
-        <li><strong>Make the change</strong> in <code>stage2/compiler.loon</code>.</li>
+        <li><strong>Make the change</strong> in <code>stage2/compiler.aquila</code>.</li>
         <li>
           <strong>Build and verify:</strong>
           <pre><code>./build.sh
-LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
+AQUILA_COMPILER=./aquila ./gauntlet/run.sh</code></pre>
         </li>
         <li>
           <strong>Update the bootstrap binary</strong> if the change affects the bootstrap chain:
-          <pre><code>cp loon stage2/loon-bootstrap-linux-x86_64</code></pre>
+          <pre><code>cp aquila stage2/aquila-bootstrap-linux-x86_64</code></pre>
         </li>
       </ol>
     </div>
@@ -138,7 +138,7 @@ LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
       <h2>What NOT to Change</h2>
       <ul>
         <li><strong><code>stage0/</code> and <code>stage1/</code></strong> — the assembly seed is frozen. Only change for critical bug fixes.</li>
-        <li><strong><code>spec/loon-0-spec.md</code></strong> — the bootstrap subset spec is historical.</li>
+        <li><strong><code>spec/aquila-0-spec.md</code></strong> — the bootstrap subset spec is historical.</li>
         <li><strong>The MPLS License</strong> — the values are not negotiable.</li>
       </ul>
     </div>
@@ -148,7 +148,7 @@ LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
       <ul>
         <li><strong>Function names:</strong> <code>snake_case</code>, prefixed by file abbreviation (<code>ll_</code> for LLVM, <code>cg_</code> for NASM, <code>tc_</code> for type checker)</li>
         <li><strong>Variables:</strong> <code>prefix_descriptive_name</code> (e.g., <code>lm_arm</code> for ll_match's arm variable)</li>
-        <li><strong><code>g[]</code> slots:</strong> document in the slot map at the top of <code>compiler.loon</code></li>
+        <li><strong><code>g[]</code> slots:</strong> document in the slot map at the top of <code>compiler.aquila</code></li>
         <li><strong>One function per concern.</strong> Keep functions under 30 lines where possible.</li>
         <li><strong>No <code>arr[i] = fn_call()</code></strong> — use <code>g[]</code> slots instead (known codegen limitation)</li>
       </ul>
@@ -161,7 +161,7 @@ LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
     </div>
 
     <div class="license-callout">
-      <p style="margin-top: 1rem;"><a href="/">&larr; Back to the Loon home page</a></p>
+      <p style="margin-top: 1rem;"><a href="/">&larr; Back to the Aquila home page</a></p>
     </div>
 
   </div>
@@ -176,7 +176,7 @@ LOON_COMPILER=./loon ./gauntlet/run.sh</code></pre>
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs/">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

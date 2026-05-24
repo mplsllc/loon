@@ -49,7 +49,7 @@ section .data
     _s22_len equ 5
     _s23    db "string_concat"
     _s23_len equ 13
-    _s24    db "error: immutable reassignment — Loon bindings cannot be reassigned. Use Array(1) for mutable state."
+    _s24    db "error: immutable reassignment — Aquila bindings cannot be reassigned. Use Array(1) for mutable state."
     _s24_len equ 101
     _s25    db "error: non-exhaustive match on Bool — missing 'false' arm"
     _s25_len equ 59
@@ -1817,19 +1817,19 @@ section .data
     _s906_len equ 78
     _s907    db "md5"
     _s907_len equ 3
-    _s908    db "error: forbidden algorithm — MD5 is broken, not available in Loon"
+    _s908    db "error: forbidden algorithm — MD5 is broken, not available in Aquila"
     _s908_len equ 67
     _s909    db "sha1"
     _s909_len equ 4
-    _s910    db "error: forbidden algorithm — SHA1 is broken, not available in Loon"
+    _s910    db "error: forbidden algorithm — SHA1 is broken, not available in Aquila"
     _s910_len equ 68
     _s911    db "des"
     _s911_len equ 3
-    _s912    db "error: forbidden algorithm — DES is broken, not available in Loon"
+    _s912    db "error: forbidden algorithm — DES is broken, not available in Aquila"
     _s912_len equ 67
     _s913    db "rc4"
     _s913_len equ 3
-    _s914    db "error: forbidden algorithm — RC4 is broken, not available in Loon"
+    _s914    db "error: forbidden algorithm — RC4 is broken, not available in Aquila"
     _s914_len equ 67
     _s915    db "    %t"
     _s915_len equ 6
@@ -2169,7 +2169,7 @@ section .data
     _s1082_len equ 7
     _s1083    db "    %t"
     _s1083_len equ 6
-    _s1084    db " = call i8* @_loon_i64_to_str(i64 %t"
+    _s1084    db " = call i8* @_aquila_i64_to_str(i64 %t"
     _s1084_len equ 36
     _s1085    db ")"
     _s1085_len equ 1
@@ -2259,13 +2259,13 @@ section .data
     _s1127_len equ 8
     _s1128    db ")"
     _s1128_len equ 1
-    _s1129    db "    call void @_loon_print_byte(i64 %t"
+    _s1129    db "    call void @_aquila_print_byte(i64 %t"
     _s1129_len equ 38
     _s1130    db ")"
     _s1130_len equ 1
     _s1131    db "    %t"
     _s1131_len equ 6
-    _s1132    db " = call i8* @_loon_read_file(i64 %t"
+    _s1132    db " = call i8* @_aquila_read_file(i64 %t"
     _s1132_len equ 35
     _s1133    db ")"
     _s1133_len equ 1
@@ -2277,7 +2277,7 @@ section .data
     _s1136_len equ 7
     _s1137    db "    %t"
     _s1137_len equ 6
-    _s1138    db " = call i8* @_loon_get_arg(i64 %t"
+    _s1138    db " = call i8* @_aquila_get_arg(i64 %t"
     _s1138_len equ 33
     _s1139    db ")"
     _s1139_len equ 1
@@ -2495,7 +2495,7 @@ section .data
     _s1245_len equ 9
     _s1246    db ":"
     _s1246_len equ 1
-    _s1247    db "    call void @__loon_bounds_panic(i64 %t"
+    _s1247    db "    call void @__aquila_bounds_panic(i64 %t"
     _s1247_len equ 41
     _s1248    db ", i64 %t"
     _s1248_len equ 8
@@ -2563,7 +2563,7 @@ section .data
     _s1279_len equ 9
     _s1280    db ":"
     _s1280_len equ 1
-    _s1281    db "    call void @__loon_bounds_panic(i64 %t"
+    _s1281    db "    call void @__aquila_bounds_panic(i64 %t"
     _s1281_len equ 41
     _s1282    db ", i64 %t"
     _s1282_len equ 8
@@ -2921,7 +2921,7 @@ section .data
     _s1458_len equ 1
     _s1459    db ""
     _s1459_len equ 0
-    _s1460    db "; Loon compiler output — LLVM IR"
+    _s1460    db "; Aquila compiler output — LLVM IR"
     _s1460_len equ 34
     _s1461    db "target triple = ",34,"wasm32-wasi",34,""
     _s1461_len equ 29
@@ -2945,13 +2945,13 @@ section .data
     _s1470_len equ 95
     _s1471    db "attributes #1 = { ",34,"wasm-import-module",34,"=",34,"wasi_snapshot_preview1",34," ",34,"wasm-import-name",34,"=",34,"proc_exit",34," }"
     _s1471_len equ 96
-    _s1472    db "declare i8* @_loon_i64_to_str(i64)"
+    _s1472    db "declare i8* @_aquila_i64_to_str(i64)"
     _s1472_len equ 34
-    _s1473    db "declare void @_loon_print_byte(i64)"
+    _s1473    db "declare void @_aquila_print_byte(i64)"
     _s1473_len equ 35
-    _s1474    db "declare i8* @_loon_read_file(i64)"
+    _s1474    db "declare i8* @_aquila_read_file(i64)"
     _s1474_len equ 33
-    _s1475    db "declare i8* @_loon_get_arg(i64)"
+    _s1475    db "declare i8* @_aquila_get_arg(i64)"
     _s1475_len equ 31
     _s1476    db "declare void @exit(i32) noreturn"
     _s1476_len equ 32
@@ -2963,13 +2963,13 @@ section .data
     _s1479_len equ 35
     _s1480    db "declare i64 @strlen(i8*)"
     _s1480_len equ 24
-    _s1481    db "declare i8* @_loon_i64_to_str(i64)"
+    _s1481    db "declare i8* @_aquila_i64_to_str(i64)"
     _s1481_len equ 34
-    _s1482    db "declare void @_loon_print_byte(i64)"
+    _s1482    db "declare void @_aquila_print_byte(i64)"
     _s1482_len equ 35
-    _s1483    db "declare i8* @_loon_read_file(i64)"
+    _s1483    db "declare i8* @_aquila_read_file(i64)"
     _s1483_len equ 33
-    _s1484    db "declare i8* @_loon_get_arg(i64)"
+    _s1484    db "declare i8* @_aquila_get_arg(i64)"
     _s1484_len equ 31
     _s1485    db "declare i32 @strcmp(i8*, i8*)"
     _s1485_len equ 29
@@ -3003,7 +3003,7 @@ section .data
     _s1499_len equ 60
     _s1500    db "@_bounds_msg = private constant [34 x i8] c",34,"error: array index out of bounds\0A\00",34,""
     _s1500_len equ 83
-    _s1501    db "define void @__loon_bounds_panic(i64 %idx, i64 %len) noreturn {"
+    _s1501    db "define void @__aquila_bounds_panic(i64 %idx, i64 %len) noreturn {"
     _s1501_len equ 63
     _s1502    db "entry:"
     _s1502_len equ 6

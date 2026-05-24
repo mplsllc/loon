@@ -1,8 +1,8 @@
-# Loon Stability Policy
+# Aquila Stability Policy
 
 ## Current Status
 
-Loon is pre-1.0 software. It works. It self-hosts. It passes its full test
+Aquila is pre-1.0 software. It works. It self-hosts. It passes its full test
 suite. It is not yet stable in the semver sense of that word.
 
 This document describes what you can rely on today, what you cannot, and what
@@ -10,7 +10,7 @@ guarantees will exist when 1.0 ships.
 
 ## Versioning
 
-Loon uses [Semantic Versioning](https://semver.org/) with the following
+Aquila uses [Semantic Versioning](https://semver.org/) with the following
 interpretation:
 
 - **0.x.y** (now): No backwards compatibility guarantees between minor
@@ -55,9 +55,9 @@ absence. This is a permanent design decision, not subject to change.
 
 ## What Is Not Stable
 
-**Syntax.** The concrete syntax of Loon may change before 1.0. Keyword names,
+**Syntax.** The concrete syntax of Aquila may change before 1.0. Keyword names,
 operator precedence, and expression forms are all subject to revision. If you
-write Loon code today, expect to update it.
+write Aquila code today, expect to update it.
 
 **Standard library.** There is no standard library yet. Built-in functions
 exist for bootstrapping (`print`, `int_to_string`, `string_concat`, `read_file`)
@@ -70,7 +70,7 @@ not decided. Import syntax and visibility rules may change.
 defined fields), but specific error codes and messages may change.
 
 **Compiler CLI.** Command-line flags and invocation patterns may change. The
-current pipeline (`lexer input.loon | compiler > output.asm`) reflects the
+current pipeline (`lexer input.aquila | compiler > output.asm`) reflects the
 bootstrap architecture and will evolve.
 
 **Performance.** No optimization work has been done. The compiler prioritizes
@@ -89,7 +89,7 @@ Linux target. Platform-specific bugs should be expected and reported.
 
 ## The 1.0 Commitment
 
-When Loon reaches 1.0, the following guarantees will apply:
+When Aquila reaches 1.0, the following guarantees will apply:
 
 1. **Language specification is frozen.** Code that compiles under 1.0 will
    compile under all 1.x releases with identical semantics.
@@ -131,7 +131,7 @@ escape the compiler are treated as security-critical bugs.
 
 ## License
 
-Loon is released under the MPLS Principled Libre Software License.
+Aquila is released under the MPLS Principled Libre Software License.
 See [LICENSE](LICENSE) for terms.
 
 ---

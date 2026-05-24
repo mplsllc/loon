@@ -1,4 +1,4 @@
-# Loon Garbage Collector — Stage 5.4 Specification
+# Aquila Garbage Collector — Stage 5.4 Specification
 
 ## Overview
 

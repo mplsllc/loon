@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Getting Started — Loon</title>
-  <meta name="description" content="Write your first Loon program in 15 minutes. Install the compiler, learn effects, types, pattern matching, and see privacy types catch a leaked password at compile time.">
+  <title>Getting Started — Aquila</title>
+  <meta name="description" content="Write your first Aquila program in 15 minutes. Install the compiler, learn effects, types, pattern matching, and see privacy types catch a leaked password at compile time.">
   <link rel="stylesheet" href="/style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="Getting Started with Loon">
-  <meta property="og:description" content="Write your first Loon program in 15 minutes. See privacy types catch a leaked password at compile time.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="Getting Started with Aquila">
+  <meta property="og:description" content="Write your first Aquila program in 15 minutes. See privacy types catch a leaked password at compile time.">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://loonlang.org/docs/getting-started">
+  <meta property="og:url" content="https://aquila-lang.org/docs/getting-started">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Getting Started with Loon">
-  <meta name="twitter:description" content="Write your first Loon program in 15 minutes. See privacy types catch a leaked password at compile time.">
+  <meta name="twitter:title" content="Getting Started with Aquila">
+  <meta name="twitter:description" content="Write your first Aquila program in 15 minutes. See privacy types catch a leaked password at compile time.">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
 <body>
@@ -23,17 +23,17 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
         
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs/">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -42,7 +42,7 @@
 <section class="page-hero">
   <div class="container">
     <h1>Getting Started</h1>
-    <p class="page-subtitle">Write your first Loon program in 15 minutes &mdash; and see the compiler catch a leaked password before it ships.</p>
+    <p class="page-subtitle">Write your first Aquila program in 15 minutes &mdash; and see the compiler catch a leaked password before it ships.</p>
   </div>
 </section>
 
@@ -52,7 +52,7 @@
     <!-- ============================================================ -->
     <h2>1. Install the compiler</h2>
 
-    <p>Loon compiles on Linux x86-64. You need NASM (the Netwide Assembler) and a linker &mdash; both come standard on most distributions.</p>
+    <p>Aquila compiles on Linux x86-64. You need NASM (the Netwide Assembler) and a linker &mdash; both come standard on most distributions.</p>
 
     <h3>Linux (x86-64)</h3>
 
@@ -62,46 +62,46 @@
 sudo apt install nasm
 
 <span class="code-comment"># Clone the repository</span>
-git clone https://github.com/mplsllc/loon.git
-cd loon
+git clone https://github.com/mplsllc/aquila.git
+cd aquila
 
 <span class="code-comment"># Build the bootstrap chain: stage0 (lexer) then stage1 (compiler)</span>
 cd stage0 && make && cd ../stage1 && make && cd ..
 
-<span class="code-comment"># Compile the stage2 compiler (written in Loon) using the bootstrap chain</span>
-./stage0/lexer stage2/compiler.loon | ./stage1/compiler > /tmp/loon.asm
-nasm -f elf64 -o /tmp/loon.o /tmp/loon.asm
-ld -o loon /tmp/loon.o
+<span class="code-comment"># Compile the stage2 compiler (written in Aquila) using the bootstrap chain</span>
+./stage0/lexer stage2/compiler.aquila | ./stage1/compiler > /tmp/aquila.asm
+nasm -f elf64 -o /tmp/aquila.o /tmp/aquila.asm
+ld -o aquila /tmp/aquila.o
 
 <span class="code-comment"># Install system-wide</span>
-sudo mv loon /usr/local/bin/</code></pre>
+sudo mv aquila /usr/local/bin/</code></pre>
 
     <h3>macOS / Windows</h3>
 
-    <p>Loon targets Linux x86-64 natively. For macOS and Windows, see the <a href="/docs/building">Building from Source</a> documentation for cross-compilation options and WSL instructions.</p>
+    <p>Aquila targets Linux x86-64 natively. For macOS and Windows, see the <a href="/docs/building">Building from Source</a> documentation for cross-compilation options and WSL instructions.</p>
 
     <!-- ============================================================ -->
     <h2>2. Hello world</h2>
 
-    <p>Create a file called <code>hello.loon</code>:</p>
+    <p>Create a file called <code>hello.aquila</code>:</p>
 
 <pre><code>module main;
 
 fn main() [IO] -> Unit {
-    do print("Hello, Loon!");
+    do print("Hello, Aquila!");
     do exit(0);
 }</code></pre>
 
     <p>Compile and run it:</p>
 
-<pre><code>loon hello.loon > hello.asm && nasm -f elf64 -o hello.o hello.asm && ld -o hello hello.o && ./hello</code></pre>
+<pre><code>aquila hello.aquila > hello.asm && nasm -f elf64 -o hello.o hello.asm && ld -o hello hello.o && ./hello</code></pre>
 
-    <p>You should see <code>Hello, Loon!</code> printed to the terminal.</p>
+    <p>You should see <code>Hello, Aquila!</code> printed to the terminal.</p>
 
     <p>Three things to notice:</p>
 
     <ul>
-      <li><strong><code>module main;</code></strong> &mdash; Every Loon file begins with a module declaration. There is one entry point: the <code>main</code> function in the <code>main</code> module.</li>
+      <li><strong><code>module main;</code></strong> &mdash; Every Aquila file begins with a module declaration. There is one entry point: the <code>main</code> function in the <code>main</code> module.</li>
       <li><strong><code>[IO]</code></strong> &mdash; This is an effect declaration. It tells the compiler (and every reader of this code) that <code>main</code> performs I/O. Functions must declare their effects. If a function claims to be pure, the compiler enforces it.</li>
       <li><strong><code>do</code></strong> &mdash; The <code>do</code> keyword marks effectful calls. You cannot call <code>print</code> without it. This makes every side effect visible at the call site.</li>
     </ul>
@@ -125,7 +125,7 @@ fn main() [IO] -> Unit {
 }</code></pre>
 
 <pre><code><span class="code-error">error[E0301]: effect violation in function `add`
-  --> math.loon:2:5
+  --> math.aquila:2:5
   |
 2 |     do print("adding");
   |     ^^^^^^^^^^^^^^^^^^^ `print` requires [IO] effect
@@ -138,7 +138,7 @@ fn main() [IO] -> Unit {
     <!-- ============================================================ -->
     <h2>4. Types and ADTs</h2>
 
-    <p>Loon has algebraic data types (ADTs). Define a <code>Shape</code> type with three variants:</p>
+    <p>Aquila has algebraic data types (ADTs). Define a <code>Shape</code> type with three variants:</p>
 
 <pre><code>type Shape =
   | Circle(Float)
@@ -155,7 +155,7 @@ fn main() [IO] -> Unit {
     }
 }</code></pre>
 
-    <p>Every <code>match</code> in Loon must be exhaustive. If you forget a variant, the compiler tells you:</p>
+    <p>Every <code>match</code> in Aquila must be exhaustive. If you forget a variant, the compiler tells you:</p>
 
 <pre><code>fn describe(s: Shape) [] -> String {
     match s {
@@ -166,7 +166,7 @@ fn main() [IO] -> Unit {
 }</code></pre>
 
 <pre><code><span class="code-error">error[E0401]: non-exhaustive match expression
-  --> shapes.loon:8:5
+  --> shapes.aquila:8:5
   |
 8 |     match s {
   |     ^^^^^^^^ missing variant: `Point`
@@ -179,9 +179,9 @@ fn main() [IO] -> Unit {
     <!-- ============================================================ -->
     <h2>5. Privacy types</h2>
 
-    <p>This is the moment. This is why Loon exists.</p>
+    <p>This is the moment. This is why Aquila exists.</p>
 
-    <p>Create a file called <code>auth.loon</code>:</p>
+    <p>Create a file called <code>auth.aquila</code>:</p>
 
 <pre><code>module auth;
 
@@ -198,7 +198,7 @@ fn main() [IO] -> Unit {
     <p>Uncomment the second print line. The compiler rejects it:</p>
 
 <pre><code><span class="code-error">error[E0501]: privacy violation — Sensitive value cannot flow to public output
-  --> auth.loon:8:27
+  --> auth.aquila:8:27
   |
 8 |     do print("Pass: " + password);
   |                          ^^^^^^^^ `password` has privacy level Sensitive
@@ -212,7 +212,7 @@ fn main() [IO] -> Unit {
 <pre><code>let copy: String = password;  <span class="code-comment">// COMPILE ERROR</span></code></pre>
 
 <pre><code><span class="code-error">error[E0502]: privacy violation — cannot assign Sensitive&lt;String&gt; to String
-  --> auth.loon:9:24
+  --> auth.aquila:9:24
   |
 9 |     let copy: String = password;
   |                         ^^^^^^^^ Sensitive&lt;String&gt; cannot be assigned to String
@@ -229,7 +229,7 @@ fn main() [IO] -> Unit {
 do log_value(password);  <span class="code-comment">// COMPILE ERROR</span></code></pre>
 
 <pre><code><span class="code-error">error[E0503]: privacy violation — Sensitive&lt;String&gt; cannot flow to String parameter
-  --> auth.loon:14:19
+  --> auth.aquila:14:19
    |
 14 |     do log_value(password);
    |                  ^^^^^^^^ expected String, found Sensitive&lt;String&gt;
@@ -242,7 +242,7 @@ do log_value(password);  <span class="code-comment">// COMPILE ERROR</span></cod
     <!-- ============================================================ -->
     <h2>6. The escape hatch: expose()</h2>
 
-    <p>Sometimes you genuinely need the underlying value &mdash; to hash it, compare it, or send it over an encrypted channel. Loon provides <code>expose()</code> for this, but it requires the <code>Audit</code> effect and a reason string:</p>
+    <p>Sometimes you genuinely need the underlying value &mdash; to hash it, compare it, or send it over an encrypted channel. Aquila provides <code>expose()</code> for this, but it requires the <code>Audit</code> effect and a reason string:</p>
 
 <pre><code>fn hash_password(pw: Sensitive&lt;String&gt;) [Audit] -> String {
     let raw: String = expose(pw, "hashing for storage");
@@ -260,7 +260,7 @@ do log_value(password);  <span class="code-comment">// COMPILE ERROR</span></cod
     <!-- ============================================================ -->
     <h2>7. ZeroOnDrop</h2>
 
-    <p>For cryptographic keys, API secrets, and other values that should not linger in memory after use, Loon provides the <code>ZeroOnDrop</code> policy:</p>
+    <p>For cryptographic keys, API secrets, and other values that should not linger in memory after use, Aquila provides the <code>ZeroOnDrop</code> policy:</p>
 
 <pre><code>let api_key: Sensitive&lt;String, ZeroOnDrop&gt; = load_key();
 <span class="code-comment">// use api_key...</span>
@@ -273,12 +273,12 @@ do log_value(password);  <span class="code-comment">// COMPILE ERROR</span></cod
     <!-- ============================================================ -->
     <h2>What's next</h2>
 
-    <p>You have seen the core of Loon: effects that make side effects visible, types that make data shapes exhaustive, and privacy types that make leaks impossible. Here is where to go from here:</p>
+    <p>You have seen the core of Aquila: effects that make side effects visible, types that make data shapes exhaustive, and privacy types that make leaks impossible. Here is where to go from here:</p>
 
     <ul>
       <li><a href="/docs/reference">Language Reference</a> &mdash; The complete specification: every keyword, every type, every compile-time rule.</li>
       <li><a href="/docs/privacy-guide">Privacy Types Guide</a> &mdash; Deep dive into privacy levels, declassification policies, and real-world patterns.</li>
-      <li><a href="/docs/bootstrap">The Bootstrap Story</a> &mdash; How Loon was built from bare metal x86-64 assembly, with no borrowed toolchain.</li>
+      <li><a href="/docs/bootstrap">The Bootstrap Story</a> &mdash; How Aquila was built from bare metal x86-64 assembly, with no borrowed toolchain.</li>
     </ul>
 
   </div>
@@ -293,7 +293,7 @@ do log_value(password);  <span class="code-comment">// COMPILE ERROR</span></cod
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs/">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
         <li><a href="/security">Security</a></li>
       </ul>

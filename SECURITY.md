@@ -1,13 +1,13 @@
 # Security Policy
 
-Loon is pre-1.0. The language exists because security should be structural, not aspirational — privacy types, effect declarations, and exhaustive matching are core to the compiler, not bolted on. If any of that is broken, I want to know immediately.
+Aquila is pre-1.0. The language exists because security should be structural, not aspirational — privacy types, effect declarations, and exhaustive matching are core to the compiler, not bolted on. If any of that is broken, I want to know immediately.
 
 ## Reporting a vulnerability
 
 Email **patrick@mplsllc.com** with:
 
 - A description of the issue
-- Steps to reproduce (a `.loon` file that triggers it is ideal)
+- Steps to reproduce (a `.aquila` file that triggers it is ideal)
 - What you expected vs. what happened
 - Any suggested fix, if you have one
 
@@ -23,7 +23,7 @@ Do **not** open a public GitHub issue for security vulnerabilities. Email first.
 
 ## What does NOT count
 
-- Feature requests — use [GitHub Issues](https://github.com/mplsllc/loon/issues)
+- Feature requests — use [GitHub Issues](https://github.com/mplsllc/aquila/issues)
 - Non-security bugs (wrong output, crashes, bad error messages) — also GitHub Issues
 - Anything in `stage0/` assembly that requires physical access or a debugger to exploit
 - Disagreements about language design
@@ -32,7 +32,7 @@ Do **not** open a public GitHub issue for security vulnerabilities. Email first.
 
 The following are in scope:
 
-- The Loon compiler (all stages)
+- The Aquila compiler (all stages)
 - The privacy type system and its enforcement
 - The effect system and its enforcement
 - Runtime traps and bounds checking

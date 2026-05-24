@@ -1,5 +1,5 @@
 ; stage1/expr_parser.asm
-; Expression parsing with precedence climbing for Loon-0
+; Expression parsing with precedence climbing for Aquila-0
 ;
 ; Entry points:
 ;   expr_parse       — parse one expression, return node index in eax
@@ -882,7 +882,7 @@ expr_ppf_loop:
 expr_ppf_call:
     ; This is actually handled in primary (IDENT followed by LPAREN)
     ; If we get here, it means a non-ident was followed by (
-    ; which is not valid in Loon-0. Just stop.
+    ; which is not valid in Aquila-0. Just stop.
     jmp expr_ppf_done
 
 expr_ppf_index:

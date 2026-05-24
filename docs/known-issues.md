@@ -1,4 +1,4 @@
-# Loon Known Issues
+# Aquila Known Issues
 
 **As of v0.5.2: No known compiler limitations.**
 
@@ -23,4 +23,4 @@ Known gaps: 0
 
 ## Reporting Issues
 
-Report bugs at [github.com/mplsllc/loon/issues](https://github.com/mplsllc/loon/issues).
+Report bugs at [github.com/mplsllc/aquila/issues](https://github.com/mplsllc/aquila/issues).

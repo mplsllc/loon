@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Bootstrap Story — Loon</title>
-  <meta name="description" content="How Loon bootstrapped from bare metal x86-64 assembly to a self-hosting compiler in two days, with no borrowed toolchain.">
+  <title>The Bootstrap Story — Aquila</title>
+  <meta name="description" content="How Aquila bootstrapped from bare metal x86-64 assembly to a self-hosting compiler in two days, with no borrowed toolchain.">
   <link rel="stylesheet" href="../style.css">
-  <link rel="icon" href="/media/looncircle.png" type="image/png">
-  <meta property="og:title" content="The Bootstrap Story — Loon">
-  <meta property="og:description" content="How Loon bootstrapped from bare metal x86-64 assembly to a self-hosting compiler, with no borrowed toolchain.">
-  <meta property="og:image" content="https://loonlang.org/media/looncircle.png">
+  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
+  <meta property="og:title" content="The Bootstrap Story — Aquila">
+  <meta property="og:description" content="How Aquila bootstrapped from bare metal x86-64 assembly to a self-hosting compiler, with no borrowed toolchain.">
+  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://loonlang.org/docs/bootstrap.html">
+  <meta property="og:url" content="https://aquila-lang.org/docs/bootstrap.html">
   <meta name="twitter:card" content="summary_large_image">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
@@ -21,16 +21,16 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/loonlogomedium.png" alt="Loon" class="logo-img">
+        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Loon</a></li>
+        <li><a href="/why">Why Aquila</a></li>
         <li><a href="/docs">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -38,7 +38,7 @@
 
 <section class="page-hero">
   <div class="container">
-    <h1>How Loon Bootstrapped from Bare Metal</h1>
+    <h1>How Aquila Bootstrapped from Bare Metal</h1>
     <p class="page-subtitle">A technical account of building a self-hosting programming language from x86-64 assembly in two days, with no borrowed toolchain.</p>
   </div>
 </section>
@@ -46,9 +46,9 @@
 <section class="page-content">
   <div class="container essay">
 
-    <p class="essay-lede">Loon is a programming language designed for a world where AI writes most of the code. The insight: when an LLM generates code from a natural language prompt, it produces what was asked for &mdash; but not what wasn't asked for. It doesn't add bounds checks the prompt didn't mention. It doesn't verify effects the specification didn't require. It doesn't catch the security violation the developer didn't think of.</p>
+    <p class="essay-lede">Aquila is a programming language designed for a world where AI writes most of the code. The insight: when an LLM generates code from a natural language prompt, it produces what was asked for &mdash; but not what wasn't asked for. It doesn't add bounds checks the prompt didn't mention. It doesn't verify effects the specification didn't require. It doesn't catch the security violation the developer didn't think of.</p>
 
-    <p>Loon's type system catches what the human forgot to say and the AI didn't know to check.</p>
+    <p>Aquila's type system catches what the human forgot to say and the AI didn't know to check.</p>
 
     <p>To build that language, we needed a compiler. To trust that compiler, we needed to build it from scratch &mdash; every byte traceable to a deliberate choice. No Rust. No C. No existing language toolchain. Just Linux syscalls and x86-64 instructions.</p>
 
@@ -57,7 +57,7 @@
     <!-- ============================================================ -->
     <h2>Stage 0 &mdash; The assembly lexer</h2>
 
-    <p><strong>Goal:</strong> Read a <code>.loon</code> source file and emit tokens to stdout.</p>
+    <p><strong>Goal:</strong> Read a <code>.aquila</code> source file and emit tokens to stdout.</p>
 
     <p>The first program was <code>echo.asm</code> &mdash; 47 lines of x86-64 assembly that read a file using the <code>read</code> syscall and wrote it back using <code>write</code>. It proved we could do I/O without libc.</p>
 
@@ -90,30 +90,30 @@ codegen_match.asm  &mdash; cgm_*: match codegen (249 lines)</code></pre>
 
     <h3>Build pipeline</h3>
 
-<pre><code>./stage0/lexer input.loon | ./stage1/compiler > output.asm
+<pre><code>./stage0/lexer input.aquila | ./stage1/compiler > output.asm
 nasm -f elf64 -o output.o output.asm && ld -o output output.o</code></pre>
 
-    <p>After M2.2, the first compiled Loon program ran. <code>strace</code> showed:</p>
+    <p>After M2.2, the first compiled Aquila program ran. <code>strace</code> showed:</p>
 
 <pre><code>execve("/tmp/effects", ...)
 write(1, "Sum: 7", 6)
 write(1, "\n", 1)
-write(1, "Hello, Loon", 11)
+write(1, "Hello, Aquila", 11)
 write(1, "\n", 1)
 exit(0)</code></pre>
 
     <p>Five syscalls. No hidden allocations. No runtime startup. No dynamic linker. Every byte of output traceable to a <code>write</code> syscall the compiler emitted.</p>
 
     <!-- ============================================================ -->
-    <h2>Stage 2 &mdash; Loon written in Loon</h2>
+    <h2>Stage 2 &mdash; Aquila written in Aquila</h2>
 
-    <p><strong>Goal:</strong> Rewrite the compiler in Loon-0 (the bootstrap subset), compile it with Stage 1, then compile itself.</p>
+    <p><strong>Goal:</strong> Rewrite the compiler in Aquila-0 (the bootstrap subset), compile it with Stage 1, then compile itself.</p>
 
     <h3>M2.0&ndash;M2.2: Translation</h3>
 
-    <p>The first three milestones were direct translation &mdash; the same lexer, parser, and codegen logic rewritten in Loon-0 instead of assembly. Each line of Loon-0 replaced 3&ndash;5 lines of assembly. The compiler shrank from 7,355 lines of assembly to ~1,200 lines of Loon-0.</p>
+    <p>The first three milestones were direct translation &mdash; the same lexer, parser, and codegen logic rewritten in Aquila-0 instead of assembly. Each line of Aquila-0 replaced 3&ndash;5 lines of assembly. The compiler shrank from 7,355 lines of assembly to ~1,200 lines of Aquila-0.</p>
 
-    <p>Loon-0 is deliberately minimal: <code>fn</code>, <code>let</code>, <code>match</code> on Int/Bool, <code>for</code>, arrays, strings. No ADTs, no generics, no closures. The compiler used flat integer arrays with manual offset arithmetic &mdash; the same pattern as Stage 1, just readable.</p>
+    <p>Aquila-0 is deliberately minimal: <code>fn</code>, <code>let</code>, <code>match</code> on Int/Bool, <code>for</code>, arrays, strings. No ADTs, no generics, no closures. The compiler used flat integer arrays with manual offset arithmetic &mdash; the same pattern as Stage 1, just readable.</p>
 
     <p>The internal representation: a global state array <code>gs[]</code> with 1,024+ entries holding everything from the token position to the variable table to the match nesting depth. Functions communicated through <code>gs[]</code> slots:</p>
 
@@ -206,7 +206,7 @@ gs[220+] = walker explicit stack</code></pre>
 
     <h3>M2.7 partial + Security gauntlet</h3>
 
-    <p>The security gauntlet tested every class of violation Loon promises to prevent:</p>
+    <p>The security gauntlet tested every class of violation Aquila promises to prevent:</p>
 
 <pre><code>CAUGHT:  7/11
   &#10003; Effect violation
@@ -248,7 +248,7 @@ DEFERRED: 2/11
         </tr>
         <tr>
           <td>Stage 2 (self-hosting compiler)</td>
-          <td>1,956 lines of Loon-0</td>
+          <td>1,956 lines of Aquila-0</td>
         </tr>
         <tr>
           <td>Total assembly written</td>
@@ -280,7 +280,7 @@ DEFERRED: 2/11
         </tr>
         <tr>
           <td>Real programs</td>
-          <td>3 (loon_call, calculator, security_gauntlet)</td>
+          <td>3 (aquila_call, calculator, security_gauntlet)</td>
         </tr>
         <tr>
           <td>Time</td>
@@ -310,7 +310,7 @@ DEFERRED: 2/11
 
     <p><strong>Effect verification works.</strong> The effect checker's first run caught five real violations in the compiler itself. Functions that called <code>print</code> and <code>exit</code> for error handling but declared themselves pure. The system works.</p>
 
-    <p><strong>7/11 is a meaningful number.</strong> The seven caught violations are the ones that cause the most damage in AI-generated code: wrong types, missing match arms, undefined variables, undeclared side effects, wrong argument counts, immutable reassignment, return type mismatches. An AI agent writing Loon gets precise, machine-readable feedback for each one.</p>
+    <p><strong>7/11 is a meaningful number.</strong> The seven caught violations are the ones that cause the most damage in AI-generated code: wrong types, missing match arms, undefined variables, undeclared side effects, wrong argument counts, immutable reassignment, return type mismatches. An AI agent writing Aquila gets precise, machine-readable feedback for each one.</p>
 
     <!-- ============================================================ -->
     <h2>What comes next</h2>
@@ -323,7 +323,7 @@ DEFERRED: 2/11
 
     <div class="essay-cta">
       <p>Read the code yourself.</p>
-      <a href="https://github.com/mplsllc/loon" class="btn btn-primary">View on GitHub</a>
+      <a href="https://github.com/mplsllc/aquila" class="btn btn-primary">View on GitHub</a>
       <a href="/docs" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">Back to Docs</a>
     </div>
 
@@ -339,9 +339,9 @@ DEFERRED: 2/11
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/loon">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/loon/security">Security</a></li>
+        <li><a href="https://github.com/mplsllc/aquila/security">Security</a></li>
       </ul>
     </nav>
   </div>

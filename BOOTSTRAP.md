@@ -1,4 +1,4 @@
-# How Loon Bootstrapped from Bare Metal
+# How Aquila Bootstrapped from Bare Metal
 
 A technical account of building a self-hosting programming language from x86-64 assembly in two days, with no borrowed toolchain.
 
@@ -6,9 +6,9 @@ A technical account of building a self-hosting programming language from x86-64 
 
 ## The premise
 
-Loon is a programming language designed for a world where AI writes most of the code. The insight: when an LLM generates code from a natural language prompt, it produces what was asked for — but not what wasn't asked for. It doesn't add bounds checks the prompt didn't mention. It doesn't verify effects the specification didn't require. It doesn't catch the security violation the developer didn't think of.
+Aquila is a programming language designed for a world where AI writes most of the code. The insight: when an LLM generates code from a natural language prompt, it produces what was asked for — but not what wasn't asked for. It doesn't add bounds checks the prompt didn't mention. It doesn't verify effects the specification didn't require. It doesn't catch the security violation the developer didn't think of.
 
-Loon's type system catches what the human forgot to say and the AI didn't know to check.
+Aquila's type system catches what the human forgot to say and the AI didn't know to check.
 
 To build that language, we needed a compiler. To trust that compiler, we needed to build it from scratch — every byte traceable to a deliberate choice. No Rust. No C. No existing language toolchain. Just Linux syscalls and x86-64 instructions.
 
@@ -18,7 +18,7 @@ This is the story of that bootstrap.
 
 ## Stage 0 — The assembly lexer
 
-**Goal:** Read a `.loon` source file and emit tokens to stdout.
+**Goal:** Read a `.aquila` source file and emit tokens to stdout.
 
 The first program was `echo.asm` — 47 lines of x86-64 assembly that read a file using the `read` syscall and wrote it back using `write`. It proved we could do I/O without libc.
 
@@ -54,17 +54,17 @@ The AST was a flat array of 10-integer nodes. No pointers, no dynamic allocation
 
 **Build pipeline:**
 ```bash
-./stage0/lexer input.loon | ./stage1/compiler > output.asm
+./stage0/lexer input.aquila | ./stage1/compiler > output.asm
 nasm -f elf64 -o output.o output.asm && ld -o output output.o
 ```
 
-After M2.2, the first compiled Loon program ran. `strace` showed:
+After M2.2, the first compiled Aquila program ran. `strace` showed:
 
 ```
 execve("/tmp/effects", ...)
 write(1, "Sum: 7", 6)
 write(1, "\n", 1)
-write(1, "Hello, Loon", 11)
+write(1, "Hello, Aquila", 11)
 write(1, "\n", 1)
 exit(0)
 ```
@@ -73,15 +73,15 @@ Five syscalls. No hidden allocations. No runtime startup. No dynamic linker. Eve
 
 ---
 
-## Stage 2 — Loon written in Loon
+## Stage 2 — Aquila written in Aquila
 
-**Goal:** Rewrite the compiler in Loon-0 (the bootstrap subset), compile it with Stage 1, then compile itself.
+**Goal:** Rewrite the compiler in Aquila-0 (the bootstrap subset), compile it with Stage 1, then compile itself.
 
 ### M2.0–M2.2: Translation
 
-The first three milestones were direct translation — the same lexer, parser, and codegen logic rewritten in Loon-0 instead of assembly. Each line of Loon-0 replaced 3-5 lines of assembly. The compiler shrank from 7,355 lines of assembly to ~1,200 lines of Loon-0.
+The first three milestones were direct translation — the same lexer, parser, and codegen logic rewritten in Aquila-0 instead of assembly. Each line of Aquila-0 replaced 3-5 lines of assembly. The compiler shrank from 7,355 lines of assembly to ~1,200 lines of Aquila-0.
 
-Loon-0 is deliberately minimal: `fn`, `let`, `match` on Int/Bool, `for`, arrays, strings. No ADTs, no generics, no closures. The compiler used flat integer arrays with manual offset arithmetic — the same pattern as Stage 1, just readable.
+Aquila-0 is deliberately minimal: `fn`, `let`, `match` on Int/Bool, `for`, arrays, strings. No ADTs, no generics, no closures. The compiler used flat integer arrays with manual offset arithmetic — the same pattern as Stage 1, just readable.
 
 The internal representation: a global state array `gs[]` with 1,024+ entries holding everything from the token position to the variable table to the match nesting depth. Functions communicated through `gs[]` slots:
 
@@ -125,7 +125,7 @@ After the fix: `diff /tmp/stage2_s2.asm /tmp/stage2_s3.asm` — empty. Fixed poi
 
 The first genuinely new feature:
 
-```loon
+```aquila
 type Shape {
     Circle(radius: Int),
     Rectangle(width: Int, height: Int),
@@ -143,7 +143,7 @@ Exhaustive match checking: if any variant is missing from a match and there's no
 
 ### M2.5: Effect verification
 
-```loon
+```aquila
 fn pure_function() [] -> Int {
     do print("side effect!");  // ← COMPILE ERROR
     42
@@ -181,7 +181,7 @@ The permanent fix for #1: full byte-by-byte string comparison against every buil
 
 ### M2.7 partial + Security gauntlet
 
-The security gauntlet tested every class of violation Loon promises to prevent:
+The security gauntlet tested every class of violation Aquila promises to prevent:
 
 ```
 CAUGHT:  7/11
@@ -211,7 +211,7 @@ Seven compile-time safety checks. The seven most common mistakes AI agents make 
 ```
 Stage 0:  1,198 lines of x86-64 assembly (lexer)
 Stage 1:  6,542 lines of x86-64 assembly (compiler)
-Stage 2:  1,956 lines of Loon-0 (self-hosting compiler)
+Stage 2:  1,956 lines of Aquila-0 (self-hosting compiler)
 
 Total assembly written:     7,740 lines
 Total assembly still used:  0 lines (retired at M2.3)
@@ -222,7 +222,7 @@ Bugs in chk_bi name collision: 3 (same class, finally fixed permanently)
 
 Safety checks:  7/11 compile-time
 Test programs:  14 (all passing)
-Real programs:  3 (loon_call, calculator, security_gauntlet)
+Real programs:  3 (aquila_call, calculator, security_gauntlet)
 
 Time: ~2 days
 People: 1 human + 1 AI collaborator
@@ -243,7 +243,7 @@ Lines of code borrowed: 0
 
 **Effect verification works.** The effect checker's first run caught five real violations in the compiler itself. Functions that called `print` and `exit` for error handling but declared themselves pure. The system works.
 
-**7/11 is a meaningful number.** The seven caught violations are the ones that cause the most damage in AI-generated code: wrong types, missing match arms, undefined variables, undeclared side effects, wrong argument counts, immutable reassignment, return type mismatches. An AI agent writing Loon gets precise, machine-readable feedback for each one.
+**7/11 is a meaningful number.** The seven caught violations are the ones that cause the most damage in AI-generated code: wrong types, missing match arms, undefined variables, undeclared side effects, wrong argument counts, immutable reassignment, return type mismatches. An AI agent writing Aquila gets precise, machine-readable feedback for each one.
 
 ---
 
