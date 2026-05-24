@@ -1,12 +1,12 @@
-# Contributing to Aquila
+# Contributing to Akvila
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/mplsllc/aquila.git
-cd aquila
+git clone https://github.com/mplsllc/akvila.git
+cd akvila
 ./build.sh
-AQUILA_COMPILER=./aquila ./gauntlet/run.sh
+AKVILA_COMPILER=./akvila ./gauntlet/run.sh
 ```
 
 If the gauntlet shows 74/74 pass, 0 failures — you're ready.
@@ -14,16 +14,16 @@ If the gauntlet shows 74/74 pass, 0 failures — you're ready.
 ## Project Structure
 
 ```
-aquila/
+akvila/
 ├── stage0/             Assembly lexer (1,198 lines)
 ├── stage1/             Assembly compiler (6,542 lines)
 ├── stage2/
-│   ├── compiler.aquila   The Aquila compiler in Aquila (~2,800 lines)
-│   └── aquila-bootstrap-linux-x86_64   Bootstrap binary
+│   ├── compiler.akvila   The Akvila compiler in Akvila (~2,800 lines)
+│   └── akvila-bootstrap-linux-x86_64   Bootstrap binary
 ├── gauntlet/
 │   ├── run.sh          Test runner
 │   └── tests/          74 test files across 6 categories
-├── examples/           Example Aquila programs
+├── examples/           Example Akvila programs
 ├── spec/               Language specification
 ├── docs/               Documentation
 ├── tools/
@@ -48,21 +48,21 @@ aquila/
 
 ```bash
 # Full gauntlet (74 tests)
-AQUILA_COMPILER=./aquila ./gauntlet/run.sh
+AKVILA_COMPILER=./akvila ./gauntlet/run.sh
 
 # Single test
-./aquila gauntlet/tests/effect/pure_calls_print.aquila
+./akvila gauntlet/tests/effect/pure_calls_print.akvila
 # Should produce: error: undeclared effect...
 ```
 
 ## Self-Hosting Verification
 
-The compiler compiles itself. After any change to `stage2/compiler.aquila`:
+The compiler compiles itself. After any change to `stage2/compiler.akvila`:
 
 ```bash
-./aquila stage2/compiler.aquila > /tmp/a.asm
-nasm -f elf64 -o /tmp/a.o /tmp/a.asm && ld -o /tmp/aquila_new /tmp/a.o
-/tmp/aquila_new stage2/compiler.aquila > /tmp/b.asm
+./akvila stage2/compiler.akvila > /tmp/a.asm
+nasm -f elf64 -o /tmp/a.o /tmp/a.asm && ld -o /tmp/akvila_new /tmp/a.o
+/tmp/akvila_new stage2/compiler.akvila > /tmp/b.asm
 diff /tmp/a.asm /tmp/b.asm  # must be empty — fixed point
 ```
 
@@ -70,8 +70,8 @@ If the diff is not empty, iterate one more self-compile until it stabilizes.
 
 ## Making Changes
 
-1. **Write the test first.** Add a `.aquila` file to `gauntlet/tests/` with the header format:
-   ```aquila
+1. **Write the test first.** Add a `.akvila` file to `gauntlet/tests/` with the header format:
+   ```akvila
    // TEST: my_test_name
    // EXPECT: ERROR           (or COMPILES OK, exit N)
    // CATEGORY: type          (effect, type, scope, exhaustive, structural, privacy, edge)
@@ -79,30 +79,30 @@ If the diff is not empty, iterate one more self-compile until it stabilizes.
    // ... test code ...
    ```
 
-2. **Make the change** in `stage2/compiler.aquila`.
+2. **Make the change** in `stage2/compiler.akvila`.
 
 3. **Build and verify:**
    ```bash
    ./build.sh
-   AQUILA_COMPILER=./aquila ./gauntlet/run.sh
+   AKVILA_COMPILER=./akvila ./gauntlet/run.sh
    ```
 
 4. **Update the bootstrap binary** if the change affects the bootstrap chain:
    ```bash
-   cp aquila stage2/aquila-bootstrap-linux-x86_64
+   cp akvila stage2/akvila-bootstrap-linux-x86_64
    ```
 
 ## What NOT to Change
 
 - `stage0/` and `stage1/` — the assembly seed is frozen. Only change for critical bug fixes.
-- `spec/aquila-0-spec.md` — the bootstrap subset spec is historical.
+- `spec/akvila-0-spec.md` — the bootstrap subset spec is historical.
 - The MPLS License — the values are not negotiable.
 
 ## Code Style
 
 - Function names: `snake_case`, prefixed by file abbreviation (`ll_` for LLVM, `cg_` for NASM, `tc_` for type checker)
 - Variables: `prefix_descriptive_name` (e.g., `lm_arm` for ll_match's arm variable)
-- `g[]` slots: document in the slot map at the top of `compiler.aquila`
+- `g[]` slots: document in the slot map at the top of `compiler.akvila`
 - One function per concern. Keep functions under 30 lines where possible.
 - No `arr[i] = fn_call()` — use `g[]` slots instead (known codegen limitation)
 

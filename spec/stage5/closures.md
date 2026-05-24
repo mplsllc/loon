@@ -1,12 +1,12 @@
-# Aquila Closures — Stage 5.3 Specification
+# Akvila Closures — Stage 5.3 Specification
 
 ## Overview
 
-Closures are anonymous functions that capture variables from their enclosing scope. Aquila closures capture by value (not by reference). The effect system applies to closures — a closure's effects are inferred from its body.
+Closures are anonymous functions that capture variables from their enclosing scope. Akvila closures capture by value (not by reference). The effect system applies to closures — a closure's effects are inferred from its body.
 
 ## Syntax
 
-```aquila
+```akvila
 // Anonymous function
 let double = fn(x: Int) [] -> Int { x * 2 };
 
@@ -23,7 +23,7 @@ let scale = fn(x: Int) [] -> Int { x * multiplier };
 
 Function types for closures:
 
-```aquila
+```akvila
 fn(Int) -> Int              // function taking Int, returning Int, no effects
 fn(String) [IO] -> Unit     // function taking String, with IO effect
 fn(Int, Int) -> Bool         // two-argument function
@@ -33,7 +33,7 @@ fn(Int, Int) -> Bool         // two-argument function
 
 Closures capture by **value**. The captured value is copied at closure creation time.
 
-```aquila
+```akvila
 let x: Int = 10;
 let f = fn() [] -> Int { x };
 // x is captured as 10
@@ -44,7 +44,7 @@ let f = fn() [] -> Int { x };
 
 Closures cannot capture `Sensitive` values and pass them to non-Audit contexts:
 
-```aquila
+```akvila
 let pw: Sensitive<String> = get_password();
 let leak = fn() [IO] -> Unit { do print(pw); };  // COMPILE ERROR
 // Cannot capture Sensitive value in a closure that logs it
@@ -87,7 +87,7 @@ Calling a closure: the caller passes the closure struct as an implicit first arg
 
 ## Effect inference for closures
 
-```aquila
+```akvila
 let f = fn(x: Int) -> Unit { do print(x); };
 // Inferred effects: [IO]
 

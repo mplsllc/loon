@@ -1,7 +1,7 @@
 /**
- * playground.js — WASM runtime glue for the Aquila browser playground.
+ * playground.js — WASM runtime glue for the Akvila browser playground.
  *
- * Loads the Aquila compiler (compiled to WASM with WASI imports) and runs it
+ * Loads the Akvila compiler (compiled to WASM with WASI imports) and runs it
  * in the browser. Each compilation gets a fresh WASM instance because the
  * compiler uses mutable globals that cannot be reset.
  *
@@ -18,7 +18,7 @@ class WASIExitError extends Error {
   }
 }
 
-export class AquilaPlayground {
+export class AkvilaPlayground {
   constructor() {
     /** @type {WebAssembly.Instance|null} */
     this.wasmInstance = null;
@@ -133,7 +133,7 @@ export class AquilaPlayground {
        * fd_read(fd, iovs, iovs_len, nread_ptr) -> errno
        *
        * Read data from a file descriptor. The compiler reads source code
-       * from stdin (fd=0) via its _aquila_read_file implementation, which
+       * from stdin (fd=0) via its _akvila_read_file implementation, which
        * in WASM mode reads from fd 0.
        *
        * On the first call, we copy the user's source code into the
@@ -234,8 +234,8 @@ export class AquilaPlayground {
        *               terminated argument strings are written
        *
        * Layout after this call:
-       *   argv[0] -> "aquila\0"
-       *   argv[1] -> "playground.aquila\0"
+       *   argv[0] -> "akvila\0"
+       *   argv[1] -> "playground.akvila\0"
        *   ...
        *
        * All pointers are i32 because WASM uses 32-bit linear memory
@@ -271,11 +271,11 @@ export class AquilaPlayground {
   // --------------------------------------------------------------------------
 
   /**
-   * Compile Aquila source code using the WASM compiler.
+   * Compile Akvila source code using the WASM compiler.
    *
-   * @param {string} source   Aquila source code to compile
+   * @param {string} source   Akvila source code to compile
    * @param {object} options  Optional settings
-   * @param {string[]} options.args  Custom argv (default: ["aquila", "/dev/stdin"])
+   * @param {string[]} options.args  Custom argv (default: ["akvila", "/dev/stdin"])
    * @returns {{ stdout: string, stderr: string, exitCode: number }}
    */
   async compile(source, options = {}) {
@@ -292,9 +292,9 @@ export class AquilaPlayground {
 
     // Set up argv. Default args tell the compiler to read from stdin.
     // The compiler determines behavior based on argv:
-    //   - "aquila /dev/stdin"            -> default NASM compilation (syntax check)
-    //   - "aquila --target llvm /dev/stdin" -> LLVM IR output
-    this._args = options.args || ['aquila', '/dev/stdin'];
+    //   - "akvila /dev/stdin"            -> default NASM compilation (syntax check)
+    //   - "akvila --target llvm /dev/stdin" -> LLVM IR output
+    this._args = options.args || ['akvila', '/dev/stdin'];
 
     // Build the WASI import object
     const wasiImports = this._buildWASI();
@@ -349,14 +349,14 @@ export class AquilaPlayground {
 /**
  * One-shot compile: create a playground, load the WASM, compile, return results.
  *
- * @param {string} source    Aquila source code
+ * @param {string} source    Akvila source code
  * @param {string} wasmUrl   URL to compiler.wasm (default: '/compiler.wasm')
  * @returns {Promise<{ stdout: string, stderr: string, exitCode: number }>}
  */
-export async function compileAquila(source, wasmUrl = '/compiler.wasm') {
-  const pg = new AquilaPlayground();
+export async function compileAkvila(source, wasmUrl = '/compiler.wasm') {
+  const pg = new AkvilaPlayground();
   await pg.init(wasmUrl);
   return pg.compile(source);
 }
 
-export default AquilaPlayground;
+export default AkvilaPlayground;

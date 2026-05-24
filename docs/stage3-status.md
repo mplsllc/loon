@@ -1,4 +1,4 @@
-# Aquila — Stage 3 Complete
+# Akvila — Stage 3 Complete
 
 ## Summary
 
@@ -36,7 +36,7 @@ Every safety check works. Every test passes. Zero gaps.
 
 Privacy types. Device types. The full mission.
 
-```aquila
+```akvila
 type Sensitive<T> {
     value: T,
 }
@@ -46,5 +46,5 @@ type Sensitive<T> {
 // The compiler prevents accidental exposure
 ```
 
-Stage 4 is when Aquila delivers on its promise: a language where
+Stage 4 is when Akvila delivers on its promise: a language where
 incorrect code doesn't just fail — it doesn't compile.

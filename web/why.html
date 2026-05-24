@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Why Aquila — A programming language for the age of AI-generated code</title>
-  <meta name="description" content="AI writes plausible code that compiles, ships, and leaks your users' passwords. Aquila's type system catches what humans forget to specify and AI doesn't know to check.">
+  <title>Why Akvila — A programming language for the age of AI-generated code</title>
+  <meta name="description" content="AI writes plausible code that compiles, ships, and leaks your users' passwords. Akvila's type system catches what humans forget to specify and AI doesn't know to check.">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="/media/aquilacircle.png" type="image/png">
-  <meta property="og:title" content="Why Aquila — The case for compile-time privacy types">
-  <meta property="og:description" content="AI writes plausible code that leaks passwords in log files. Aquila's type system catches it before it ships.">
-  <meta property="og:image" content="https://aquila-lang.org/media/aquilacircle.png">
+  <link rel="icon" href="/media/akvilacircle.png" type="image/png">
+  <meta property="og:title" content="Why Akvila — The case for compile-time privacy types">
+  <meta property="og:description" content="AI writes plausible code that leaks passwords in log files. Akvila's type system catches it before it ships.">
+  <meta property="og:image" content="https://akvila-lang.org/media/akvilacircle.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://aquila-lang.org/why.html">
+  <meta property="og:url" content="https://akvila-lang.org/why.html">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Why Aquila — compile-time privacy types">
-  <meta name="twitter:description" content="AI writes plausible code that leaks passwords in log files. Aquila's type system catches it before it ships.">
+  <meta name="twitter:title" content="Why Akvila — compile-time privacy types">
+  <meta name="twitter:description" content="AI writes plausible code that leaks passwords in log files. Akvila's type system catches it before it ships.">
   <script defer src="https://stats.mp.ls/script.js" data-website-id="48af7789-2e5c-45ee-8aa2-354be86ac3c9"></script>
 </head>
 <body>
@@ -23,16 +23,16 @@
   <div class="container header-inner">
     <div class="logo">
       <a href="/">
-        <img src="/media/aquilalogomedium.png" alt="Aquila" class="logo-img">
+        <img src="/media/akvilalogomedium.png" alt="Akvila" class="logo-img">
       </a>
     </div>
     <nav class="main-nav" aria-label="Main navigation">
       <ul>
-        <li><a href="/why">Why Aquila</a></li>
+        <li><a href="/why">Why Akvila</a></li>
         <li><a href="/docs">Docs</a></li>
         <li><a href="/play" class="nav-coming-soon">Play <span class="badge">soon</span></a></li>
         <li><a href="/license">License</a></li>
-        <li><a href="https://github.com/mplsllc/aquila" class="nav-github">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/akvila" class="nav-github">GitHub</a></li>
       </ul>
     </nav>
   </div>
@@ -40,7 +40,7 @@
 
 <section class="page-hero">
   <div class="container">
-    <h1>Why Aquila exists</h1>
+    <h1>Why Akvila exists</h1>
     <p class="page-subtitle">A programming language designed for a world where AI writes most of the code.</p>
   </div>
 </section>
@@ -97,9 +97,9 @@
     <p>The gap is structural. No mainstream language can express "this value contains sensitive data and must not appear in logs, serialized output, or network responses" as a compile-time type constraint.</p>
 
     <!-- ============================================================ -->
-    <h2>What Aquila does differently</h2>
+    <h2>What Akvila does differently</h2>
 
-    <p>Aquila introduces <strong>privacy types</strong> as first-class compiler-enforced types. A <code>Sensitive&lt;String&gt;</code> is not a <code>String</code>. You cannot pass it to a function that expects <code>String</code>. You cannot log it. You cannot serialize it. You cannot concatenate it with a regular string and sneak it out. The compiler tracks sensitivity through every binding, every function call, every return value.</p>
+    <p>Akvila introduces <strong>privacy types</strong> as first-class compiler-enforced types. A <code>Sensitive&lt;String&gt;</code> is not a <code>String</code>. You cannot pass it to a function that expects <code>String</code>. You cannot log it. You cannot serialize it. You cannot concatenate it with a regular string and sneak it out. The compiler tracks sensitivity through every binding, every function call, every return value.</p>
 
 <pre><code>fn authenticate(password: Sensitive&lt;String&gt;) -> [IO] Bool {
     // This is a compile error. Not a warning. Not a lint.
@@ -115,7 +115,7 @@
 
     <p>The <code>declassify</code> operation is the only way to convert a <code>Sensitive</code> value to a regular value. It requires a string reason that appears in the audit log. It is visible in code review. It is greppable. When an AI agent generates code that declassifies data, the reason is right there in the source: why this value needed to leave the sensitivity boundary.</p>
 
-    <p>Aquila also enforces effects. Every function declares what side effects it performs:</p>
+    <p>Akvila also enforces effects. Every function declares what side effects it performs:</p>
 
     <ul>
       <li><code>[IO]</code> &mdash; reads or writes to the outside world</li>
@@ -130,13 +130,13 @@
     <!-- ============================================================ -->
     <h2>Built from scratch, on purpose</h2>
 
-    <p>Aquila's compiler was not built on LLVM, or GCC, or Rust, or any existing toolchain. It was bootstrapped from x86-64 assembly. Stage 0 is a hand-written lexer: 1,198 lines of assembly. Stage 1 is a hand-written parser and code generator: over 6,500 lines of assembly. Stage 2 is the self-hosting compiler: Aquila compiling Aquila.</p>
+    <p>Akvila's compiler was not built on LLVM, or GCC, or Rust, or any existing toolchain. It was bootstrapped from x86-64 assembly. Stage 0 is a hand-written lexer: 1,198 lines of assembly. Stage 1 is a hand-written parser and code generator: over 6,500 lines of assembly. Stage 2 is the self-hosting compiler: Akvila compiling Akvila.</p>
 
     <p>This was not an exercise in masochism. It was a trust decision.</p>
 
     <p>If your language's purpose is to enforce security invariants, the compiler itself is a security-critical component. A compiler built on LLVM inherits LLVM's 4 million lines of C++. A compiler built on the JVM inherits the JVM. Each dependency is an attack surface. Each dependency is a trust assumption.</p>
 
-    <p>Aquila's trust chain starts at instructions you can read. The assembly is in the repository. The binary is reproducible. The bootstrap process is documented, tested on every commit, and auditable by anyone with an x86-64 machine and NASM.</p>
+    <p>Akvila's trust chain starts at instructions you can read. The assembly is in the repository. The binary is reproducible. The bootstrap process is documented, tested on every commit, and auditable by anyone with an x86-64 machine and NASM.</p>
 
     <p>One human directed the project. One AI collaborator wrote much of the assembly under human review. Every instruction was verified against the specification. The bootstrap was completed in four days. This matters because it demonstrates that the approach works: you can build a real compiler from bare metal with AI assistance, and the result is more auditable than a compiler with a million lines of inherited dependencies.</p>
 
@@ -149,17 +149,17 @@
 
     <p><strong>Teams adopting AI coding tools</strong> who want guardrails that work at the language level, not the policy level. Linting rules get disabled. Code review gets rubber-stamped. Compiler errors do not get ignored.</p>
 
-    <p><strong>Anyone who has shipped a credential leak</strong> and spent the next week rotating keys, notifying users, and filing incident reports. Aquila exists so that incident does not happen again.</p>
+    <p><strong>Anyone who has shipped a credential leak</strong> and spent the next week rotating keys, notifying users, and filing incident reports. Akvila exists so that incident does not happen again.</p>
 
     <!-- ============================================================ -->
     <h2>What is honest</h2>
 
-    <p>Aquila is pre-1.0. Here is what does not exist yet:</p>
+    <p>Akvila is pre-1.0. Here is what does not exist yet:</p>
 
     <ul>
       <li>The standard library is minimal. There is no package manager.</li>
       <li>Performance optimization has not started. The compiler generates correct code, not fast code.</li>
-      <li>The WASM backend is in progress. You cannot run Aquila in the browser today.</li>
+      <li>The WASM backend is in progress. You cannot run Akvila in the browser today.</li>
       <li>Editor support is early. There is no LSP server shipping yet.</li>
       <li>The community is small. You will be an early adopter.</li>
     </ul>
@@ -175,12 +175,12 @@
       <li>The entire compiler is in the repository. No vendored blobs. No opaque dependencies.</li>
     </ul>
 
-    <p>The safety guarantees are real, they are tested, and they work. The ergonomics, ecosystem, and performance will improve. If you care about the guarantees more than the polish, Aquila is ready for you to try.</p>
+    <p>The safety guarantees are real, they are tested, and they work. The ergonomics, ecosystem, and performance will improve. If you care about the guarantees more than the polish, Akvila is ready for you to try.</p>
 
     <div class="essay-cta">
       <p>Ready to see the code?</p>
       <a href="/docs" class="btn btn-primary">Read the Docs</a>
-      <a href="https://github.com/mplsllc/aquila" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">View on GitHub</a>
+      <a href="https://github.com/mplsllc/akvila" class="btn btn-secondary" style="color: var(--teal-700); border-color: var(--teal-500);">View on GitHub</a>
     </div>
 
   </div>
@@ -195,7 +195,7 @@
     <nav class="footer-nav" aria-label="Footer navigation">
       <ul>
         <li><a href="/docs">Docs</a></li>
-        <li><a href="https://github.com/mplsllc/aquila">GitHub</a></li>
+        <li><a href="https://github.com/mplsllc/akvila">GitHub</a></li>
         <li><a href="/license">License</a></li>
       </ul>
     </nav>

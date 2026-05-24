@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aquila compiler fuzzer — generates random valid Aquila programs and feeds them
+"""Akvila compiler fuzzer — generates random valid Akvila programs and feeds them
 to the compiler. Any crash (exit code other than 0 or 1) is a bug.
 Any hang (>5 seconds) is a bug. Exit 0 = compiled. Exit 1 = clean error."""
 
@@ -9,7 +9,7 @@ import sys
 import os
 import time
 
-COMPILER = os.environ.get("AQUILA_COMPILER", "/tmp/s2_new2")
+COMPILER = os.environ.get("AKVILA_COMPILER", "/tmp/s2_new2")
 TOTAL = int(sys.argv[1]) if len(sys.argv) > 1 else 1000
 TIMEOUT = 5
 
@@ -87,7 +87,7 @@ def rand_program():
     lines.append("}")
     return "\n".join(lines)
 
-print(f"Aquila Fuzzer — {TOTAL} random programs")
+print(f"Akvila Fuzzer — {TOTAL} random programs")
 print(f"Compiler: {COMPILER}")
 print(f"Timeout: {TIMEOUT}s")
 print("=" * 50)

@@ -1,4 +1,4 @@
-# Aquila Known Issues
+# Akvila Known Issues
 
 **As of v0.5.2: No known compiler limitations.**
 
@@ -23,4 +23,4 @@ Known gaps: 0
 
 ## Reporting Issues
 
-Report bugs at [github.com/mplsllc/aquila/issues](https://github.com/mplsllc/aquila/issues).
+Report bugs at [github.com/mplsllc/akvila/issues](https://github.com/mplsllc/akvila/issues).

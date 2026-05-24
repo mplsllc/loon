@@ -1,14 +1,14 @@
 #!/bin/sh
 set -eu
 
-# Install script for the Aquila programming language.
-# Usage: curl -fsSL https://aquila-lang.org/install.sh | sh
+# Install script for the Akvila programming language.
+# Usage: curl -fsSL https://akvila-lang.org/install.sh | sh
 #
 # Environment variables:
 #   VERSION   - specific version to install (e.g. "0.1.0"), default: latest
 #   INSTALL_DIR - override install directory
 
-REPO="mplsllc/aquila"
+REPO="mplsllc/akvila"
 GITHUB_API="https://api.github.com"
 GITHUB_RELEASE="https://github.com/${REPO}/releases/download"
 
@@ -17,12 +17,12 @@ main() {
     resolve_version
     resolve_install_dir
 
-    printf "Installing Aquila %s for %s...\n" "$VERSION" "$TARGET"
+    printf "Installing Akvila %s for %s...\n" "$VERSION" "$TARGET"
 
     download_and_verify
     install_binary
 
-    printf "\nAquila %s installed to %s/aquila\n" "$VERSION" "$INSTALL_DIR"
+    printf "\nAkvila %s installed to %s/akvila\n" "$VERSION" "$INSTALL_DIR"
     check_path
 }
 
@@ -34,7 +34,7 @@ detect_platform() {
         Linux)
             case "$ARCH" in
                 x86_64)  TARGET="linux-x86_64" ;;
-                *)       error "Unsupported architecture: $ARCH. Aquila requires x86_64 on Linux." ;;
+                *)       error "Unsupported architecture: $ARCH. Akvila requires x86_64 on Linux." ;;
             esac
             ;;
         Darwin)
@@ -45,7 +45,7 @@ detect_platform() {
             esac
             ;;
         MINGW*|MSYS*|CYGWIN*|Windows_NT)
-            error "Windows is not supported. Aquila targets x86-64 Linux and macOS."
+            error "Windows is not supported. Akvila targets x86-64 Linux and macOS."
             ;;
         *)
             error "Unsupported operating system: $OS"
@@ -98,7 +98,7 @@ resolve_install_dir() {
 }
 
 download_and_verify() {
-    TARBALL="aquila-${TARGET}.tar.gz"
+    TARBALL="akvila-${TARGET}.tar.gz"
     TARBALL_URL="${GITHUB_RELEASE}/v${VERSION}/${TARBALL}"
     CHECKSUM_URL="${GITHUB_RELEASE}/v${VERSION}/${TARBALL}.sha256"
 
@@ -117,13 +117,13 @@ download_and_verify() {
     printf "Extracting...\n"
     tar xzf "$TMPDIR/$TARBALL" -C "$TMPDIR"
 
-    # The tarball contains aquila-<target>/aquila — find the binary.
-    AQUILA_BIN="$(find "$TMPDIR" -name aquila -type f | head -1)"
-    if [ -z "$AQUILA_BIN" ]; then
-        error "Archive does not contain a 'aquila' binary."
+    # The tarball contains akvila-<target>/akvila — find the binary.
+    AKVILA_BIN="$(find "$TMPDIR" -name akvila -type f | head -1)"
+    if [ -z "$AKVILA_BIN" ]; then
+        error "Archive does not contain a 'akvila' binary."
     fi
     # Move to a predictable location for install.
-    mv "$AQUILA_BIN" "$TMPDIR/aquila"
+    mv "$AKVILA_BIN" "$TMPDIR/akvila"
 }
 
 fetch() {
@@ -164,9 +164,9 @@ This could indicate a corrupted download or a tampered release."
 install_binary() {
     if [ "${NEED_SUDO:-0}" = "1" ]; then
         printf "Installing to %s (requires sudo)...\n" "$INSTALL_DIR"
-        sudo install -m 755 "$TMPDIR/aquila" "$INSTALL_DIR/aquila"
+        sudo install -m 755 "$TMPDIR/akvila" "$INSTALL_DIR/akvila"
     else
-        install -m 755 "$TMPDIR/aquila" "$INSTALL_DIR/aquila"
+        install -m 755 "$TMPDIR/akvila" "$INSTALL_DIR/akvila"
     fi
 }
 

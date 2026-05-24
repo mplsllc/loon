@@ -33,6 +33,6 @@ funcs: 3
     [29] type=15 sub=0 children=1 first=24
     [30] type=5 sub=0 children=1 first=29
     [31] type=14 sub=0 children=1 first=32 name=greet
-    [32] type=8 sub=0 children=0 first=4294967295 name=Aquila
+    [32] type=8 sub=0 children=0 first=4294967295 name=Akvila
     [33] type=15 sub=0 children=1 first=31
     [34] type=5 sub=0 children=1 first=33

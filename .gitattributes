@@ -1,14 +1,14 @@
-# Aquila source files
-*.aquila linguist-language=Aquila
+# Akvila source files
+*.akvila linguist-language=Akvila
 
 # Assembly
 *.asm linguist-language=Assembly
 
 # Binary — don't diff
-stage2/aquila-bootstrap-linux-x86_64 binary
+stage2/akvila-bootstrap-linux-x86_64 binary
 
 # Normalize line endings
 * text=auto
-*.aquila text eol=lf
+*.akvila text eol=lf
 *.asm text eol=lf
 *.sh text eol=lf

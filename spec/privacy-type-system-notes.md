@@ -5,7 +5,7 @@
 These notes capture design decisions and failure modes identified
 during early planning. Turn this into a full spec before Stage 4
 begins. The privacy type system is the most important and most
-complex feature in Aquila. Getting it wrong means developers route
+complex feature in Akvila. Getting it wrong means developers route
 around it. Getting it right means the compiler is a security
 engineer that never sleeps.
 
@@ -78,7 +78,7 @@ Public
 Sensitive → String (no implicit downcast)
 Sensitive → loggable (ever, under any circumstance)
 SHA256    → PasswordHash (wrong algorithm — different types)
-MD5       → anything security-related (does not exist in Aquila stdlib)
+MD5       → anything security-related (does not exist in Akvila stdlib)
 ```
 
 ---
@@ -118,7 +118,7 @@ Crypto.sha512(data: String) [] -> String<Hashed<SHA512>>
 // Using them where PasswordHash is required is a compile error
 ```
 
-### What Does Not Exist in Aquila Standard Library
+### What Does Not Exist in Akvila Standard Library
 ```
 Crypto.md5()      — broken, not available
 Crypto.sha1()     — broken for security use, not available
@@ -137,7 +137,7 @@ Some operations legitimately need to expose sensitive data.
 These are permitted but impossible to do silently.
 
 ### Sensitive.expose()
-```aquila
+```akvila
 // Exposes a sensitive value as Public
 // Requires: explicit reason string
 // Requires: audit context
@@ -181,7 +181,7 @@ visible but does not override type safety for prohibited patterns.
 
 Test code needs to inspect sensitive values to verify correctness.
 Production code does not.
-```aquila
+```akvila
 // Only available in test builds — compile error in production
 #[test_only]
 fn inspect_sensitive(value: Password) [] -> String {
@@ -214,10 +214,10 @@ string literal in production code.
 
 ## The FFI Trust Boundary
 
-Aquila integrates with external systems that don't know about
+Akvila integrates with external systems that don't know about
 privacy types. This is permitted but requires explicit
 acknowledgment.
-```aquila
+```akvila
 // Declaring an external function — requires Unsafe:TrustBoundary effect
 extern fn legacy_auth_store(
     data: RawBytes
@@ -248,7 +248,7 @@ You cannot hide the fact that you're calling untrusted external code.
 Sensitive values declared with ZeroOnDrop are zeroed from memory
 when they go out of scope. This is guaranteed by the runtime,
 not the developer.
-```aquila
+```akvila
 // Password is String<Sensitive, ZeroOnDrop>
 fn authenticate(username: Username, password: Password) [IO] -> Result<Session, Error> {
     // password lives here
@@ -278,7 +278,7 @@ Any type declared with ZeroOnDrop attribute
 Before the privacy type system ships, all six of these programs
 must compile and run without workarounds. If any require fighting
 the compiler the design is wrong.
-```aquila
+```akvila
 // 1. Store a password securely
 fn create_account(
     username: Username,
@@ -343,13 +343,13 @@ a sensitive type work? Does CardNumber have typed fields
 with different sensitivity levels? This needs a clean answer.
 
 **4. Cross-module privacy**
-When a Aquila module imports from another module, how do
+When a Akvila module imports from another module, how do
 privacy types cross the module boundary? Does the importing
 module need to declare what sensitivity levels it handles?
 
-**5. Interop with non-Aquila systems**
-When a Python service calls a Aquila service via HTTP, the
-Python side doesn't have privacy types. How does Aquila
+**5. Interop with non-Akvila systems**
+When a Python service calls a Akvila service via HTTP, the
+Python side doesn't have privacy types. How does Akvila
 validate that what it receives is what it expects? Input
 validation at the boundary needs to be typed.
 

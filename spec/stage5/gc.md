@@ -1,4 +1,4 @@
-# Aquila Garbage Collector — Stage 5.4 Specification
+# Akvila Garbage Collector — Stage 5.4 Specification
 
 ## Overview
 

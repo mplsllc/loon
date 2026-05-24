@@ -1,5 +1,5 @@
 /* ============================================================
-   Aquila — Site Stylesheet
+   Akvila — Site Stylesheet
    ============================================================ */
 
 /* Reset & Base */
@@ -204,7 +204,7 @@ a:hover {
   top: -10%;
   width: 500px;
   height: 500px;
-  background: url('/media/aquilacircle.png') no-repeat center / contain;
+  background: url('/media/akvilacircle.png') no-repeat center / contain;
   opacity: 0.25;
   pointer-events: none;
 }

@@ -112,7 +112,7 @@ The protection this moment requires.
 
 ## The Threshold — Why $1M
 
-Under $1M annual revenue and under 100K users, Aquila
+Under $1M annual revenue and under 100K users, Akvila
 is free with no conditions beyond attribution.
 
 At $1M you have found something that works. The commons
@@ -166,7 +166,7 @@ They are restrictions born from values.
 **Surveillance** destroys the conditions for free thought,
 free association, and free society. A compiler that makes
 surveillance easier is a compiler working against the
-people who use computers. Aquila refuses that role.
+people who use computers. Akvila refuses that role.
 
 **Weapons** cause death. Software that guides weapons,
 targets weapons, or operates weapons contributes to that
@@ -183,7 +183,7 @@ side. Clearly and permanently.
 **Manipulation** at scale is a form of violence against
 human autonomy. Systems designed to radicalize, deceive,
 or psychologically exploit people cause real harm to
-real people. Aquila will not be part of that architecture.
+real people. Akvila will not be part of that architecture.
 
 **AI training extraction** is the enclosure of the
 commons by new means. When the work of individual

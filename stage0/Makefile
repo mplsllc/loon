@@ -28,13 +28,13 @@ lexer: lexer.asm
 
 test-echo: echo
 	@echo "=== Testing echo ==="
-	./echo ../examples/hello.aquila | diff - ../examples/hello.aquila && echo "PASS" || echo "FAIL"
+	./echo ../examples/hello.akvila | diff - ../examples/hello.akvila && echo "PASS" || echo "FAIL"
 
 test-lexer: lexer
 	@echo "=== Testing lexer ==="
-	@./lexer ../examples/hello.aquila | diff - ../expected/hello.tokens && echo "PASS hello" || echo "FAIL hello"
-	@./lexer ../examples/shapes.aquila | diff - ../expected/shapes.tokens && echo "PASS shapes" || echo "FAIL shapes"
-	@./lexer ../examples/effects.aquila | diff - ../expected/effects.tokens && echo "PASS effects" || echo "FAIL effects"
+	@./lexer ../examples/hello.akvila | diff - ../expected/hello.tokens && echo "PASS hello" || echo "FAIL hello"
+	@./lexer ../examples/shapes.akvila | diff - ../expected/shapes.tokens && echo "PASS shapes" || echo "FAIL shapes"
+	@./lexer ../examples/effects.akvila | diff - ../expected/effects.tokens && echo "PASS effects" || echo "FAIL effects"
 
 clean:
 	rm -f $(TARGETS) *.o

@@ -8,7 +8,7 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
-[*.aquila]
+[*.akvila]
 indent_size = 4
 
 [*.asm]

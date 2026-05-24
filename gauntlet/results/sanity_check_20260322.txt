@@ -1,4 +1,4 @@
-Aquila Sanity Check — 2026-03-22
+Akvila Sanity Check — 2026-03-22
 Commit: 66ed362
 Binary: /tmp/s2_fresh (self-compiled, fixed point verified)
 
@@ -63,7 +63,7 @@ RESULT: PARTIAL
 RESULT: PASS
 - Responds to JSON-RPC initialize
 - Returns capabilities (textDocumentSync: 1)
-- Returns serverInfo (aquila-lsp v0.1.0)
+- Returns serverInfo (akvila-lsp v0.1.0)
 
 === SUMMARY ===
 Layers fully passed:    6/8 (1, 1b, 2, 3, 4, 5, 8)

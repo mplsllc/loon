@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://aquila-lang.org">Website</a> · <a href="https://aquila-lang.org/docs/getting-started">Getting Started</a> · <a href="https://aquila-lang.org/docs/reference">Reference</a> · <a href="https://aquila-lang.org/roadmap">Roadmap</a> · <a href="https://github.com/mplsllc/aquila">GitHub</a>
+  <a href="https://akvila-lang.org">Website</a> · <a href="https://akvila-lang.org/docs/getting-started">Getting Started</a> · <a href="https://akvila-lang.org/docs/reference">Reference</a> · <a href="https://akvila-lang.org/roadmap">Roadmap</a> · <a href="https://github.com/mplsllc/akvila">GitHub</a>
 </p>
 
 ---
@@ -16,9 +16,9 @@ This compiles in Python, Go, TypeScript, and Rust:
 logging.info(f"Login attempt: user={username} password={password}")
 ```
 
-This doesn't compile in Aquila:
+This doesn't compile in Akvila:
 
-```aquila
+```akvila
 fn login(username: Public<String>, password: Sensitive<String>) [IO] -> Unit {
     do print("Login: " + username);   // ✓ Public values can be logged
     do print("Pass: " + password);    // ✗ COMPILE ERROR
@@ -33,7 +33,7 @@ The compiler caught what the developer forgot to say and the AI didn't know to c
 
 ---
 
-## What makes Aquila different
+## What makes Akvila different
 
 - **Privacy types enforced by the compiler** — `Sensitive<String>` cannot be logged, printed, or silently downcast. Not a warning. A compile error.
 
@@ -58,7 +58,7 @@ Platforms:    Linux, macOS (x86 + ARM), Windows, WebAssembly
 Self-hosting: fixed point verified
 ```
 
-**Now building Stage 5** — compiler rewrite in full Aquila, standard library, generics, closures. See the [full roadmap](https://aquila-lang.org/roadmap).
+**Now building Stage 5** — compiler rewrite in full Akvila, standard library, generics, closures. See the [full roadmap](https://akvila-lang.org/roadmap).
 
 ---
 
@@ -67,7 +67,7 @@ Self-hosting: fixed point verified
 ### Build from source (Linux x86-64)
 
 ```bash
-git clone https://github.com/mplsllc/aquila.git && cd aquila
+git clone https://github.com/mplsllc/akvila.git && cd akvila
 ./build.sh
 ```
 
@@ -76,31 +76,31 @@ Or manually:
 ```bash
 sudo apt install nasm
 cd stage0 && make && cd ../stage1 && make && cd ..
-./stage0/lexer stage2/compiler.aquila | ./stage1/compiler > /tmp/aquila.asm
-nasm -f elf64 -o /tmp/aquila.o /tmp/aquila.asm && ld -o aquila /tmp/aquila.o
+./stage0/lexer stage2/compiler.akvila | ./stage1/compiler > /tmp/akvila.asm
+nasm -f elf64 -o /tmp/akvila.o /tmp/akvila.asm && ld -o akvila /tmp/akvila.o
 ```
 
 ### Hello world
 
-```aquila
+```akvila
 module main;
 
 fn main() [IO] -> Unit {
-    do print("Hello, Aquila!");
+    do print("Hello, Akvila!");
     do exit(0);
 }
 ```
 
 ```bash
-./aquila hello.aquila > hello.asm
+./akvila hello.akvila > hello.asm
 nasm -f elf64 -o hello.o hello.asm && ld -o hello hello.o
 ./hello
-# Hello, Aquila!
+# Hello, Akvila!
 ```
 
 ### Privacy types in action
 
-```aquila
+```akvila
 module auth;
 
 fn authenticate(password: Sensitive<String>) [IO] -> Unit {
@@ -117,9 +117,9 @@ fn authenticate(password: Sensitive<String>) [IO] -> Unit {
 ### LLVM backend
 
 ```bash
-./aquila --target llvm hello.aquila > hello.ll          # LLVM IR
-./aquila --target llvm --arch macos hello.aquila > hello.ll   # macOS
-./aquila --target llvm --arch wasm hello.aquila > hello.ll    # WebAssembly
+./akvila --target llvm hello.akvila > hello.ll          # LLVM IR
+./akvila --target llvm --arch macos hello.akvila > hello.ll   # macOS
+./akvila --target llvm --arch wasm hello.akvila > hello.ll    # WebAssembly
 ```
 
 ---
@@ -149,7 +149,7 @@ fn authenticate(password: Sensitive<String>) [IO] -> Unit {
 ```
 Stage 0  Hand-written assembly lexer        1,198 lines
 Stage 1  Hand-written assembly compiler     6,542 lines
-Stage 2  Aquila compiler written in Aquila      self-hosting
+Stage 2  Akvila compiler written in Akvila      self-hosting
 Stage 3  LLVM backend, WASM, Float, LSP     cross-platform
 Stage 4  Privacy types                      the mission
 Stage 5  Compiler rewrite, stdlib, generics ← now
@@ -157,18 +157,18 @@ Stage 5  Compiler rewrite, stdlib, generics ← now
 
 No Rust. No C. No existing language toolchain.
 
-[Read the full bootstrap story →](https://aquila-lang.org/docs/bootstrap)
+[Read the full bootstrap story →](https://akvila-lang.org/docs/bootstrap)
 
 ---
 
 ## Documentation
 
-- **[Getting Started](https://aquila-lang.org/docs/getting-started)** — Write your first Aquila program in 15 minutes
-- **[Language Reference](https://aquila-lang.org/docs/reference)** — Every keyword, type, and operator
-- **[Effect System](https://aquila-lang.org/docs/effects)** — Why every side effect is declared
-- **[Privacy Types](https://aquila-lang.org/docs/privacy-guide)** — The security type system explained
-- **[Building from Source](https://aquila-lang.org/docs/building)** — All platforms
-- **[Roadmap](https://aquila-lang.org/roadmap)** — What's next
+- **[Getting Started](https://akvila-lang.org/docs/getting-started)** — Write your first Akvila program in 15 minutes
+- **[Language Reference](https://akvila-lang.org/docs/reference)** — Every keyword, type, and operator
+- **[Effect System](https://akvila-lang.org/docs/effects)** — Why every side effect is declared
+- **[Privacy Types](https://akvila-lang.org/docs/privacy-guide)** — The security type system explained
+- **[Building from Source](https://akvila-lang.org/docs/building)** — All platforms
+- **[Roadmap](https://akvila-lang.org/roadmap)** — What's next
 
 ---
 
@@ -182,17 +182,17 @@ Free for commercial use under $1M revenue / 100K users. Prohibited uses: surveil
 
 ## Contributing
 
-Aquila is developed by [MPLS LLC](https://mp.ls). Contributions welcome under the [MPLS License](LICENSE).
+Akvila is developed by [MPLS LLC](https://mp.ls). Contributions welcome under the [MPLS License](LICENSE).
 
-**Website:** [aquila-lang.org](https://aquila-lang.org) · **Security:** [Report a vulnerability](https://aquila-lang.org/security)
+**Website:** [akvila-lang.org](https://akvila-lang.org) · **Security:** [Report a vulnerability](https://akvila-lang.org/security)
 
 ```bash
 # Run the test suite
 ./gauntlet/run.sh
 
 # Self-hosting verification
-./aquila stage2/compiler.aquila > /tmp/s2.asm
+./akvila stage2/compiler.akvila > /tmp/s2.asm
 nasm -f elf64 -o /tmp/s2.o /tmp/s2.asm && ld -o /tmp/s2 /tmp/s2.o
-/tmp/s2 stage2/compiler.aquila > /tmp/s2b.asm
+/tmp/s2 stage2/compiler.akvila > /tmp/s2b.asm
 diff /tmp/s2.asm /tmp/s2b.asm  # must be empty — fixed point
 ```

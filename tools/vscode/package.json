@@ -1,24 +1,24 @@
 {
-  "name": "aquila-language",
-  "displayName": "Aquila Language",
-  "description": "Language support for the Aquila programming language",
+  "name": "akvila-language",
+  "displayName": "Akvila Language",
+  "description": "Language support for the Akvila programming language",
   "version": "0.1.0",
   "publisher": "mplsllc",
   "engines": {"vscode": "^1.80.0"},
   "categories": ["Programming Languages"],
   "contributes": {
     "languages": [{
-      "id": "aquila",
-      "aliases": ["Aquila", "aquila"],
-      "extensions": [".aquila"],
+      "id": "akvila",
+      "aliases": ["Akvila", "akvila"],
+      "extensions": [".akvila"],
       "configuration": "./language-configuration.json"
     }],
     "grammars": [{
-      "language": "aquila",
-      "scopeName": "source.aquila",
-      "path": "./syntaxes/aquila.tmLanguage.json"
+      "language": "akvila",
+      "scopeName": "source.akvila",
+      "path": "./syntaxes/akvila.tmLanguage.json"
     }]
   },
   "main": "./extension.js",
-  "activationEvents": ["onLanguage:aquila"]
+  "activationEvents": ["onLanguage:akvila"]
 }

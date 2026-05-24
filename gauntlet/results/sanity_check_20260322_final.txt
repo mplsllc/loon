@@ -1,4 +1,4 @@
-Aquila Sanity Check — FINAL — 2026-03-22
+Akvila Sanity Check — FINAL — 2026-03-22
 Commit: 97af65b
 Binary: /tmp/sc_fresh (self-compiled, fixed point verified)
 

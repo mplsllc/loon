@@ -1,0 +1,10 @@
+module main;
+
+fn main() [IO] -> Unit {
+    do print("Hello, Akvila!");
+    do print(int_to_string(0));
+    do print(int_to_string(42));
+    do print(int_to_string(0 - 42));
+    do print("hello" + " " + "world");
+    do print("length: " + int_to_string(string_length("test")));
+}

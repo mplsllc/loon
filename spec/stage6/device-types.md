@@ -1,4 +1,4 @@
-# Aquila Device Types — Stage 6.0 Specification
+# Akvila Device Types — Stage 6.0 Specification
 
 ## Overview
 
@@ -6,7 +6,7 @@ Device types extend the type system to track where data lives — CPU, GPU, TPU,
 
 ## Syntax
 
-```aquila
+```akvila
 type Tensor<T>[Device] {
     data: Array<T>,
     shape: List<Int>,
@@ -40,7 +40,7 @@ fn main() [IO, Compute:GPU] -> Unit {
 
 Moving data between devices requires explicit `transfer()`:
 
-```aquila
+```akvila
 fn transfer<T>(data: Tensor<T>[From], to: DeviceId) [IO] -> Tensor<T>[To] {
     // Runtime copy between devices
 }
@@ -50,7 +50,7 @@ The transfer function has IO effect because it involves device communication.
 
 ## Compute effects
 
-```aquila
+```akvila
 [Compute:GPU]   — function executes GPU kernels
 [Compute:TPU]   — function executes TPU kernels
 [Compute:CPU]   — explicit CPU computation (default)
@@ -82,7 +82,7 @@ Functions with `[Compute:GPU]` can only be called when a GPU context is availabl
 
 Device boundaries are treated like trust boundaries for privacy:
 
-```aquila
+```akvila
 let sensitive_tensor: Tensor<Sensitive<Float32>>[CPU] = ...;
 // transfer(sensitive_tensor, GPU:0);  ← COMPILE ERROR
 // Cannot transfer Sensitive data to GPU — GPU memory is not zeroed on free

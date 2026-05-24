@@ -1,21 +1,21 @@
 #!/bin/bash
-# Build the Aquila compiler from source.
+# Build the Akvila compiler from source.
 #
 # Two build paths:
-#   1. Quick (default): Use the bootstrap binary to compile compiler.aquila
+#   1. Quick (default): Use the bootstrap binary to compile compiler.akvila
 #   2. Full:  Build from Stage 0 assembly → Stage 1 → Stage 2 bootstrap → full
 #
-# The bootstrap binary is a prebuilt Aquila compiler checked into the repo.
+# The bootstrap binary is a prebuilt Akvila compiler checked into the repo.
 # It was produced by the same bootstrap chain and is verifiable:
-#   ./aquila stage2/compiler.aquila should produce identical output.
+#   ./akvila stage2/compiler.akvila should produce identical output.
 #
 # Requires: nasm, ld (binutils)
-# Produces: ./aquila (the compiler binary)
+# Produces: ./akvila (the compiler binary)
 set -e
 
-BOOT="stage2/aquila-bootstrap-linux-x86_64"
+BOOT="stage2/akvila-bootstrap-linux-x86_64"
 
-echo "Building Aquila compiler..."
+echo "Building Akvila compiler..."
 
 # Check prerequisites
 command -v nasm >/dev/null 2>&1 || { echo "error: nasm not found. Install with: sudo apt install nasm"; exit 1; }
@@ -31,15 +31,15 @@ if [ "$1" = "--full" ]; then
 
     echo "  [3/4] Bootstrap compiler (via Stage 1)"
     # Stage 1 compiles a minimal bootstrap source
-    ./stage0/lexer stage2/compiler-bootstrap.aquila | ./stage1/compiler > /tmp/aquila_boot.asm
-    nasm -f elf64 -o /tmp/aquila_boot.o /tmp/aquila_boot.asm
-    ld -o /tmp/aquila_boot /tmp/aquila_boot.o
+    ./stage0/lexer stage2/compiler-bootstrap.akvila | ./stage1/compiler > /tmp/akvila_boot.asm
+    nasm -f elf64 -o /tmp/akvila_boot.o /tmp/akvila_boot.asm
+    ld -o /tmp/akvila_boot /tmp/akvila_boot.o
 
     echo "  [4/4] Full compiler (via bootstrap)"
-    /tmp/aquila_boot stage2/compiler.aquila > /tmp/aquila_full.asm 2>/dev/null
-    nasm -f elf64 -o /tmp/aquila_full.o /tmp/aquila_full.asm
-    ld -o aquila /tmp/aquila_full.o
-    rm -f /tmp/aquila_boot.asm /tmp/aquila_boot.o /tmp/aquila_boot /tmp/aquila_full.asm /tmp/aquila_full.o
+    /tmp/akvila_boot stage2/compiler.akvila > /tmp/akvila_full.asm 2>/dev/null
+    nasm -f elf64 -o /tmp/akvila_full.o /tmp/akvila_full.asm
+    ld -o akvila /tmp/akvila_full.o
+    rm -f /tmp/akvila_boot.asm /tmp/akvila_boot.o /tmp/akvila_boot /tmp/akvila_full.asm /tmp/akvila_full.o
 else
     # Quick build using bootstrap binary
     if [ ! -f "$BOOT" ]; then
@@ -48,36 +48,36 @@ else
         exit 1
     fi
 
-    echo "  [1/2] Compiling compiler.aquila (via bootstrap binary)"
-    "$BOOT" stage2/compiler.aquila > /tmp/aquila_build.asm 2>/dev/null
-    nasm -f elf64 -o /tmp/aquila_build.o /tmp/aquila_build.asm
-    ld -o aquila /tmp/aquila_build.o
+    echo "  [1/2] Compiling compiler.akvila (via bootstrap binary)"
+    "$BOOT" stage2/compiler.akvila > /tmp/akvila_build.asm 2>/dev/null
+    nasm -f elf64 -o /tmp/akvila_build.o /tmp/akvila_build.asm
+    ld -o akvila /tmp/akvila_build.o
 
     echo "  [2/2] Verifying self-hosting"
-    ./aquila stage2/compiler.aquila > /tmp/aquila_verify.asm 2>/dev/null
-    if diff -q /tmp/aquila_build.asm /tmp/aquila_verify.asm >/dev/null 2>&1; then
+    ./akvila stage2/compiler.akvila > /tmp/akvila_verify.asm 2>/dev/null
+    if diff -q /tmp/akvila_build.asm /tmp/akvila_verify.asm >/dev/null 2>&1; then
         echo "  Fixed point verified — binary is reproducible"
     else
         echo "  Warning: not a fixed point (bootstrap binary may be from a different version)"
     fi
-    rm -f /tmp/aquila_build.asm /tmp/aquila_build.o /tmp/aquila_verify.asm
+    rm -f /tmp/akvila_build.asm /tmp/akvila_build.o /tmp/akvila_verify.asm
 fi
 
 # Quick smoke test
-echo 'module t; fn main() [IO] -> Unit { do exit(0); }' > /tmp/aquila_smoke.aquila
-./aquila /tmp/aquila_smoke.aquila > /tmp/aquila_smoke.asm 2>/dev/null
-nasm -f elf64 -o /tmp/aquila_smoke.o /tmp/aquila_smoke.asm
-ld -o /tmp/aquila_smoke /tmp/aquila_smoke.o
-/tmp/aquila_smoke
-rm -f /tmp/aquila_smoke.aquila /tmp/aquila_smoke.asm /tmp/aquila_smoke.o /tmp/aquila_smoke
+echo 'module t; fn main() [IO] -> Unit { do exit(0); }' > /tmp/akvila_smoke.akvila
+./akvila /tmp/akvila_smoke.akvila > /tmp/akvila_smoke.asm 2>/dev/null
+nasm -f elf64 -o /tmp/akvila_smoke.o /tmp/akvila_smoke.asm
+ld -o /tmp/akvila_smoke /tmp/akvila_smoke.o
+/tmp/akvila_smoke
+rm -f /tmp/akvila_smoke.akvila /tmp/akvila_smoke.asm /tmp/akvila_smoke.o /tmp/akvila_smoke
 
 echo ""
-echo "Build successful: ./aquila"
+echo "Build successful: ./akvila"
 echo ""
 echo "Quick start:"
-echo "  ./aquila examples/aquila_call.aquila > out.asm"
+echo "  ./akvila examples/akvila_call.akvila > out.asm"
 echo "  nasm -f elf64 -o out.o out.asm && ld -o out out.o"
 echo "  ./out"
 echo ""
 echo "Run the test suite:"
-echo "  AQUILA_COMPILER=./aquila ./gauntlet/run.sh"
+echo "  AKVILA_COMPILER=./akvila ./gauntlet/run.sh"

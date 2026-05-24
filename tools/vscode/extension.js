@@ -1,4 +1,4 @@
-// Aquila VS Code Extension — LSP client
+// Akvila VS Code Extension — LSP client
 const vscode = require('vscode');
 const { LanguageClient, TransportKind } = require('vscode-languageclient/node');
 
@@ -7,15 +7,15 @@ let client;
 function activate(context) {
     const serverOptions = {
         command: 'python3',
-        args: [context.asAbsolutePath('../lsp/aquila-lsp.py')],
+        args: [context.asAbsolutePath('../lsp/akvila-lsp.py')],
         transport: TransportKind.stdio
     };
 
     const clientOptions = {
-        documentSelector: [{ scheme: 'file', language: 'aquila' }]
+        documentSelector: [{ scheme: 'file', language: 'akvila' }]
     };
 
-    client = new LanguageClient('aquila', 'Aquila Language Server', serverOptions, clientOptions);
+    client = new LanguageClient('akvila', 'Akvila Language Server', serverOptions, clientOptions);
     client.start();
 }
 
